@@ -209,7 +209,6 @@ export default function DiscoveryPage() {
     const [isResearching, setIsResearching] = useState<string | null>(null);
     const [pagination, setPagination] = useState<PaginationData>({ total: 0, page: 1, limit: 50, totalPages: 0 });
     const [selectedLead, setSelectedLead] = useState<DiscoveryLead | null>(null);
-    const [selectedLead, setSelectedLead] = useState<DiscoveryLead | null>(null);
 
     // Dynamic Facets Options
     const [facetOptions, setFacetOptions] = useState({
