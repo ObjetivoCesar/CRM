@@ -453,7 +453,7 @@ export default function ClientDetailPage() {
                                         <Label className="text-right">Tipo</Label>
                                         <Select
                                             value={newInteraction.type}
-                                            onValueChange={(val) => setNewInteraction({ ...newInteraction, type: val })}
+                                            onValueChange={(val) => setNewInteraction({ ...newInteraction, type: val as "email" | "whatsapp" | "call" | "meeting" | "note" | "other" })}
                                         >
                                             <SelectTrigger className="col-span-3">
                                                 <SelectValue />
