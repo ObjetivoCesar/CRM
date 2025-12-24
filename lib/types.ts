@@ -59,6 +59,7 @@ export interface Lead {
     notes?: string;
     source: string;
     discoveryLeadId?: string;
+    quotation?: string;
     createdAt: string;
     updatedAt: string;
 }
