@@ -231,7 +231,7 @@ export default function ClientDetailPage() {
                 body: JSON.stringify({
                     ...newInteraction,
                     contactId: params.id,
-                    discoveryLeadId: client.discoveryLeadId || client.discovery_lead_id,
+                    discoveryLeadId: client.discoveryLeadId,
                     performedAt: new Date().toISOString()
                 })
             })
