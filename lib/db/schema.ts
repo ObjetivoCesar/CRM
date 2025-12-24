@@ -203,7 +203,6 @@ export const leads = pgTable('leads', {
 
   // Discovery link
   discoveryLeadId: uuid('discovery_lead_id').references(() => discoveryLeads.id),
-  quotation: text('quotation'),
 
   // Timestamps
   createdAt: timestamp('created_at').defaultNow().notNull(),
