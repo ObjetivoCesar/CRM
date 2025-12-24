@@ -12,11 +12,12 @@ import { useState } from "react"
 import Image from "next/image"
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("admin")
-  const [password, setPassword] = useState("123")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const supabase = createClient()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,12 +25,19 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      // Set the crm_session cookie to bypass Supabase authentication for development
-      document.cookie = "crm_session=admin; path=/; max-age=3600"; // Set for 1 hour
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (authError) {
+        throw new Error(authError.message)
+      }
 
       router.push("/dashboard")
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "Error de autenticación")
+      router.refresh()
+    } catch (error: any) {
+      setError(error.message || "Error al iniciar sesión")
     } finally {
       setIsLoading(false)
     }
@@ -78,6 +86,16 @@ export default function LoginPage() {
               <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
                 {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
               </Button>
+
+              <div className="text-center mt-4">
+                <Button
+                  variant="link"
+                  className="text-sm text-muted-foreground"
+                  onClick={() => router.push("/auth/forgot-password")}
+                >
+                  ¿Olvidaste tu contraseña?
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>

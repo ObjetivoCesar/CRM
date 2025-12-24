@@ -1,10 +1,16 @@
 import OpenAI from "openai";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { Lead } from "@/lib/types";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const getOpenAIClient = () => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.error("OPENAI_API_KEY is missing in environment variables.");
+    throw new Error("OPENAI_API_KEY is missing");
+  }
+  return new OpenAI({ apiKey });
+};
 
 const getPromptContent = (promptName: string): string => {
   try {
@@ -17,48 +23,17 @@ const getPromptContent = (promptName: string): string => {
 };
 
 const getProductCatalog = (): string => {
-    try {
-        const csvPath = join(process.cwd(), "lib", "prompts", "Servicios y Productos.csv");
-        return readFileSync(csvPath, "utf-8");
-    } catch (error) {
-        console.error("Error reading product catalog:", error);
-        throw new Error("Could not load product catalog");
-    }
+  try {
+    const csvPath = join(process.cwd(), "lib", "data", "Servicios y Productos.csv");
+    return readFileSync(csvPath, "utf-8");
+  } catch (error) {
+    console.error("Error reading product catalog:", error);
+    throw new Error("Could not load product catalog");
+  }
 }
 
-export interface LeadData {
-  id: string;
-  business_name?: string;
-  contact_name?: string;
-  phone?: string;
-  email?: string;
-  business_activity?: string;
-  relationship_type?: string;
-  personality_type?: string;
-  communication_style?: string;
-  interested_product?: string[];
-  strengths?: string;
-  weaknesses?: string;
-  opportunities?: string;
-  threats?: string;
-  created_at?: string;
-  business_location?: string;
-  years_in_business?: number;
-  number_of_employees?: number;
-  number_of_branches?: number;
-  current_clients_per_month?: number;
-  average_ticket?: number;
-  quantified_problem?: string;
-  conservative_goal?: string;
-  verbal_agreements?: string;
-  known_competition?: string;
-  facebook_followers?: number;
-  other_achievements?: string;
-  specific_recognitions?: string;
-  high_season?: string;
-  critical_dates?: string;
-  key_phrases?: string;
-}
+// Re-map Lead for Quotation Generator compatibility if needed, or use Partial<Lead>
+type LeadData = Partial<Lead>;
 
 export interface QuotationConfig {
   mentalTrigger: "TRANQUILIDAD" | "CONTROL" | "CRECIMIENTO" | "LEGADO";
@@ -69,28 +44,58 @@ export interface QuotationConfig {
 }
 
 export class QuotationGenerator {
-  async generateFullQuotation(leadData: LeadData, config: QuotationConfig): Promise<string> {
-    const prompt = getPromptContent("prompt_unified_quotation");
-    const catalog = getProductCatalog();
+  async generateFullQuotation(leadData: LeadData, templateId: string = "plantilla_3_logico_extrovertido"): Promise<string> {
 
-    const systemMessage = `${prompt}
+    let promptName = "prompt_cotizacion_roja"; // Default fallback
+    if (templateId === "propuesta_comercial") {
+      promptName = "prompt_propuesta_comercial";
+    } else if (templateId === "plantilla_3_logico_extrovertido") {
+      promptName = "prompt_cotizacion_roja";
+    }
 
---- DATOS DEL LEAD SELECCIONADO ---
-${JSON.stringify(leadData, null, 2)}
+    let prompt = getPromptContent(promptName);
 
---- CONFIGURACIÓN DE LA COTIZACIÓN ---
-${JSON.stringify(config, null, 2)}
+    // Common replacements
+    const currentDate = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+    prompt = prompt.replace(/{{FECHA}}/g, currentDate);
+    prompt = prompt.replace(/\[FECHA\]/g, currentDate); // Handle legacy format
 
---- CATÁLOGO COMPLETO DE SERVICIOS ---
-${catalog}
-`;
+    if (templateId === "propuesta_comercial") {
+      // Specific mapping for Propuesta Comercial
+      prompt = prompt.replace(/{{CLIENTE}}/g, leadData.contactName || "Cliente");
+      prompt = prompt.replace(/{{NEGOCIO}}/g, leadData.businessName || "Su Negocio");
+
+      const city = leadData.city || leadData.businessLocation || "Loja"; // Fallback to Loja as per context
+      prompt = prompt.replace(/{{CIUDAD}}/g, city);
+
+      const followers = leadData.facebookFollowers ? `${leadData.facebookFollowers} seguidores` : "N/A";
+      prompt = prompt.replace(/{{INSTAGRAM}}/g, followers); // Using FB as proxy
+
+      const reputationParts = [leadData.specificRecognitions, leadData.otherAchievements].filter(Boolean);
+      const reputation = reputationParts.length > 0 ? reputationParts.join(". ") : "Reconocido en su sector";
+      prompt = prompt.replace(/{{REPUTACION}}/g, reputation);
+
+      const specialitiesParts = [leadData.businessActivity, (Array.isArray(leadData.interestedProduct) ? leadData.interestedProduct.join(", ") : leadData.interestedProduct)].filter(Boolean);
+      const specialities = specialitiesParts.length > 0 ? specialitiesParts.join(". ") : "Gastronomía y eventos";
+      prompt = prompt.replace(/{{ESPECIALIDADES}}/g, specialities);
+
+      const location = leadData.address || leadData.businessLocation || "Ubicación céntrica";
+      prompt = prompt.replace(/{{UBICACION}}/g, location);
+
+    } else {
+      // Legacy mapping for "prompt_cotizacion_roja"
+      prompt = prompt.replace(/\[NOMBRE_CONTACTO\]/g, leadData.contactName || '');
+      prompt = prompt.replace(/\[EMPRESA\]/g, leadData.businessName || '');
+      prompt = prompt.replace(/\[ACTIVIDAD_COMERCIAL\]/g, leadData.businessActivity || '');
+      // Inject full data JSON for the 'roja' prompt which asks for it at the end
+      prompt = prompt.replace(/\[Aquí pegarás los datos del formulario de Recorridos\]/g, JSON.stringify(leadData, null, 2));
+    }
 
     try {
-      const response = await openai.chat.completions.create({
+      const response = await getOpenAIClient().chat.completions.create({
         model: "gpt-4o",
         messages: [
-          { role: "system", content: systemMessage },
-          { role: "user", content: "Genera la cotización completa usando todos los datos proporcionados. Asegúrate de seguir la estructura y las instrucciones del prompt al pie de la letra." },
+          { role: "user", content: prompt },
         ],
         temperature: 0.7,
         max_tokens: 4000,
@@ -120,14 +125,13 @@ ${catalog}
 
     // Replace placeholders in the prompt
     for (const key in leadData) {
-        const typedKey = key as keyof LeadData;
-        const value = leadData[typedKey] || '';
-        prompt = prompt.replace(new RegExp(`{{${key}}}`, 'g'), String(value));
+      const typedKey = key as keyof LeadData;
+      const value = leadData[typedKey] || '';
+      prompt = prompt.replace(new RegExp(`{{${key}}}`, 'g'), String(value));
     }
 
     try {
-      console.log("Prompt sent to OpenAI:", prompt);
-      const response = await openai.chat.completions.create({
+      const response = await getOpenAIClient().chat.completions.create({
         model: "gpt-4o",
         messages: [
           { role: "user", content: prompt },
@@ -136,19 +140,9 @@ ${catalog}
         max_tokens: 100,
       });
 
-      console.log("Full OpenAI response:", JSON.stringify(response, null, 2));
-
       return response.choices[0]?.message?.content?.trim().replace(/^"|"$/g, '') || "";
     } catch (error) {
       console.error("Error generating description:", error);
-      if (error instanceof Error) {
-        console.error("Error details:", error.message);
-        if (error.stack) {
-          console.error("Error stack:", error.stack);
-        }
-      } else {
-        console.error("Non-Error object caught:", error);
-      }
       throw new Error("Failed to generate description");
     }
   }

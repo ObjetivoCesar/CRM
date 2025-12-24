@@ -1,0 +1,839 @@
+Perfecto. A continuación te entrego **el PDR definitivo**, escrito **para un programador**, **sin contexto previo**, **sin ideas descartadas**, **sin humo**, y con el **eje central claro: entrenamiento de high ticket closers** (modelo diagnóstico, no guiones, no presión).
+
+Este documento **ya está en estado “entregable”**.
+Puedes copiarlo tal cual y usarlo como documento base del proyecto.
+
+---
+
+# PDR — Sistema Personal de Entrenamiento en Llamadas High Ticket
+
+**Versión:** 1.0
+**Uso:** Personal (no comercial)
+**Usuario principal:** 1 (vendedor / closer)
+**Objetivo central:** Entrenamiento progresivo en llamadas de venta tipo high ticket, basado en análisis real de conversaciones, no en guiones.
+
+---
+
+## 1. PROPÓSITO DEL SISTEMA
+
+Diseñar una aplicación independiente que funcione como **entrenador personal de llamadas de venta**, inspirada en los modelos de **high ticket closing** utilizados por escuelas de closers profesionales.
+
+El sistema **NO busca automatizar la venta**, ni cerrar por el usuario.
+Busca **entrenar habilidades reales**:
+
+* Escucha activa
+* Control del marco conversacional
+* Diagnóstico del lead
+* Detección de oportunidades
+* Reducción de errores repetitivos
+* Mejora progresiva llamada tras llamada
+
+---
+
+## 2. PRINCIPIOS FUNDAMENTALES (NO NEGOCIABLES)
+
+1. **No guiones completos**
+   El sistema nunca debe mostrar textos largos ni discursos para leer.
+
+2. **Indicadores, no instrucciones**
+   Durante la llamada solo se muestran estados y métricas visuales.
+
+3. **Entrenamiento post-llamada como núcleo**
+   El mayor valor ocurre después de la llamada.
+
+4. **Un objetivo por llamada**
+   Cada llamada tiene un solo foco de entrenamiento.
+
+5. **Diseño sobrio y no intrusivo**
+   La aplicación acompaña, no distrae.
+
+---
+
+## 3. ESTRUCTURA GENERAL DEL SISTEMA
+
+El sistema se divide en **tres fases claras y separadas**:
+
+1. **Fase Pre-Llamada (Preparación Cognitiva)**
+2. **Fase Durante la Llamada (Asistencia Pasiva)**
+3. **Fase Post-Llamada (Entrenamiento Profundo)**
+
+Cada fase es **modular** y puede evolucionar sin romper el sistema completo.
+
+---
+
+# FASE 1 — PRE-LLAMADA
+
+## Preparación Cognitiva y Contextual
+
+### 3.1 Objetivo de la fase
+
+Permitir que el usuario **entre a la llamada con contexto claro**, foco definido y marco mental correcto, sin sobrecarga de información.
+
+---
+
+### 3.2 Entrada de datos (Input)
+
+El usuario carga información **en crudo**, manual o copiada de fuentes externas.
+
+Campos mínimos obligatorios:
+
+* Nombre del lead
+* Nombre del negocio
+* Tipo de negocio (ej: hotel, hostal, servicio)
+* Ubicación
+* Canales actuales (Booking, WhatsApp, Web, etc.)
+
+Campos opcionales:
+
+* Años de funcionamiento
+* Seguidores en redes
+* Notas libres del usuario
+
+---
+
+### 3.3 Procesamiento IA (Pre-análisis)
+
+La IA procesa la información **antes de la llamada** y genera:
+
+1. **Resumen estructurado del lead**
+
+   * Datos ordenados y limpios
+   * Sin interpretación extensa
+
+2. **Hipótesis inicial (no afirmación)**
+
+   * Nivel probable de madurez digital
+   * Posible punto de interés principal (ej: comisiones, visibilidad, reservas directas)
+
+3. **Objetivo sugerido de la llamada**
+
+   * Ejemplo: “Diagnóstico de canal de reservas”
+   * Ejemplo: “Validar uso de plataformas externas”
+
+---
+
+### 3.4 Output visible al usuario
+
+Durante la llamada, siempre visible en pantalla:
+
+* Nombre del lead (destacado)
+* Negocio
+* Tipo de negocio
+* Objetivo de la llamada (una sola línea)
+* Notas clave
+
+**No debe cambiar durante la llamada.**
+
+---
+
+# FASE 2 — DURANTE LA LLAMADA
+
+## Asistencia Pasiva en Tiempo Real
+
+### 4.1 Objetivo de la fase
+
+Acompañar la llamada **sin interferir**, ofreciendo indicadores visuales que ayuden al usuario a **autorregularse**.
+
+---
+
+### 4.2 Funciones activas
+
+#### 1. Grabación de audio
+
+* Audio completo de la llamada
+* Separación de hablantes (usuario / lead)
+
+---
+
+#### 2. Indicadores en tiempo real (visual, no textual)
+
+##### A. Barra de porcentaje de habla
+
+* % de tiempo hablado por el usuario
+* % de tiempo hablado por el lead
+
+Uso principal:
+
+* Entrenar escucha
+* Detectar exceso de explicación
+
+---
+
+##### B. Indicador de tipo de discurso del lead
+
+Clasificación dinámica (no emocional, no psicológica):
+
+* Narrativo (historias, visión, proyectos)
+* Factual (datos, precios, procesos)
+* Defensivo (justificaciones, resistencia)
+
+Visualización:
+
+* Cambio de color o icono
+* Sin texto explicativo
+
+---
+
+##### C. Ritmo de turnos
+
+* Turnos largos del lead
+* Turnos cortos del lead
+
+Uso:
+
+* Detectar apertura o cierre conversacional
+
+---
+
+### 4.3 Restricciones explícitas
+
+❌ No mostrar frases sugeridas
+❌ No mostrar textos largos
+❌ No interrumpir la llamada
+❌ No emitir sonidos ni alertas
+
+---
+
+# FASE 3 — POST-LLAMADA
+
+## Entrenamiento y Mejora Continua
+
+### 5.1 Objetivo de la fase
+
+Convertir cada llamada en **material de entrenamiento**, replicando el feedback que ofrecen las escuelas de closers high ticket.
+
+---
+
+### 5.2 Procesamiento IA post-llamada
+
+La IA analiza la transcripción completa y detecta:
+
+#### Métricas objetivas
+
+* Tiempo hablado por cada parte
+* Número de interrupciones
+* Cantidad de preguntas abiertas vs cerradas
+* Momentos de explicación no solicitada
+* Uso del nombre del lead
+
+---
+
+#### Momentos clave
+
+* Aperturas del lead ignoradas
+* Oportunidades de transición (ej: envío de video)
+* Objeciones reales vs excusas
+* Momentos donde el lead mostró interés explícito
+
+---
+
+### 5.3 Feedback estructurado
+
+El feedback debe ser:
+
+* Directo
+* Concreto
+* Basado en momentos específicos
+
+Ejemplos:
+
+* “Aquí hablaste cuando el lead estaba procesando.”
+* “Este fue un momento natural para proponer el siguiente paso.”
+* “Aquí justificaste antes de que el lead preguntara.”
+
+---
+
+### 5.4 Repetición guiada
+
+El sistema selecciona fragmentos cortos (30–90 segundos) y propone:
+
+* Escuchar nuevamente
+* Leer el análisis puntual
+* Comprender el patrón propio
+
+---
+
+### 5.5 Entrenamiento por foco
+
+Antes de la siguiente llamada, el sistema define **un solo foco**:
+
+* Escuchar más
+* No explicar sin permiso
+* Sostener silencios
+* Validar antes de proponer
+
+Después de la llamada:
+
+* Evaluación únicamente sobre ese foco
+
+---
+
+## 6. ARQUITECTURA IA (CONCEPTUAL)
+
+Se recomienda arquitectura **modular**, no monolítica:
+
+1. **Agente de estructuración de información**
+
+   * Pre-llamada
+   * Ordena datos crudos
+
+2. **Agente de análisis conversacional**
+
+   * Durante y post-llamada
+   * Métricas y patrones
+
+3. **Agente de feedback y entrenamiento**
+
+   * Genera correcciones y focos
+
+Cada agente:
+
+* Prompt específico
+* Independiente
+* Reemplazable
+
+---
+
+## 7. INTEGRACIONES
+
+* El sistema es **independiente del CRM**
+* Puede exportar:
+
+  * Transcripciones
+  * Resúmenes
+  * Feedback
+
+Integraciones futuras son opcionales.
+
+---
+
+## 8. RESULTADO ESPERADO
+
+Después de 30–50 llamadas:
+
+* Mayor control del marco conversacional
+* Menos explicación innecesaria
+* Mejor lectura del lead
+* Transiciones más limpias
+* Aumento natural de cierres
+
+---
+
+## 9. SOBRE FUENTES Y ENTRENAMIENTO DE IA
+
+No es estrictamente necesario usar links externos si:
+
+* Los prompts están bien diseñados
+* Se alimenta el sistema con llamadas reales del usuario
+
+Opcionalmente, se puede entrenar con:
+
+* Transcripciones reales de llamadas high ticket
+* Ejemplos anonimizados de feedback de closers profesionales
+
+---
+
+### CIERRE FINAL
+
+Este sistema **no vende por ti**.
+Te convierte en **mejor vendedor**.
+
+Replica lo que hacen las escuelas de closers:
+
+* Diagnóstico
+* Práctica
+* Feedback
+* Repetición
+
+Pero aplicado **directamente a tu realidad**.
+
+Si en el siguiente paso quieres:
+
+* 👉 los **prompts exactos por agente**
+* 👉 el **flujo de pantallas**
+* 👉 o el **checklist técnico para el programador**
+
+dímelo y lo desarrollamos.
+
+
+PROMPTS
+1. FEEDBACK SOBRE LA INTEGRACIÓN CON TU CRM
+Mi veredicto claro:
+
+👉 Sí conviene integrarlo con tu CRM,
+👉 pero como módulo desacoplado, no como parte rígida.
+
+Lo que tú describiste es correcto y maduro:
+
+CRM = prospección, WhatsApp, estados (contacto → lead → cliente)
+
+App de entrenamiento = evento puntual de llamada + análisis
+
+Arquitectura recomendada (conceptual):
+
+La app de llamadas:
+
+Graba
+
+Transcribe
+
+Analiza
+
+NO almacena histórico pesado
+
+Envía a la base central (Supabase / DB del CRM):
+
+Transcripción
+
+Métricas
+
+Feedback
+
+Referencia al lead
+
+👉 Así:
+
+No se vuelve pesada
+
+No duplicas datos
+
+No haces pasos manuales
+
+Flujo realista que respeta tu forma de trabajar:
+
+Prospección por WhatsApp desde CRM
+
+Acepta → convertir en lead
+
+Llamada (solo si vale la pena)
+
+App de llamadas:
+
+Se abre desde el lead
+
+Usa su ID
+
+Post-llamada:
+
+Devuelve análisis al lead en CRM
+
+✔ Cero fricción
+✔ Entrenamiento conectado a negocio real
+
+Conclusión: vas bien. Esto no es sobrecarga, es optimización cognitiva.
+
+2. PROMPTS EXACTOS POR AGENTE IA
+
+A continuación te dejo los prompts tal como deben entregarse al programador.
+Son prompts base, versionables (v1.0).
+
+AGENTE 1 — ESTRUCTURACIÓN PRE-LLAMADA
+
+Rol: Analista de contexto comercial
+Momento: Antes de la llamada
+
+Prompt
+
+Sistema
+Eres un analista de contexto para llamadas de venta high ticket.
+Tu función NO es vender ni crear discursos, sino organizar información cruda y generar hipótesis útiles para diagnóstico.
+
+Instrucciones estrictas
+
+No escribas textos largos
+
+No hagas promesas
+
+No uses lenguaje motivacional
+
+Usa listas cortas y etiquetas claras
+
+Entrada
+Recibirás información cruda sobre un posible lead (texto libre).
+
+Salida esperada (estructura obligatoria):
+
+Resumen estructurado del lead (datos limpios)
+
+Hipótesis principal (una sola, marcada como hipótesis)
+
+Objetivo sugerido de la llamada (una sola línea)
+
+Contexto del modelo de venta
+
+Venta tipo diagnóstico
+
+Primera llamada NO es cierre
+
+Objetivo: transición a siguiente paso
+
+Formato de salida
+Usa únicamente este formato:
+
+Resumen del lead:
+Hipótesis:
+Objetivo de la llamada:
+AGENTE 2 — ANÁLISIS CONVERSACIONAL
+
+Rol: Analista de dinámica de conversación
+Momento: Durante (métricas) y después (profundo)
+
+Prompt
+
+Sistema
+Eres un analista de conversaciones de venta high ticket.
+Analizas dinámicas, no emociones profundas ni intenciones ocultas.
+
+Instrucciones estrictas
+
+No juzgues al usuario
+
+No motives
+
+No expliques teoría
+
+Describe hechos observables
+
+Entrada
+Transcripción completa de una llamada con separación de hablantes.
+
+Detecta y reporta únicamente:
+
+Porcentaje de habla
+
+Interrupciones
+
+Preguntas abiertas vs cerradas
+
+Explicaciones no solicitadas
+
+Uso del nombre del lead
+
+Momentos donde el lead habló extensamente
+
+Clasifica segmentos del lead como:
+
+Narrativo
+
+Factual
+
+Defensivo
+
+Formato de salida obligatorio:
+
+Métricas:
+Momentos clave (timestamp + descripción corta):
+Patrones detectados del usuario:
+AGENTE 3 — FEEDBACK Y ENTRENAMIENTO
+
+Rol: Entrenador de closers high ticket
+Momento: Post-llamada
+
+Prompt
+
+Sistema
+Eres un entrenador de llamadas high ticket.
+Tu función es corregir, no enseñar teoría.
+
+Instrucciones estrictas
+
+Sé directo
+
+Usa frases cortas
+
+No motives
+
+No suavices errores
+
+Entrada
+Análisis conversacional + transcripción.
+
+Entrega únicamente:
+
+Errores concretos (máx. 5)
+
+Oportunidades perdidas
+
+Un solo foco de entrenamiento para la siguiente llamada
+
+Formato obligatorio:
+
+Correcciones:
+Oportunidades:
+Foco para la próxima llamada:
+3. FLUJO DE PANTALLAS (DESCRIPCIÓN)
+Pantalla 1 — Lista de Leads
+
+Leads activos del CRM
+
+Botón: “Iniciar llamada”
+
+Muestra solo leads marcados para llamada
+
+Pantalla 2 — Preparación
+
+Datos del lead visibles
+
+Objetivo sugerido
+
+Campo de notas rápidas
+
+Botón: “Iniciar grabación”
+
+Pantalla 3 — Llamada en curso
+
+Nombre del lead (fijo)
+
+Objetivo de la llamada (fijo)
+
+Barra % de habla
+
+Indicador de tipo de discurso
+
+Botón “Finalizar llamada”
+
+Pantalla 4 — Resumen post-llamada
+
+Métricas básicas
+
+Fragmentos destacados
+
+Botón: “Ver feedback”
+
+Pantalla 5 — Entrenamiento
+
+Correcciones
+
+Oportunidades
+
+Foco próximo
+
+4. CHECKLIST PARA EL PROGRAMADOR
+Arquitectura
+
+ App desacoplada del CRM
+
+ Comunicación por ID de lead
+
+ Modular por agente IA
+
+Funcional
+
+ Grabación estable
+
+ Transcripción confiable
+
+ Separación de hablantes
+
+ Métricas en tiempo real (habla)
+
+UX
+
+ Sin textos largos en llamada
+
+ Indicadores visuales claros
+
+ Pantallas limpias
+
+IA
+
+ Prompts versionados
+
+ Logs de resultados
+
+ Ajustables sin redeploy
+
+Integración
+
+ Envío de resultados al CRM
+
+ No duplicar datos
+
+ Exportación opcional
+
+
+ CONVERSACIÓN PREVIA
+ Listo pero antes de subirlo te voy a comentar este nuevo módulo que vamos a crearlo
+
+- C:\Users\Cesar\Documents\GRUPO EMPRESARIAL REYES\PROYECTOS\CRM OBJETIVO\CRM V2\docs\pdf_nuevo_modulo
+
+aHORA ANTES DE olvidarme actualmente estoy investigado de manera manual a mi  lista de base de datos con esta formula de excel "="Investiga este negocio hotelero para preparar una llamada comercial consultiva sobre presencia digital y reservas directas." & CARACTER(10) & CARACTER(10) &
+"DATOS DEL NEGOCIO:" & CARACTER(10) &
+"Nombre comercial: " & D19 & CARACTER(10) &
+"Tipo: " & H19 & CARACTER(10) &
+"Propietario/Representante: " & J19 & CARACTER(10) &
+"Ciudad: " & R19 & CARACTER(10) &
+"Teléfono 1: " & W19 & CARACTER(10) &
+"Teléfono 2: " & X19 & CARACTER(10) & CARACTER(10) &
+"INVESTIGA Y ENTREGA:" & CARACTER(10) & CARACTER(10) &
+"1. PRESENCIA DIGITAL ACTUAL" & CARACTER(10) &
+"   - ¿Tiene sitio web propio? (URL exacta si existe)" & CARACTER(10) &
+"   - ¿El sitio tiene motor de reservas directo o solo formulario de contacto?" & CARACTER(10) &
+"   - ¿Está en Google Maps/Google My Business? ¿Cuántas reseñas tiene?" & CARACTER(10) &
+"   - ¿Aparece en Booking, Expedia, Despegar u otras OTAs?" & CARACTER(10) & CARACTER(10) &
+"2. POSICIONAMIENTO EN GOOGLE" & CARACTER(10) &
+"   - Busca en Google: 'hotel en [ciudad del negocio]' o 'hostal [nombre de la ciudad]'" & CARACTER(10) &
+"   - ¿En qué posición aparece este negocio? (Primera página, segunda, no aparece)" & CARACTER(10) &
+"   - ¿Quién domina los primeros 3 resultados? (Booking, competencia directa, otros)" & CARACTER(10) & CARACTER(10) &
+"3. ANÁLISIS DE COMPETENCIA LOCAL" & CARACTER(10) &
+"   - Lista 2-3 competidores directos en la misma ciudad" & CARACTER(10) &
+"   - ¿Alguno de ellos tiene mejor presencia digital que " & D19 & "?" & CARACTER(10) & CARACTER(10) &
+"4. SEÑALES DE ACTIVIDAD" & CARACTER(10) &
+"   - ¿Tiene redes sociales activas? (Facebook, Instagram, TikTok)" & CARACTER(10) &
+"   - ¿Última publicación o actividad visible?" & CARACTER(10) &
+"   - ¿Responde a reseñas de Google o comentarios?" & CARACTER(10) & CARACTER(10) &
+"5. OPORTUNIDADES DETECTABLES" & CARACTER(10) &
+"   - ¿Su web carga rápido o es lenta?" & CARACTER(10) &
+"   - ¿Tiene menú/precios visibles o hay que llamar para preguntar?" & CARACTER(10) &
+"   - ¿Aparece en búsquedas de voz/IA como ChatGPT cuando preguntas 'recomiéndame hotel en [ciudad]'?" & CARACTER(10) & CARACTER(10) &
+"6. PERFIL DEL NEGOCIO (estimado)" & CARACTER(10) &
+"   - Tamaño aproximado: ¿Pequeño (5-15 hab), Mediano (16-40 hab), Grande (40+ hab)?" & CARACTER(10) &
+"   - Tipo de cliente principal: ¿Turismo nacional, internacional, corporativo?" & CARACTER(10) & CARACTER(10) &
+"FORMATO DE RESPUESTA:" & CARACTER(10) &
+"Entrega en bullets cortos y accionables. Si un dato no existe, marca 'NO ENCONTRADO' (no inventes). Prioriza información que me ayude a identificar BRECHAS en su presencia digital vs competencia.""
+
+Esto me genera un texto listo para pegar en un chatgpt. gemini o cualquiera de esos. y me da resultados como  "Aquí tienes **investigación estructurada y accionable** para tu llamada comercial consultiva con **Hotel Las Americas (Cuenca)**:
+
+---
+
+## 🧭 1. PRESENCIA DIGITAL ACTUAL
+
+### ✔ Sitio web propio
+
+* **NO ENCONTRADO** un sitio web oficial propio del hotel (dominio propio).
+* Páginas visibles son **portales de reservas/OTAs** o directorios (AllCuencaHotels / Cuenca-Hotels) ([Hotel Las Americas Cuenca][1])
+
+### ✔ Motor de reservas directo
+
+* **NO ENCONTRADO** motor de reservas en sitio propio.
+* Todas las reservas disponibles pasan por **Booking, Agoda, Kayak u otros intermediarios** ([KAYAK][2])
+
+### ✔ Google Maps / Google Business
+
+* Aparece en Google Business como **Hotel Las Americas**:
+  • ★ 4.1 con ~301 reseñas promedio (Booking agregadas)
+* No se encontró información robusta de ficha local aparte de Booking (poca data propia).
+
+### ✔ OTAs y directorios
+
+* **Sí** en *Booking.com* (perfil visible, reseñas) ([Booking][3])
+* También presente en *Agoda, Kayak, Trivago/portales de hoteles* y directorios de viajes ([KAYAK][2])
+* **NO ENCONTRADO** listado directo en *Expedia / Despegar* (no visible en búsquedas rápidas).
+
+---
+
+## 🔎 2. POSICIONAMIENTO EN GOOGLE
+
+### 🔍 Búsqueda por palabras clave
+
+Probablemente al buscar:
+
+* **“hotel en Cuenca Ecuador”**
+* **“Hotel Las Americas Cuenca”**
+
+el negocio **no destaca en primera página orgánica** por sí mismo como sitio propio (solo aparecen resultados de OTAs, directorios y competencia).
+➡️ Esto indica **escasa optimización SEO local propia**.
+
+### 🥇 Quién domina resultados
+
+En categoría **“hotel en Cuenca”** suelen dominar:
+
+1. Booking / Agoda
+2. Hoteles con web propia optimizada (Hotel Italia, Hotel Inca Real, etc.)
+3. Directorios tipo Trivago o Hoteles.com
+
+*(Esto se observa por comportamiento típico de búsqueda; no hay ranking orgánico fuerte para el hotel como marca)*
+
+---
+
+## 📊 3. ANÁLISIS COMPETENCIA LOCAL
+
+### 🔎 Competidores directos en Cuenca
+
+* **Hotel Italia** – con sitio propio y presencia web fuerte. 
+* **Hotel Atahualpa / Americano / Inca Real** – mencionados en listados turísticos con página y web activa. 
+* **Hotel Boutique Los Balcones** – mejor calificación y presencia OTA destacada (mejor marketing). ([KAYAK][2])
+
+### 📈 Comparación de presencia digital
+
+* Muchos de estos competidores tienen **sitio oficial con reservas directas + contenido SEO**.
+* **Hotel Las Americas** depende casi 100% de **OTAs y directorios**, lo que sacrifica margen y visibilidad directa.
+
+---
+
+## 📌 4. SEÑALES DE ACTIVIDAD EN REDES
+
+### 📱 Redes sociales
+
+* Aparece un perfil de **Facebook titulado “Hotel Las Américas Cuenca”** con **datos de contacto y fotos**, pero **NO es un sitio web principal propio** ([Facebook][4])
+* **Instagram / TikTok** no parecen activos o **NO ENCONTRADO** fácilmente con presencia significativa.
+
+### 🗣 Interacción con clientes
+
+* **NO ENCONTRADO** evidencia clara de respuesta a reseñas o interacciones visibles en plataformas públicas (Booking y posiblemente Facebook).
+
+---
+
+## ⚡ 5. OPORTUNIDADES DETECTABLES
+
+### ⚡ SEO & Marketing de Buscadores
+
+* **Alta oportunidad SEO local:** hoy su presencia orgánica propia es mínima → puedes proponer **optimización en Google Business + web SEO**.
+
+### 📅 Reservas directas
+
+* **NO hay motor de reservas directo** en web propia → oportunidad de instalar uno y **captar reservas sin comisión** (aumenta márgenes).
+
+### 🕒 Redes y contenido
+
+* Redes sociales visibles pero sin actividad clara: **crear estrategia de contenido + promociones directas** para atraer clientes habituales.
+
+### 🛠 Experiencia Digital
+
+* Web actual de directorios no está enfocada en *conversión directa* (no hay información clara de tarifas y contacto directos sin intermediarios). Es una brecha clave.
+
+---
+
+## 🏨 6. PERFIL ESTIMADO DEL NEGOCIO
+
+### 📏 Tamaño del hotel
+
+* Basado en descripciones (Booking/OTAs): **pequeño / mediano** (aprox. ~11-28 habitaciones estimadas) ([Facebook][4])
+
+### 🎯 Tipo de cliente principal
+
+* **Turismo económico y viajero nacional/internacional** (mencionado por reseñas en Booking) ([Booking][3])
+* Probable **turismo de paso y familiar**, no prime corporate.
+
+### 🧭 Resumen de brechas clave
+
+* **Presencia web propia insuficiente (sin reservas directas)**
+* **Dependencia de OTAs**
+* **SEO local bajo (no aparece con fuerza en búsquedas específicas de “hotel en Cuenca”)**
+* **Redes sociales sin uso estratégico**
+* **Oportunidad de experiencia omnicanal**
+
+---
+
+## 🧩 Recomendaciones accionables para tu llamada
+
+🔹 **Ofrecer creación/optimización de sitio web con motor de reservas propio**
+🔹 **Optimizar Google Business & SEO local** para aparecer en búsquedas de “hotel en Cuenca”
+🔹 **Estrategia de redes con contenido + interacción de reseñas**
+🔹 **Campañas específicas de atracción directa (página de destino + WhatsApp Business + reservas directas)**
+🔹 **Comparar impacto de reservas directas vs intermediarios en ingresos**
+
+---
+
+Si quieres, puedo armarte **guion de llamada de ventas** listo para esta presentación, con objeciones y propuestas personalizadas. ¿Quieres ese guion también?
+
+[1]: https://las-americas.allcuencahotels.com/en/?utm_source=chatgpt.com "Hotel Las Americas Cuenca"
+[2]: https://www.kayak.com/Cuenca-Hotels-Hotel-Las-Americas-Cuenca.3704549.ksp?utm_source=chatgpt.com "Hotel Las Americas from $30. Cuenca Hotel Deals & Reviews - Kayak"
+[3]: https://www.booking.com/reviews/ec/hotel/las-americas-cuenca1.es.html?utm_source=chatgpt.com "188 Opiniones Reales del Hotel Las Americas | Booking.com"
+[4]: https://www.facebook.com/p/Hotel-Las-Am%C3%A9ricas-100075912517455/?utm_source=chatgpt.com "Hotel Las Américas | Cuenca - Facebook"
+"
+
+Y ahí esta la información que necesito para esta aplicación en la parte inicial.
+
+Todo esto que te comparto es para que entiendas la idea global, no quiero que escribas código de una, quiero que me preguntes y te empapes del objetivo
+

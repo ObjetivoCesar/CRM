@@ -1,33 +1,36 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { QuotationGenerator } from "@/lib/openai/quotation-generator";
+import { NextResponse } from 'next/server'
+import { db } from "@/lib/db";
+import { leads } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { QuotationGenerator, LeadData } from '@/lib/openai/quotation-generator'
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const { leadId, config } = await request.json();
+    const { leadId, templateId } = await request.json()
 
-    if (!leadId || !config) {
-        return NextResponse.json({ error: "Missing leadId or config" }, { status: 400 });
+    if (!leadId) {
+      return NextResponse.json({ success: false, error: 'Missing leadId' }, { status: 400 })
     }
 
-    const supabase = await createClient();
+    const lead = await db.query.leads.findFirst({
+      where: eq(leads.id, leadId)
+    });
+
+    if (!lead) {
+      return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 })
+    }
+
+    const leadData: LeadData = {
+      ...lead,
+      interested_product: typeof lead.interestedProduct === 'string' ? JSON.parse(lead.interestedProduct as string) : lead.interestedProduct,
+    } as unknown as LeadData;
+
     const generator = new QuotationGenerator();
+    const quotation = await generator.generateFullQuotation(leadData, templateId);
 
-    // Get lead data
-    const { data: leadData, error: leadError } = await supabase.from("leads").select("*").eq("id", leadId).single();
-
-    if (leadError || !leadData) {
-      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-    }
-
-    // Generate the full quotation
-    const fullQuotation = await generator.generateFullQuotation(leadData, config);
-
-    return NextResponse.json({ success: true, content: fullQuotation });
-
+    return NextResponse.json({ success: true, quotation })
   } catch (error) {
-    console.error("Error generating quotation:", error);
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    return NextResponse.json({ success: false, error: `Failed to generate quotation: ${errorMessage}` }, { status: 500 });
+    console.error('Error generating quotation:', error)
+    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 })
   }
 }

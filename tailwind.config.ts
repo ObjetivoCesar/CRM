@@ -3,8 +3,8 @@ import type { Config } from "tailwindcss";
 // all in fixtures is set to tailwind v3 as interims solutions
 
 const config: Config = {
-    darkMode: ["class"],
-    content: [
+  darkMode: ["class"],
+  content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
@@ -13,46 +13,59 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: '#f7f5f3',
-        foreground: '#2d3436',
+        background: '#111827', // gray-900
+        foreground: '#ffffff', // white
         card: {
-          DEFAULT: '#ffffff',
-          foreground: '#2d3436'
-        },
-        popover: {
-          DEFAULT: '#ffffff',
-          foreground: '#2d3436'
-        },
-        primary: {
-          DEFAULT: '#ff6b35',
-          foreground: '#ffffff' // White text on orange should be fine
-        },
-        secondary: {
-          DEFAULT: '#ffd23f',
-          foreground: '#2d3436' // Dark text on yellow is more readable
-        },
-        muted: {
-          DEFAULT: '#f7f5f3',
-          foreground: '#b2bec3'
-        },
-        accent: {
-          DEFAULT: '#ffeb3b',
-          foreground: '#2d3436' // Dark text on light yellow
-        },
-        destructive: {
-          DEFAULT: '#ff8f00',
+          DEFAULT: '#111827', // gray-900
           foreground: '#ffffff'
         },
-        border: '#b2bec3',
-        input: '#b2bec3',
-        ring: '#ff6b35',
+        popover: {
+          DEFAULT: '#111827', // gray-900
+          foreground: '#ffffff'
+        },
+        primary: {
+          DEFAULT: '#2563eb', // blue-600
+          foreground: '#ffffff'
+        },
+        secondary: {
+          DEFAULT: '#1f2937', // gray-800
+          foreground: '#d1d5db' // gray-300
+        },
+        muted: {
+          DEFAULT: '#1f2937', // gray-800
+          foreground: '#9ca3af' // gray-400
+        },
+        accent: {
+          DEFAULT: '#1f2937', // gray-800
+          foreground: '#ffffff'
+        },
+        destructive: {
+          DEFAULT: '#ef4444', // red-500
+          foreground: '#ffffff'
+        },
+        border: '#1f2937', // gray-800
+        input: '#1f2937', // gray-800
+        ring: '#3b82f6', // blue-500
+        brand: {
+          50: '#f0fdfa',
+          100: '#ccfbf1',
+          200: '#99f6e4',
+          300: '#5eead4',
+          400: '#2dd4bf',
+          500: '#14b8a6',
+          600: '#0d9488',
+          700: '#0f766e',
+          800: '#115e59',
+          900: '#134e4a',
+          950: '#042f2e',
+        },
         sidebar: {
-          DEFAULT: '#ffffff',
-          foreground: '#2d3436',
-          border: '#b2bec3',
-          accent: '#ff6b35',
+          DEFAULT: '#111827', // gray-900
+          foreground: '#d1d5db', // gray-300
+          border: '#1f2937', // gray-800
+          accent: '#2563eb', // blue-600
           'accent-foreground': '#ffffff',
-          ring: '#ff6b35'
+          ring: '#3b82f6'
         }
       },
       borderRadius: {
@@ -63,7 +76,7 @@ const config: Config = {
         full: '50%'
       },
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        sans: ['var(--font-poppins)', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
       },
       boxShadow: {
         card: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',

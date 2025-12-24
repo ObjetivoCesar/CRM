@@ -6,12 +6,6 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
-  const simpleSession = request.cookies.get("crm_session")?.value
-  if (simpleSession === "admin") {
-    // Allow access for admin session
-    return supabaseResponse
-  }
-
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -25,7 +19,9 @@ export async function updateSession(request: NextRequest) {
           supabaseResponse = NextResponse.next({
             request,
           })
-          cookiesToSet.forEach(({ name, value, options }) => supabaseResponse.cookies.set(name, value, options))
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
         },
       },
     },
@@ -35,13 +31,20 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  const isAuthPage = request.nextUrl.pathname.startsWith('/auth')
+  const isApiRoute = request.nextUrl.pathname.startsWith('/api')
+  const isPublicApi = request.nextUrl.pathname.startsWith('/api/webhooks')
+  const isHomePage = request.nextUrl.pathname === '/'
+
   if (
-    request.nextUrl.pathname !== '/' &&
     !user &&
-    !simpleSession &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/auth')
+    !isAuthPage &&
+    !isHomePage &&
+    !isPublicApi
   ) {
+    if (isApiRoute) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
     return NextResponse.redirect(url)

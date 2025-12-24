@@ -8,80 +8,76 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { FileText, Plus, Save, BookOpen, Loader2, Sparkles, Search } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
-import { ProductSearchCard } from "@/components/quotations/product-search-card"
+import { FileText, Plus, Save, BookOpen, Loader2, Sparkles, Search, Check, ChevronsUpDown, Eye, Download, Mail, MessageCircle } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { cn } from "@/lib/utils"
+import { Lead } from "@/lib/types"
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogHeader, DialogFooter } from "@/components/ui/dialog"
+import dynamic from "next/dynamic"
+import { QuotationDocument } from "@/components/pdf/QuotationDocument"
+import { sendQuotationEmail } from "@/app/actions/email-actions"
 
-interface Lead {
-  id: string
-  business_name: string
-  contact_name: string
-  phone: string
-  email: string
-  business_activity: string
-  relationship_type: string
-  personality_type: string
-  communication_style: string
-  interested_product: string[]
-  strengths: string
-  weaknesses: string
-  opportunities: string
-  threats: string
-  created_at: string
-  business_location: string
-  years_in_business: number
-  number_of_employees: number
-  number_of_branches: number
-  current_clients_per_month: number
-  average_ticket: number
-  quantified_problem: string
-  conservative_goal: string
-  verbal_agreements: string
-  known_competition: string
-  facebook_followers: number
-  other_achievements: string
-  specific_recognitions: string
-  high_season: string
-  critical_dates: string
-  key_phrases: string
-  quotation?: string
-}
+// Dynamic imports to avoid SSR issues with React-PDF
+const PDFViewer = dynamic(() => import("@react-pdf/renderer").then((mod) => mod.PDFViewer), {
+  ssr: false,
+  loading: () => <div className="flex justify-center p-10"><Loader2 className="animate-spin" /></div>,
+});
+const PDFDownloadLink = dynamic(() => import("@react-pdf/renderer").then((mod) => mod.PDFDownloadLink), {
+  ssr: false,
+  loading: () => <Button disabled>Cargando PDF...</Button>,
+});
+
+import { getProducts } from "@/app/actions/product-actions"
+
 
 const templates = [
-    { id: "plantilla_1_emocional_extrovertido", name: "Emocional Extrovertido" },
-    { id: "plantilla_2_emocional_introvertido", name: "Emocional Introvertido" },
-    { id: "plantilla_3_logico_extrovertido", name: "Lógico Extrovertido" },
-    { id: "plantilla_4_logico_introvertido", name: "Lógico Introvertido" },
+  { id: "propuesta_comercial", name: "Propuesta Comercial (Restaurantes/Hoteles) ⭐" },
+  { id: "plantilla_3_logico_extrovertido", name: "Lógico Extrovertido (Original)" },
+  { id: "plantilla_1_emocional_extrovertido", name: "Emocional Extrovertido" },
+  { id: "plantilla_2_emocional_introvertido", name: "Emocional Introvertido" },
+  { id: "plantilla_4_logico_introvertido", name: "Lógico Introvertido" },
 ]
 
 const InfoField = ({ label, value }: { label: string; value: string | number | string[] | undefined }) => {
-    if (!value || (Array.isArray(value) && value.length === 0)) return null
-    return (
-        <div>
-            <h5 className="font-semibold text-foreground">{label}</h5>
-            <p className="text-muted-foreground whitespace-pre-wrap">{Array.isArray(value) ? value.join(", ") : value}</p>
-        </div>
-    )
+  if (!value || (Array.isArray(value) && value.length === 0)) return null
+  return (
+    <div>
+      <h5 className="font-semibold text-foreground">{label}</h5>
+      <p className="text-muted-foreground whitespace-pre-wrap">{Array.isArray(value) ? value.join(", ") : value}</p>
+    </div>
+  )
 }
 
 export default function CotizacionesPage() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [selectedLead, setSelectedLead] = useState<string>("")
   const [selectedTemplate, setSelectedTemplate] = useState<string>("")
-  const [generatedDescription, setGeneratedDescription] = useState("")
-  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false)
-  
+  const [isGeneratingQuotation, setIsGeneratingQuotation] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [openProduct, setOpenProduct] = useState(false) // For product combobox
+
   const [quotationContent, setQuotationContent] = useState<string>("")
-  const [isLoadingTemplate, setIsLoadingTemplate] = useState(false)
-  const [productSearchQuery, setProductSearchQuery] = useState("")
-  const [productSearchResults, setProductSearchResults] = useState("")
-  const [isSearchingProducts, setIsSearchingProducts] = useState(false)
-  
-  const supabase = createClient()
+  const [products, setProducts] = useState<any[]>([])
+  const [selectedProduct, setSelectedProduct] = useState<any>(null)
+
+
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
 
   useEffect(() => {
     loadLeads()
+    loadProducts()
   }, [])
+
+  const loadProducts = async () => {
+    const result = await getProducts();
+    if (result.success && result.data) {
+      setProducts(result.data);
+    }
+  }
 
   useEffect(() => {
     const lead = leads.find((l) => l.id === selectedLead);
@@ -93,77 +89,176 @@ export default function CotizacionesPage() {
   }, [selectedLead, leads]);
 
   const loadLeads = async () => {
-    const { data, error } = await supabase.from("leads").select("*").order("created_at", { ascending: false })
-
-    if (error) {
-      console.error("Error loading leads:", error)
-    } else {
-      setLeads(data as Lead[] || [])
+    try {
+      const response = await fetch("/api/leads");
+      if (response.ok) {
+        const data = await response.json();
+        // Ensure data is array before setting, handle potential API response structure
+        if (Array.isArray(data)) {
+          setLeads(data);
+        } else if (data.leads && Array.isArray(data.leads)) {
+          setLeads(data.leads);
+        } else {
+          console.error("Unexpected leads API response:", data);
+          setLeads([]);
+        }
+      } else {
+        console.error("Error loading leads:", await response.text());
+      }
+    } catch (error) {
+      console.error("Error loading leads:", error);
     }
   }
 
-  const generateDescription = async () => {
-    if (!selectedLead || !selectedTemplate) {
-      alert("Selecciona un lead y una plantilla primero")
+  const handleShareWhatsApp = () => {
+    const name = selectedLeadData?.contactName?.split(' ')[0] || '';
+    const business = selectedLeadData?.businessName || 'tu negocio';
+    const message = `Hola ${name}, un gusto saludarte de parte de *Objetivo*. 🚀\n\nComo acordamos, te comparto el PDF con la propuesta comercial estratégica diseñada para *${business}*.\n\nQuedo atento a tus comentarios para avanzar al siguiente paso.\n\nSaludos.`;
+    let phone = selectedLeadData?.phone?.replace(/\D/g, '') || '';
+
+    // Auto-format for Ecuador (593) if it's a local number
+    if (phone.startsWith('0')) {
+      phone = '593' + phone.substring(1);
+    } else if (!phone.startsWith('593') && phone.length === 9) {
+      // If entered as 9 digits without leading 0
+      phone = '593' + phone;
+    }
+
+    // Use api.whatsapp.com directly to avoid wa.me redirect issues with text encoding
+    // Force %20 instead of + for spaces, as some desktop apps handle + poorly in protocol handlers
+    const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  }
+
+  const handleDownloadPDF = async () => {
+    if (!selectedLeadData || !quotationContent) return;
+
+    setIsDownloading(true);
+    try {
+      const { pdf } = await import("@react-pdf/renderer");
+
+      const doc = (
+        <QuotationDocument
+          content={quotationContent}
+          logoUrl={window.location.origin + "/logo-membrete.png"}
+          footerUrl={window.location.origin + "/pie-pagina.png"}
+        />
+      );
+
+      const blob = await pdf(doc).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Propuesta Comercial para ${selectedLeadData.businessName || 'Cliente'}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      alert("❌ Error al descargar el PDF");
+    } finally {
+      setIsDownloading(false);
+    }
+  }
+
+  const handleSendEmail = async () => {
+    if (!selectedLeadData || !quotationContent) return;
+
+    setIsSendingEmail(true);
+    try {
+      console.log('🔄 Generando PDF...');
+
+      // Dynamic import to avoid SSR issues
+      const { pdf } = await import("@react-pdf/renderer");
+
+      const doc = (
+        <QuotationDocument
+          content={quotationContent}
+          logoUrl={window.location.origin + "/logo-membrete.png"}
+          footerUrl={window.location.origin + "/pie-pagina.png"}
+        />
+      );
+
+      // Generate PDF blob
+      const blob = await pdf(doc).toBlob();
+      console.log('✅ PDF generado:', blob.size, 'bytes');
+
+      // Convert blob to base64 using Promise wrapper
+      const base64data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          const base64 = result.split(',')[1]; // Remove data:application/pdf;base64, prefix
+          console.log('✅ PDF convertido a base64:', base64.length, 'caracteres');
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      console.log('📧 Preparando email...');
+      const formData = new FormData();
+      formData.append('to', selectedLeadData.email);
+      formData.append('subject', `Propuesta Comercial - ${selectedLeadData.businessName}`);
+      const name = selectedLeadData.contactName.split(' ')[0];
+      formData.append('body', `Hola ${name},\n\nAdjunto encontrarás la propuesta comercial detallada que hemos preparado para ${selectedLeadData.businessName}.\n\nQuedamos atentos a tus comentarios.\n\nSaludos cordiales,\nObjetivo`);
+      formData.append('attachment', base64data);
+      formData.append('filename', `Propuesta Comercial para ${selectedLeadData.businessName}.pdf`);
+
+      console.log('📤 Enviando email...');
+      const result = await sendQuotationEmail(formData);
+
+      if (result.success) {
+        alert("✅ Email enviado exitosamente con PDF adjunto");
+      } else {
+        alert("❌ Error al enviar email: " + result.error);
+      }
+    } catch (error) {
+      console.error("💥 Error generating PDF or sending email:", error);
+      alert("❌ Error procesando el envío");
+    } finally {
+      setIsSendingEmail(false);
+    }
+  }
+
+
+
+  const generateQuotation = async () => {
+    if (!selectedLead) {
+      alert("Selecciona un lead primero")
       return
     }
-    setIsGeneratingDescription(true)
+
+    if (!selectedTemplate) {
+      alert("Selecciona una plantilla primero")
+      return
+    }
+
+    setIsGeneratingQuotation(true)
+    setQuotationContent("Generando cotización con IA...")
     try {
-      const response = await fetch("/api/quotations/generate-description", {
+      const response = await fetch("/api/quotations/generate-full-quotation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId: selectedLead, templateId: selectedTemplate }),
+        body: JSON.stringify({
+          leadId: selectedLead,
+          templateId: selectedTemplate
+        }),
       })
       const result = await response.json()
       if (result.success) {
-        setGeneratedDescription(result.description)
+        setQuotationContent(result.quotation)
       } else {
-        alert(`❌ Error generando descripción: ${result.error}`)
+        alert(`❌ Error generando cotización: ${result.error}`)
+        setQuotationContent("")
       }
     } catch (error) {
-      console.error("Error calling generate-description API:", error)
-      alert(`❌ Error de conexión al generar descripción.`)
+      console.error("Error calling generate-full-quotation API:", error)
+      alert(`❌ Error de conexión al generar cotización.`)
+      setQuotationContent("")
     } finally {
-      setIsGeneratingDescription(false)
-    }
-  }
-
-  const loadTemplate = async () => {
-    if (!selectedLead || !selectedTemplate) {
-      alert("Selecciona un lead y una plantilla")
-      return
-    }
-    if (!generatedDescription) {
-      alert("Genera o escribe una descripción primero")
-      return
-    }
-
-    setIsLoadingTemplate(true)
-    setQuotationContent("")
-    try {
-      const response = await fetch(`/templates/${selectedTemplate}.md`);
-      if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      let content = await response.text();
-      
-      const leadData = leads.find((l) => l.id === selectedLead)
-      if (leadData) {
-        content = content.replace(/\{\{llm_description\}\}/g, generatedDescription)
-        content = content.replace(/\[Nombre del Cliente\]/g, leadData.contact_name || '[Nombre del Cliente]')
-        content = content.replace(/\[Nombre del Negocio\]/g, leadData.business_name || '[Nombre del Negocio]')
-        content = content.replace(/\[Actividad Comercial\]/g, leadData.business_activity || '[Actividad Comercial]')
-      }
-      
-      content = content.replace(/\[Fecha Actual\]/g, new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }))
-
-      setQuotationContent(content)
-
-    } catch (error) {
-      console.error("Error loading template:", error)
-      alert(`❌ Error cargando la plantilla. Asegúrate que el archivo existe en la carpeta 'public/templates'.`)
-    } finally {
-      setIsLoadingTemplate(false)
+      setIsGeneratingQuotation(false)
     }
   }
 
@@ -171,50 +266,27 @@ export default function CotizacionesPage() {
     if (!selectedLead || !quotationContent) return
 
     try {
-      const { data, error } = await supabase
-        .from("leads")
-        .update({ quotation: quotationContent, status: 'cotizado' })
-        .eq("id", selectedLead)
+      const response = await fetch(`/api/leads/${selectedLead}`, {
+        method: "PATCH", // Or PUT, depending on API design
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quotation: quotationContent, status: 'cotizado' }),
+      });
 
-      if (!error) {
+      if (response.ok) {
         alert("✅ Cotización guardada exitosamente")
-        // Optionally, refresh the leads data to reflect the change
-        loadLeads()
+        // Refresh leads data locally to reflect changes
+        setLeads(prevLeads => prevLeads.map(l => l.id === selectedLead ? { ...l, quotation: quotationContent } : l));
       } else {
-        console.error("Error saving quotation:", error)
+        const errorText = await response.text();
+        console.error("Error saving quotation:", errorText)
         alert("❌ Error guardando cotización")
       }
     } catch (error) {
       console.error("Error saving quotation:", error)
+      alert("❌ Error de conexión al guardar")
     }
   }
 
-  const handleProductSearch = async () => {
-    if (!productSearchQuery) {
-      alert("Por favor, ingresa un nombre de producto para buscar.")
-      return
-    }
-    setIsSearchingProducts(true)
-    setProductSearchResults("")
-    try {
-      const response = await fetch("/api/products/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: productSearchQuery }),
-      })
-      const result = await response.json()
-      if (result.success) {
-        setProductSearchResults(result.productData || "Producto no encontrado.")
-      } else {
-        alert(`❌ Error buscando producto: ${result.error}`)
-      }
-    } catch (error) {
-      console.error("Error calling product search API:", error)
-      alert(`❌ Error de conexión al buscar producto.`)
-    } finally {
-      setIsSearchingProducts(false)
-    }
-  }
 
   const selectedLeadData = leads.find((l) => l.id === selectedLead)
 
@@ -238,31 +310,61 @@ export default function CotizacionesPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
-                  <Label htmlFor="lead-select">1. Lead a Cotizar</Label>
-                  <Select value={selectedLead} onValueChange={setSelectedLead}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecciona un lead..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {leads.map((lead) => (
-                        <SelectItem key={lead.id} value={lead.id}>
-                          <div className="flex flex-col text-left">
-                            <span className="font-medium">{lead.business_name}</span>
-                            <span className="text-sm text-muted-foreground">
-                              {lead.contact_name}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="lead-select">1. Lead a Cotizar (Buscador)</Label>
+                  <Popover open={open} onOpenChange={setOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={open}
+                        className="w-full justify-between"
+                      >
+                        {selectedLead
+                          ? leads.find((lead) => lead.id === selectedLead)?.businessName
+                          : "Buscar lead..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Buscar por nombre o empresa..." />
+                        <CommandList>
+                          <CommandEmpty>No se encontraron leads.</CommandEmpty>
+                          <CommandGroup>
+                            {leads.map((lead) => (
+                              <CommandItem
+                                key={lead.id}
+                                value={lead.businessName + " " + lead.contactName}
+                                onSelect={(currentValue) => {
+                                  setSelectedLead(lead.id === selectedLead ? "" : lead.id)
+                                  setOpen(false)
+                                }}
+                                className="data-[selected=true]:bg-gray-100 data-[selected=true]:text-black text-white"
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedLead === lead.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span className="font-medium text-black">{lead.businessName}</span>
+                                  <span className="text-xs text-gray-500">{lead.contactName}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 {selectedLeadData && (
                   <div className="mb-4">
                     <Label className="text-sm font-semibold text-foreground">Personalidad del Lead:</Label>
                     <Badge variant="secondary" className="ml-2 text-base">
-                      {selectedLeadData.personality_type}
+                      {selectedLeadData.personalityType}
                     </Badge>
                   </div>
                 )}
@@ -281,91 +383,143 @@ export default function CotizacionesPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label>3. Descripción con IA</Label>
+                  <Label>3. Generar Cotización con IA</Label>
                   <Button
-                    onClick={generateDescription}
-                    disabled={!selectedLead || !selectedTemplate || isGeneratingDescription}
+                    onClick={generateQuotation}
+                    disabled={!selectedLead || !selectedTemplate || isGeneratingQuotation}
                     className="w-full"
-                    variant="outline"
                   >
-                    {isGeneratingDescription ? (
+                    {isGeneratingQuotation ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
                       <Sparkles className="h-4 w-4 mr-2" />
                     )}
-                    Generar Descripción (IA)
+                    Generar Cotización (IA)
                   </Button>
-                  <Textarea
-                    placeholder="La descripción generada aparecerá aquí. También puedes escribirla manualmente."
-                    value={generatedDescription}
-                    onChange={(e) => setGeneratedDescription(e.target.value)}
-                    className="min-h-[100px] text-sm"
-                    disabled={isGeneratingDescription}
-                  />
                 </div>
-
-                <Button
-                  onClick={loadTemplate}
-                  disabled={!generatedDescription || isLoadingTemplate}
-                  className="w-full"
-                >
-                  {isLoadingTemplate ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <BookOpen className="h-4 w-4 mr-2" />
-                  )}
-                  4. Cargar Plantilla en Editor
-                </Button>
               </CardContent>
             </Card>
 
             {selectedLeadData && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Información del Lead</CardTitle>
-                        <CardDescription>
-                            Detalles completos del lead seleccionado.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <InfoField label="Nombre de Contacto" value={selectedLeadData.contact_name} />
-                        <InfoField label="Email" value={selectedLeadData.email} />
-                        <InfoField label="Teléfono" value={selectedLeadData.phone} />
-                        <InfoField label="Actividad del Negocio" value={selectedLeadData.business_activity} />
-                        <InfoField label="Ubicación" value={selectedLeadData.business_location} />
-                        <InfoField label="Años en el Mercado" value={selectedLeadData.years_in_business} />
-                        <InfoField label="Número de Empleados" value={selectedLeadData.number_of_employees} />
-                        <InfoField label="Sucursales" value={selectedLeadData.number_of_branches} />
-                        <InfoField label="Clientes Actuales por Mes" value={selectedLeadData.current_clients_per_month} />
-                        <InfoField label="Ticket Promedio" value={selectedLeadData.average_ticket} />
-                        <InfoField label="Problema Cuantificado" value={selectedLeadData.quantified_problem} />
-                        <InfoField label="Meta Conservadora" value={selectedLeadData.conservative_goal} />
-                        <InfoField label="Acuerdos Verbales" value={selectedLeadData.verbal_agreements} />
-                        <InfoField label="Competencia Conocida" value={selectedLeadData.known_competition} />
-                        <InfoField label="Seguidores en Facebook" value={selectedLeadData.facebook_followers} />
-                        <InfoField label="Otros Logros" value={selectedLeadData.other_achievements} />
-                        <InfoField label="Reconocimientos Específicos" value={selectedLeadData.specific_recognitions} />
-                        <InfoField label="Temporada Alta" value={selectedLeadData.high_season} />
-                        <InfoField label="Fechas Críticas" value={selectedLeadData.critical_dates} />
-                        <InfoField label="Frases Clave" value={selectedLeadData.key_phrases} />
-                        <InfoField label="Productos de Interés" value={selectedLeadData.interested_product} />
-                        <InfoField label="Fortalezas" value={selectedLeadData.strengths} />
-                        <InfoField label="Oportunidades" value={selectedLeadData.opportunities} />
-                        <InfoField label="Debilidades" value={selectedLeadData.weaknesses} />
-                        <InfoField label="Amenazas" value={selectedLeadData.threats} />
-                    </CardContent>
-                </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Información del Lead</CardTitle>
+                  <CardDescription>
+                    Detalles completos del lead seleccionado.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <InfoField label="Nombre de Contacto" value={selectedLeadData.contactName} />
+                  <InfoField label="Email" value={selectedLeadData.email} />
+                  <InfoField label="Teléfono" value={selectedLeadData.phone} />
+                  <InfoField label="Actividad del Negocio" value={selectedLeadData.businessActivity} />
+                  <InfoField label="Ubicación" value={selectedLeadData.businessLocation} />
+                  <InfoField label="Años en el Mercado" value={selectedLeadData.yearsInBusiness} />
+                  <InfoField label="Número de Empleados" value={selectedLeadData.numberOfEmployees} />
+                  <InfoField label="Sucursales" value={selectedLeadData.numberOfBranches} />
+                  <InfoField label="Clientes Actuales por Mes" value={selectedLeadData.currentClientsPerMonth} />
+                  <InfoField label="Ticket Promedio" value={selectedLeadData.averageTicket} />
+                  <InfoField label="Problema Cuantificado" value={selectedLeadData.quantifiedProblem} />
+                  <InfoField label="Meta Conservadora" value={selectedLeadData.conservativeGoal} />
+                  <InfoField label="Acuerdos Verbales" value={selectedLeadData.verbalAgreements} />
+                  <InfoField label="Competencia Conocida" value={selectedLeadData.knownCompetition} />
+                  <InfoField label="Seguidores en Facebook" value={selectedLeadData.facebookFollowers} />
+                  <InfoField label="Otros Logros" value={selectedLeadData.otherAchievements} />
+                  <InfoField label="Reconocimientos Específicos" value={selectedLeadData.specificRecognitions} />
+                  <InfoField label="Temporada Alta" value={selectedLeadData.highSeason} />
+                  <InfoField label="Fechas Críticas" value={selectedLeadData.criticalDates} />
+                  <InfoField label="Frases Clave" value={selectedLeadData.keyPhrases} />
+                  <InfoField label="Productos de Interés" value={selectedLeadData.interestedProduct} />
+                  <InfoField label="Fortalezas" value={selectedLeadData.strengths} />
+                  <InfoField label="Oportunidades" value={selectedLeadData.opportunities} />
+                  <InfoField label="Debilidades" value={selectedLeadData.weaknesses} />
+                  <InfoField label="Amenazas" value={selectedLeadData.threats} />
+                </CardContent>
+              </Card>
             )}
 
-            <ProductSearchCard
-              productSearchQuery={productSearchQuery}
-              setProductSearchQuery={setProductSearchQuery}
-              productSearchResults={productSearchResults}
-              isSearchingProducts={isSearchingProducts}
-              handleProductSearch={handleProductSearch}
-            />
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
+                  Catálogo de Productos
+                </CardTitle>
+                <CardDescription>
+                  Selecciona un producto para ver sus detalles y copiarlos.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Popover open={openProduct} onOpenChange={setOpenProduct}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openProduct}
+                      className="w-full justify-between"
+                    >
+                      {selectedProduct
+                        ? selectedProduct.name
+                        : "Buscar producto..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Buscar producto..." />
+                      <CommandList>
+                        <CommandEmpty>No se encontraron productos.</CommandEmpty>
+                        <CommandGroup>
+                          {products.map((product) => (
+                            <CommandItem
+                              key={product.id}
+                              value={product.name}
+                              onSelect={() => {
+                                setSelectedProduct(product)
+                                setOpenProduct(false)
+                              }}
+                              className="data-[selected=true]:bg-gray-100 data-[selected=true]:text-black text-white"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedProduct?.id === product.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {product.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+
+                {selectedProduct && (
+                  <div className="space-y-4 animate-in fade-in-0 slide-in-from-top-2">
+                    <div className="space-y-2">
+                      <Label>Descripción</Label>
+                      <div className="p-3 bg-muted rounded-md text-sm text-muted-foreground max-h-40 overflow-y-auto whitespace-pre-wrap">
+                        {selectedProduct.description ? selectedProduct.description.replace(/<br>/g, '\n') : 'Sin descripción.'}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Beneficios</Label>
+                      <div className="p-3 bg-muted rounded-md text-sm text-muted-foreground max-h-40 overflow-y-auto whitespace-pre-wrap">
+                        {selectedProduct.benefits ? selectedProduct.benefits.replace(/<br>/g, '\n') : 'Sin beneficios.'}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Precio</Label>
+                      <div className="font-bold text-lg">
+                        ${selectedProduct.price}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {/* Columna Derecha: Editor de Cotización */}
@@ -385,25 +539,66 @@ export default function CotizacionesPage() {
                   <Save className="h-4 w-4 mr-2" />
                   Guardar
                 </Button>
+
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={!quotationContent}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Vista Previa PDF
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-[90vw] h-[90vh] flex flex-col p-4">
+                    <DialogHeader>
+                      <DialogTitle>Vista Previa de Cotización (PDF Nativo)</DialogTitle>
+                      <DialogDescription>
+                        Esta vista previa renderiza el documento exactamente como se imprimirá (paginación real).
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex-1 w-full bg-gray-100 rounded-md overflow-hidden relative">
+                      {quotationContent && (
+                        <PDFViewer width="100%" height="100%" className="border-none">
+                          <QuotationDocument
+                            content={quotationContent}
+                            logoUrl={window.location.origin + "/logo-membrete.png"}
+                            footerUrl={window.location.origin + "/pie-pagina.png"}
+                          />
+                        </PDFViewer>
+                      )}
+                    </div>
+
+                    <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+                      <Button variant="outline" onClick={handleShareWhatsApp}>
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        WhatsApp
+                      </Button>
+                      <Button variant="outline" onClick={handleSendEmail} disabled={isSendingEmail}>
+                        {isSendingEmail ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
+                        {isSendingEmail ? 'Enviando...' : 'Email'}
+                      </Button>
+
+
+
+                      <Button onClick={handleDownloadPDF} disabled={isDownloading} className="w-full sm:w-auto">
+                        {isDownloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                        {isDownloading ? 'Generando...' : 'Descargar PDF'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent>
-                {isLoadingTemplate ? (
-                  <div className="flex items-center justify-center h-96">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
-                ) : (
-                  <Textarea
-                    value={quotationContent}
-                    onChange={(e) => setQuotationContent(e.target.value)}
-                    placeholder="Aquí aparecerá el contenido de la plantilla seleccionada..."
-                    className="h-[calc(100vh-20rem)] resize-none border rounded-md p-4 text-sm leading-relaxed"
-                  />
-                )}
+                <Textarea
+                  value={quotationContent}
+                  onChange={(e) => setQuotationContent(e.target.value)}
+                  placeholder="Aquí aparecerá el contenido de la plantilla seleccionada..."
+                  className="h-[calc(100vh-20rem)] resize-none border rounded-md p-4 text-sm leading-relaxed"
+                />
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </DashboardLayout >
   )
 }

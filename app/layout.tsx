@@ -1,13 +1,20 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Roboto } from "next/font/google"
+import { Poppins } from "next/font/google"
 import "./globals.css"
+import { Toaster } from "@/components/ui/sonner"
+import dynamic from "next/dynamic"
 
-const roboto = Roboto({
+// Lazy load heavy components
+const AIChatDrawer = dynamic(() => import("@/components/ai/ai-chat-drawer").then(mod => mod.AIChatDrawer), {
+  ssr: false,
+})
+
+const poppins = Poppins({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "700"],
+  weight: ["300", "400", "500", "600", "700"],
   display: "swap",
-  variable: "--font-roboto",
+  variable: "--font-poppins",
 })
 
 export const metadata: Metadata = {
@@ -22,8 +29,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className={`${roboto.variable} antialiased`}>
-      <body className="font-sans">{children}</body>
+    <html lang="es" className={`${poppins.variable} antialiased dark`} suppressHydrationWarning>
+      <body className="font-poppins bg-gray-900 text-white" suppressHydrationWarning>
+        {children}
+        <AIChatDrawer />
+        <Toaster />
+      </body>
     </html>
   )
 }

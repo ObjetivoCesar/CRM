@@ -19,6 +19,12 @@ import {
   MapPin,
   BarChart3,
   Settings,
+  UserCheck,
+  MessageSquare,
+  Database,
+  Search,
+  Mic,
+  Sparkles,
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -78,12 +84,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const navigation = [
     { name: "Dashboard", icon: BarChart3, href: "/dashboard" },
+    { name: "WhatsApp", icon: MessageSquare, href: "/whatsapp", badge: "App" }, // Added WhatsApp link
     { name: "Recorridos", icon: MapPin, href: "/recorridos" },
+    { name: "Base de Datos", icon: Database, href: "/prospects" }, // Changed icon from Users to Database
     { name: "Leads", icon: UserPlus, href: "/leads", badge: newLeadsCount > 0 ? newLeadsCount : undefined },
-    { name: "Eventos", icon: Calendar, href: "/events" },
-    { name: "Cotizaciones", icon: FileText, href: "/cotizaciones" },
+    { name: "Clientes", icon: UserCheck, href: "/clients" },
     { name: "Tareas", icon: CheckSquare, href: "/tasks" },
-    { name: "Clientes", icon: Users, href: "/clients" },
+    { name: "Eventos", icon: Calendar, href: "/events" },
+    { name: "Finanzas", icon: MessageSquare, href: "/finance" }, // Usando MessageSquare temporalmente, cambiar a Banknote si disponible
+    { name: "Cotizaciones", icon: FileText, href: "/cotizaciones" },
+    { name: "Contratos", icon: FileText, href: "/contratos" },
+    { name: "Discovery", icon: Search, href: "/discovery" },
+    { name: "Entrenador", icon: Mic, href: "/trainer" },
+    { name: "Donna", icon: Sparkles, href: "/donna", badge: "AI" },
   ]
 
   const settingsNavigation = { name: "Configuración", icon: Settings, href: "/settings" }
@@ -130,21 +143,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </SidebarContent>
           <SidebarFooter>
             <SidebarMenu>
-                <SidebarMenuItem>
-                    <SidebarMenuButton
-                        onClick={() => router.push(settingsNavigation.href)}
-                        isActive={pathname.startsWith(settingsNavigation.href)}
-                    >
-                        <settingsNavigation.icon className="h-5 w-5" />
-                        <span>{settingsNavigation.name}</span>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <SidebarMenuButton onClick={() => router.push("/auth/login")}>
-                        <LogOut className="h-5 w-5" />
-                        <span>Cerrar Sesión</span>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => router.push(settingsNavigation.href)}
+                  isActive={pathname.startsWith(settingsNavigation.href)}
+                >
+                  <settingsNavigation.icon className="h-5 w-5" />
+                  <span>{settingsNavigation.name}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={() => router.push("/auth/login")}>
+                  <LogOut className="h-5 w-5" />
+                  <span>Cerrar Sesión</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
@@ -155,13 +168,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               {navigation.find((item) => pathname.startsWith(item.href))?.name || "Dashboard"}
             </h1>
             <div className="relative ml-auto flex-1 md:grow-0">
-                {newLeadsCount > 0 && (
-                    <Button variant="outline" size="icon" className="ml-auto" onClick={() => router.push("/leads")}>
-                        <Bell className="h-4 w-4" />
-                        <span className="sr-only">Toggle notifications</span>
-                        <Badge className="absolute -top-2 -right-2">{newLeadsCount}</Badge>
-                    </Button>
-                )}
+              {newLeadsCount > 0 && (
+                <Button variant="outline" size="icon" className="ml-auto" onClick={() => router.push("/leads")}>
+                  <Bell className="h-4 w-4" />
+                  <span className="sr-only">Toggle notifications</span>
+                  <Badge className="absolute -top-2 -right-2">{newLeadsCount}</Badge>
+                </Button>
+              )}
             </div>
           </header>
           <main className="flex-1 p-4 sm:px-6 sm:py-0">{children}</main>
