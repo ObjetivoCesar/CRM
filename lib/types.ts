@@ -58,6 +58,7 @@ export interface Lead {
     phase: number;
     notes?: string;
     source: string;
+    discoveryLeadId?: string;
     createdAt: string;
     updatedAt: string;
 }
