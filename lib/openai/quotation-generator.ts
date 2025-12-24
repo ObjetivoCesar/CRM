@@ -33,7 +33,7 @@ const getProductCatalog = (): string => {
 }
 
 // Re-map Lead for Quotation Generator compatibility if needed, or use Partial<Lead>
-type LeadData = Partial<Lead>;
+export type LeadData = Partial<Lead>;
 
 export interface QuotationConfig {
   mentalTrigger: "TRANQUILIDAD" | "CONTROL" | "CRECIMIENTO" | "LEGADO";
