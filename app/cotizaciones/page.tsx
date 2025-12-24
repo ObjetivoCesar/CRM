@@ -199,12 +199,12 @@ export default function CotizacionesPage() {
 
       console.log('📧 Preparando email...');
       const formData = new FormData();
-      formData.append('to', selectedLeadData.email);
-      formData.append('subject', `Propuesta Comercial - ${selectedLeadData.businessName}`);
-      const name = selectedLeadData.contactName.split(' ')[0];
-      formData.append('body', `Hola ${name},\n\nAdjunto encontrarás la propuesta comercial detallada que hemos preparado para ${selectedLeadData.businessName}.\n\nQuedamos atentos a tus comentarios.\n\nSaludos cordiales,\nObjetivo`);
+      formData.append('to', selectedLeadData.email || '');
+      formData.append('subject', `Propuesta Comercial - ${selectedLeadData.businessName || 'Cliente'}`);
+      const name = (selectedLeadData.contactName || 'Cliente').split(' ')[0];
+      formData.append('body', `Hola ${name},\n\nAdjunto encontrarás la propuesta comercial detallada que hemos preparado para ${selectedLeadData.businessName || 'su negocio'}.\n\nQuedamos atentos a tus comentarios.\n\nSaludos cordiales,\nObjetivo`);
       formData.append('attachment', base64data);
-      formData.append('filename', `Propuesta Comercial para ${selectedLeadData.businessName}.pdf`);
+      formData.append('filename', `Propuesta Comercial para ${selectedLeadData.businessName || 'Cliente'}.pdf`);
 
       console.log('📤 Enviando email...');
       const result = await sendQuotationEmail(formData);
