@@ -29,7 +29,6 @@ export async function POST(
             address: discoveryLead.direccion,
             businessType: discoveryLead.clasificacion || discoveryLead.tipoLocal || discoveryLead.actividadModalidad,
             notes: discoveryLead.researchData, // Keep the research as notes
-            province: discoveryLead.provincia,
             source: 'discovery',
             status: 'sin_contacto',
             discoveryLeadId: discoveryLead.id, // Linked reference
