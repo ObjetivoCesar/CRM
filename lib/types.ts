@@ -103,6 +103,7 @@ export interface Client {
     contractStartDate?: string;
     quotation?: string;
     notes?: string;
+    discoveryLeadId?: string;
     createdAt: string;
     updatedAt: string;
 }

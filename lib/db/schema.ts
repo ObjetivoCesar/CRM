@@ -259,6 +259,7 @@ export const clients = pgTable('clients', {
   contractStartDate: timestamp('contract_start_date'),
   quotation: text('quotation'),
 
+  discoveryLeadId: uuid('discovery_lead_id').references(() => discoveryLeads.id),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
