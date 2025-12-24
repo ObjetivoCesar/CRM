@@ -201,6 +201,9 @@ export const leads = pgTable('leads', {
   emailSequenceStep: integer('email_sequence_step').default(0),
   isNewsletterSubscriber: boolean('is_newsletter_subscriber').default(false),
 
+  // Discovery link
+  discoveryLeadId: uuid('discovery_lead_id').references(() => discoveryLeads.id),
+
   // Timestamps
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
