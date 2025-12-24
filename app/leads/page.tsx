@@ -419,6 +419,7 @@ function LeadCard({
   onClick,
   onConvert,
 }: {
+  lead: Lead
   onMove: (leadId: string, newStatus: string) => void
   onClick: () => void
   onConvert: () => void
