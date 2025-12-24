@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { Save, Download, Upload, AlertTriangle, Building, Settings, Database, Store } from 'lucide-react';
+import { Save, Download, Upload, AlertTriangle, Building, Settings, Database, Store, Bot } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface BusinessProfile {
