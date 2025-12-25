@@ -21,8 +21,9 @@ export async function POST(
 
   try {
     const leadId = params.id;
+    const { contractValue, initialPayment, balanceDueDate } = await request.json();
 
-    // ✅ NUEVO: Simplemente actualizar entity_type a 'client'
+    // 1. Update entity_type to 'client'
     const { data: updatedContact, error: updateError } = await supabase
       .from('contacts')
       .update({
@@ -39,8 +40,47 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to convert lead: ' + updateError.message }, { status: 500 });
     }
 
-    if (!updatedContact) {
-      return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
+    // 2. Automated Financial Integration (Phase 1 of Mission Control)
+    if (contractValue > 0) {
+      const transactionsToInsert = [];
+
+      // A. Initial Payment (Income Paid)
+      if (initialPayment > 0) {
+        transactionsToInsert.push({
+          type: 'INCOME',
+          category: 'Venta - Anticipo',
+          description: `Anticipo de Contrato: ${updatedContact.business_name || updatedContact.contact_name}`,
+          amount: initialPayment,
+          date: new Date().toISOString(),
+          status: 'PAID',
+          sub_type: 'BUSINESS_VARIABLE',
+          client_id: updatedContact.id
+        });
+      }
+
+      // B. Remaining Balance (Income Pending)
+      const balance = contractValue - initialPayment;
+      if (balance > 0) {
+        transactionsToInsert.push({
+          type: 'INCOME',
+          category: 'Venta - Saldo',
+          description: `Saldo de Contrato: ${updatedContact.business_name || updatedContact.contact_name}`,
+          amount: balance,
+          date: new Date().toISOString(),
+          due_date: balanceDueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          status: 'PENDING',
+          sub_type: 'BUSINESS_VARIABLE',
+          client_id: updatedContact.id
+        });
+      }
+
+      if (transactionsToInsert.length > 0) {
+        const { error: txError } = await supabase
+          .from('transactions')
+          .insert(transactionsToInsert);
+
+        if (txError) console.error('Error creating linked transactions:', txError);
+      }
     }
 
     return NextResponse.json({ success: true, client: updatedContact });

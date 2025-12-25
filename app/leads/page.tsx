@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ConvertLeadDialog, FinancialDetails } from '@/components/leads/convert-lead-dialog'
 
 interface Lead {
   id: string
@@ -64,6 +65,8 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true)
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
   const [isConverting, setIsConverting] = useState(false)
+  const [conversionDialogOpen, setConversionDialogOpen] = useState(false)
+  const [leadToConvert, setLeadToConvert] = useState<Lead | null>(null)
 
   useEffect(() => {
     fetchLeads()
@@ -82,20 +85,32 @@ export default function LeadsPage() {
     }
   }
 
-  const handleConvertToClient = async (leadToConvert?: Lead) => {
-    const targetLead = leadToConvert || selectedLead
+  const handleConvertToClient = (lead?: Lead) => {
+    const targetLead = lead || selectedLead
     if (!targetLead) return
+    setLeadToConvert(targetLead)
+    setConversionDialogOpen(true)
+  }
+
+  const confirmConversion = async (financialDetails: FinancialDetails) => {
+    if (!leadToConvert) return
 
     setIsConverting(true)
     try {
-      const response = await fetch(`/api/leads/${targetLead.id}/convert`, {
+      const response = await fetch(`/api/leads/${leadToConvert.id}/convert`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(financialDetails)
       });
       const result = await response.json();
 
       if (result.success) {
-        alert('¡Lead convertido a cliente exitosamente!')
+        alert('¡Lead convertido a cliente exitosamente! El plan de pagos se ha integrado al Mando de Control.')
         setSelectedLead(null)
+        setLeadToConvert(null)
+        setConversionDialogOpen(false)
         fetchLeads()
       } else {
         alert(`Error al convertir el lead: ${result.error}`)
@@ -182,6 +197,14 @@ export default function LeadsPage() {
             {leads.length} Leads Total
           </Badge>
         </div>
+
+        <ConvertLeadDialog
+          isOpen={conversionDialogOpen}
+          onClose={() => setConversionDialogOpen(false)}
+          onConfirm={confirmConversion}
+          leadName={leadToConvert?.businessName || leadToConvert?.contactName || ""}
+          isConverting={isConverting}
+        />
 
         {/* Kanban Board */}
         <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3'>

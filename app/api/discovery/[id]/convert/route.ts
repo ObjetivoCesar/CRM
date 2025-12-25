@@ -32,7 +32,7 @@ export async function POST(
             source: 'discovery',
             status: 'sin_contacto',
             discoveryLeadId: discoveryLead.id, // Linked reference
-        }).returning();
+        } as any).returning();
 
         // 3. Update discovery lead status
         await db.update(discoveryLeads).set({

@@ -50,3 +50,16 @@ Usamos **Next.js API Routes** para la lógica:
 
 ### 4. Por qué esta arquitectura?
 Elegimos **"Cash Flow Operativo"** sobre "Contabilidad Formal" para priorizar la velocidad. Un sistema contable requiere asientos dobles y es lento. Este sistema te dice "cuánto tienes" y "qué debes" al instante.
+
+---
+
+## 3. Integración con Cortex AI y Contactos
+
+**IMPORTANTE PARA EL AGENTE DE IA (CORTEX):**
+
+Para garantizar que la IA pueda "ver" la información financiera vinculada a cada cliente, hemos unificado la estructura de datos:
+
+*   **Tabla Maestra de Personas:** `contacts` (Esta tabla unificada contiene IDs de Prospectos, Leads y Clientes).
+*   **Vinculación Financiera:** La tabla `transactions` utiliza la columna **`contact_id`** como *Foreign Key* para relacionarse con `contacts.id`.
+*   **Campo Obsoleto:** La columna antigua `client_id` se mantiene por compatibilidad histórica pero **ya no debe usarse** para nuevas relaciones.
+*   **Instrucción de Búsqueda:** Cuando Cortex necesite responder "¿Cuánto ha pagado el cliente X?", debe realizar un JOIN (o consulta relacionada) entre `transactions.contact_id` y `contacts.id`, filtrando por `transactions.status = 'PAID'`.

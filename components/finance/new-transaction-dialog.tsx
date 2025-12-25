@@ -37,7 +37,8 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { toast } from "sonner" // Assuming sonner is installed, otherwise verify
+import { toast } from "sonner"
+import { ContactSelector } from "@/components/finance/contact-selector"
 
 const formSchema = z.object({
     type: z.enum(["INCOME", "EXPENSE"]),
@@ -48,6 +49,9 @@ const formSchema = z.object({
     description: z.string().min(1, "Description is required"),
     date: z.date(),
     status: z.enum(["PENDING", "PAID"]),
+    subType: z.enum(["PERSONAL", "BUSINESS_FIXED", "BUSINESS_VARIABLE"]).optional(),
+    paymentMethod: z.string().optional(),
+    clientId: z.string().optional(),
 })
 
 interface NewTransactionDialogProps {
@@ -67,8 +71,13 @@ export function NewTransactionDialog({ onSuccess }: NewTransactionDialogProps) {
             description: "",
             date: new Date(),
             status: "PENDING",
+            subType: "BUSINESS_VARIABLE",
+            paymentMethod: "Transferencia",
+            clientId: "",
         },
     })
+
+    const transactionType = form.watch("type")
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setLoading(true)
@@ -82,15 +91,18 @@ export function NewTransactionDialog({ onSuccess }: NewTransactionDialogProps) {
                 }),
             })
 
-            if (!response.ok) throw new Error("Failed to create transaction")
+            if (!response.ok) {
+                const errorData = await response.json()
+                throw new Error(errorData.details || errorData.error || "Failed to create transaction")
+            }
 
             toast.success("Transaction created successfully")
             setOpen(false)
             form.reset()
             onSuccess()
-        } catch (error) {
+        } catch (error: any) {
             console.error(error)
-            toast.error("Error creating transaction")
+            toast.error(`Error: ${error.message}`)
         } finally {
             setLoading(false)
         }
@@ -147,6 +159,74 @@ export function NewTransactionDialog({ onSuccess }: NewTransactionDialogProps) {
                                             <SelectContent>
                                                 <SelectItem value="PENDING">Pendiente</SelectItem>
                                                 <SelectItem value="PAID">Pagado</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+
+                        {/* CLIENT SELECTOR FOR INCOME */}
+                        {transactionType === "INCOME" && (
+                            <FormField
+                                control={form.control}
+                                name="clientId"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Cliente (Opcional)</FormLabel>
+                                        <FormControl>
+                                            <ContactSelector
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="subType"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Sub-Tipo</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Clasificación" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="BUSINESS_FIXED">Empresa (Fijo)</SelectItem>
+                                                <SelectItem value="BUSINESS_VARIABLE">Empresa (Variable)</SelectItem>
+                                                <SelectItem value="PERSONAL">Personal/Casa</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="paymentMethod"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Método de Pago</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Método" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="Transferencia">Transferencia</SelectItem>
+                                                <SelectItem value="Efectivo">Efectivo</SelectItem>
+                                                <SelectItem value="Tarjeta">Tarjeta</SelectItem>
+                                                <SelectItem value="CANJE">Canje (Barter)</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />

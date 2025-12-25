@@ -16,7 +16,8 @@ const TransactionSchema = z.object({
     clientId: z.string().optional(),
     leadId: z.string().optional(),
     isRecurring: z.boolean().optional(),
-    recurrenceRule: z.string().optional(),
+    subType: z.enum(['PERSONAL', 'BUSINESS_FIXED', 'BUSINESS_VARIABLE']).optional(),
+    parentTransactionId: z.string().uuid().optional(),
     notes: z.string().optional(),
 });
 
@@ -58,12 +59,16 @@ export async function POST(req: Request) {
             date: new Date(data.date).toISOString(),
             due_date: data.dueDate ? new Date(data.dueDate).toISOString() : null,
             status: data.status,
-            payment_method: data.paymentMethod,
-            client_id: data.clientId,
-            lead_id: data.leadId,
-            is_recurring: data.isRecurring || false,
-            recurrence_rule: data.recurrenceRule,
-            notes: data.notes
+            payment_method: data.paymentMethod || null,
+            // Legacy client_id is skipped to avoid FK constraints with old 'clients' table
+            // since we are now using the unified 'contacts' table.
+            client_id: null,
+            // Map clientId from frontend (which is a contact ID) to contact_id
+            contact_id: data.clientId || null,
+            lead_id: data.leadId || null,
+            sub_type: data.subType || null,
+            parent_transaction_id: data.parentTransactionId || null,
+            notes: data.notes || null
         };
 
         const { data: newTransaction, error } = await supabase
@@ -94,16 +99,17 @@ export async function POST(req: Request) {
             clientId: newTransaction.client_id,
             leadId: newTransaction.lead_id,
             isRecurring: newTransaction.is_recurring,
-            recurrenceRule: newTransaction.recurrence_rule,
+            subType: newTransaction.sub_type,
+            parentTransactionId: newTransaction.parent_transaction_id,
             notes: newTransaction.notes,
             createdAt: newTransaction.created_at
         };
 
         return NextResponse.json(mappedTransaction);
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error creating transaction:', error);
         return NextResponse.json(
-            { error: 'Failed to create transaction' },
+            { error: 'Failed to create transaction', details: error.message || String(error) },
             { status: 500 }
         );
     }
@@ -148,7 +154,8 @@ export async function GET(req: Request) {
             clientId: t.client_id,
             leadId: t.lead_id,
             isRecurring: t.is_recurring,
-            recurrenceRule: t.recurrence_rule,
+            subType: t.sub_type,
+            parentTransactionId: t.parent_transaction_id,
             notes: t.notes,
             createdAt: t.created_at
         })) || [];

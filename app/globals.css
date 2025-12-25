@@ -7,32 +7,52 @@
 
 :root {
   /* Updated color tokens for CRM glassmorphism design */
-  --background: oklch(0.98 0.005 120); /* Light neutral background #f0f4f8 */
-  --foreground: oklch(0.25 0.02 200); /* Dark text */
-  --card: oklch(1 0 0 / 0.8); /* Glassmorphic card background with transparency */
+  --background: oklch(0.98 0.005 120);
+  /* Light neutral background #f0f4f8 */
+  --foreground: oklch(0.25 0.02 200);
+  /* Dark text */
+  --card: oklch(1 0 0 / 0.8);
+  /* Glassmorphic card background with transparency */
   --card-foreground: oklch(0.25 0.02 200);
-  --popover: oklch(1 0 0 / 0.9); /* Popover background */
+  --popover: oklch(1 0 0 / 0.9);
+  /* Popover background */
   --popover-foreground: oklch(0.25 0.02 200);
-  --primary: oklch(0.55 0.15 142); /* Green primary #4caf50 */
-  --primary-foreground: oklch(1 0 0); /* White text on primary */
-  --secondary: oklch(0.65 0.15 65); /* Orange secondary #ff9800 */
+  --primary: oklch(0.55 0.15 142);
+  /* Green primary #4caf50 */
+  --primary-foreground: oklch(1 0 0);
+  /* White text on primary */
+  --secondary: oklch(0.65 0.15 65);
+  /* Orange secondary #ff9800 */
   --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(0.85 0.01 200); /* Light gray muted */
+  --muted: oklch(0.85 0.01 200);
+  /* Light gray muted */
   --muted-foreground: oklch(0.45 0.02 200);
-  --accent: oklch(0.65 0.15 65); /* Orange accent */
+  --accent: oklch(0.65 0.15 65);
+  /* Orange accent */
   --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.55 0.2 25); /* Red for destructive actions */
+  --destructive: oklch(0.55 0.2 25);
+  /* Red for destructive actions */
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0 0 0 / 0.1); /* Light transparent border */
-  --input: oklch(1 0 0); /* White input background */
-  --ring: oklch(0.55 0.15 142 / 0.5); /* Green focus ring */
-  --chart-1: oklch(0.55 0.15 142); /* Green */
-  --chart-2: oklch(0.65 0.15 65); /* Orange */
-  --chart-3: oklch(0.45 0.15 250); /* Blue */
-  --chart-4: oklch(0.55 0.2 25); /* Red */
-  --chart-5: oklch(0.5 0.15 300); /* Purple */
-  --radius: 0.75rem; /* Increased radius for glassmorphism */
-  --sidebar: oklch(1 0 0 / 0.8); /* Glassmorphic sidebar */
+  --border: oklch(0 0 0 / 0.1);
+  /* Light transparent border */
+  --input: oklch(1 0 0);
+  /* White input background */
+  --ring: oklch(0.55 0.15 142 / 0.5);
+  /* Green focus ring */
+  --chart-1: oklch(0.55 0.15 142);
+  /* Green */
+  --chart-2: oklch(0.65 0.15 65);
+  /* Orange */
+  --chart-3: oklch(0.45 0.15 250);
+  /* Blue */
+  --chart-4: oklch(0.55 0.2 25);
+  /* Red */
+  --chart-5: oklch(0.5 0.15 300);
+  /* Purple */
+  --radius: 0.75rem;
+  /* Increased radius for glassmorphism */
+  --sidebar: oklch(1 0 0 / 0.8);
+  /* Glassmorphic sidebar */
   --sidebar-foreground: oklch(0.25 0.02 200);
   --sidebar-primary: oklch(0.55 0.15 142);
   --sidebar-primary-foreground: oklch(1 0 0);
@@ -44,15 +64,20 @@
 
 .dark {
   /* Dark mode tokens for glassmorphism */
-  --background: oklch(0.1 0.01 200); /* Dark background */
-  --foreground: oklch(0.95 0.01 200); /* Light text */
-  --card: oklch(0.15 0.01 200 / 0.8); /* Dark glassmorphic cards */
+  --background: oklch(0.1 0.01 200);
+  /* Dark background */
+  --foreground: oklch(0.95 0.01 200);
+  /* Light text */
+  --card: oklch(0.15 0.01 200 / 0.8);
+  /* Dark glassmorphic cards */
   --card-foreground: oklch(0.95 0.01 200);
   --popover: oklch(0.15 0.01 200 / 0.9);
   --popover-foreground: oklch(0.95 0.01 200);
-  --primary: oklch(0.6 0.15 142); /* Brighter green for dark mode */
+  --primary: oklch(0.6 0.15 142);
+  /* Brighter green for dark mode */
   --primary-foreground: oklch(0.1 0.01 200);
-  --secondary: oklch(0.7 0.15 65); /* Brighter orange */
+  --secondary: oklch(0.7 0.15 65);
+  /* Brighter orange */
   --secondary-foreground: oklch(0.1 0.01 200);
   --muted: oklch(0.2 0.01 200);
   --muted-foreground: oklch(0.7 0.01 200);
@@ -123,18 +148,19 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground font-sans;
   }
 
   /* Glassmorphism utility classes */
   .glass {
-    @apply backdrop-blur-md bg-card/80 border border-border/50;
+    @apply backdrop-blur-md bg-card border border-border;
   }
 
   .glass-strong {
-    @apply backdrop-blur-lg bg-card/90 border border-border/60;
+    @apply backdrop-blur-lg bg-card border border-border;
   }
 }

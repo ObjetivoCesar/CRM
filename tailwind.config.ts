@@ -13,39 +13,39 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: '#111827', // gray-900
-        foreground: '#ffffff', // white
+        background: 'var(--background)',
+        foreground: 'var(--foreground)',
         card: {
-          DEFAULT: '#111827', // gray-900
-          foreground: '#ffffff'
+          DEFAULT: 'var(--card)',
+          foreground: 'var(--card-foreground)'
         },
         popover: {
-          DEFAULT: '#111827', // gray-900
-          foreground: '#ffffff'
+          DEFAULT: 'var(--popover)',
+          foreground: 'var(--popover-foreground)'
         },
         primary: {
-          DEFAULT: '#2563eb', // blue-600
-          foreground: '#ffffff'
+          DEFAULT: 'var(--primary)',
+          foreground: 'var(--primary-foreground)'
         },
         secondary: {
-          DEFAULT: '#1f2937', // gray-800
-          foreground: '#d1d5db' // gray-300
+          DEFAULT: 'var(--secondary)',
+          foreground: 'var(--secondary-foreground)'
         },
         muted: {
-          DEFAULT: '#1f2937', // gray-800
-          foreground: '#9ca3af' // gray-400
+          DEFAULT: 'var(--muted)',
+          foreground: 'var(--muted-foreground)'
         },
         accent: {
-          DEFAULT: '#1f2937', // gray-800
-          foreground: '#ffffff'
+          DEFAULT: 'var(--accent)',
+          foreground: 'var(--accent-foreground)'
         },
         destructive: {
-          DEFAULT: '#ef4444', // red-500
-          foreground: '#ffffff'
+          DEFAULT: 'var(--destructive)',
+          foreground: 'var(--destructive-foreground)'
         },
-        border: '#1f2937', // gray-800
-        input: '#1f2937', // gray-800
-        ring: '#3b82f6', // blue-500
+        border: 'var(--border)',
+        input: 'var(--input)',
+        ring: 'var(--ring)',
         brand: {
           50: '#f0fdfa',
           100: '#ccfbf1',
@@ -60,12 +60,21 @@ const config: Config = {
           950: '#042f2e',
         },
         sidebar: {
-          DEFAULT: '#111827', // gray-900
-          foreground: '#d1d5db', // gray-300
-          border: '#1f2937', // gray-800
-          accent: '#2563eb', // blue-600
-          'accent-foreground': '#ffffff',
-          ring: '#3b82f6'
+          DEFAULT: 'var(--sidebar)',
+          foreground: 'var(--sidebar-foreground)',
+          primary: 'var(--sidebar-primary)',
+          'primary-foreground': 'var(--sidebar-primary-foreground)',
+          accent: 'var(--sidebar-accent)',
+          'accent-foreground': 'var(--sidebar-accent-foreground)',
+          border: 'var(--sidebar-border)',
+          ring: 'var(--sidebar-ring)',
+        },
+        chart: {
+          '1': 'var(--chart-1)',
+          '2': 'var(--chart-2)',
+          '3': 'var(--chart-3)',
+          '4': 'var(--chart-4)',
+          '5': 'var(--chart-5)'
         }
       },
       borderRadius: {

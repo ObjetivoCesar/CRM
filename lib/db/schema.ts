@@ -367,15 +367,33 @@ export const transactions = pgTable('transactions', {
   status: text('status', { enum: ['PENDING', 'PAID', 'OVERDUE', 'CANCELLED'] }).notNull().default('PENDING'),
   paymentMethod: text('payment_method'), // 'Transferencia', 'Efectivo', 'Tarjeta'
 
+  // Advanced Categorization
+  subType: text('sub_type', { enum: ['PERSONAL', 'BUSINESS_FIXED', 'BUSINESS_VARIABLE'] }),
+
   // Relations
   clientId: uuid('client_id').references(() => clients.id), // Link to Client
   leadId: uuid('lead_id').references(() => leads.id),     // Link to Lead (for early payments)
+  parentTransactionId: uuid('parent_transaction_id'), // For linking Anticipo/Saldo or Installments
 
   // Metadata & Recurrence
   isRecurring: boolean('is_recurring').default(false),
   recurrenceRule: text('recurrence_rule'), // 'MONTHLY', 'YEARLY'
   notes: text('notes'),
 
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const personalLiabilities = pgTable('personal_liabilities', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(), // e.g., 'Banco de Loja', 'Cuota Casa'
+  category: text('category').notNull(), // 'Vivienda', 'Prestamo', 'Servicios'
+  monthlyPayment: doublePrecision('monthly_payment').notNull(),
+  totalDebt: doublePrecision('total_debt'), // Total owed
+  remainingDebt: doublePrecision('remaining_debt'), // Current balance
+  dueDate: integer('due_date'), // Day of the month (1-31)
+  status: text('status', { enum: ['UP_TO_DATE', 'PENDING', 'OVERDUE'] }).default('UP_TO_DATE'),
+  notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
