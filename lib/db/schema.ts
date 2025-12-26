@@ -554,3 +554,68 @@ export const callAnalyses = pgTable('call_analyses', {
   nextFocus: text('next_focus'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// ============================================
+// DONNA MODULE (v1.2 - Hardened Reliability)
+// ============================================
+
+// 1. Agents (The Internal Expert Profile)
+export const agents = pgTable('agents', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  contactId: uuid('contact_id').notNull().unique().references(() => contacts.id, { onDelete: 'cascade' }),
+
+  // Relationship Health
+  currentRiskScore: integer('current_risk_score').default(0),
+  reliabilityStats: text('reliability_stats').default('{"fulfilled": 0, "broken": 0, "pending": 0}'), // JSONB in DB
+
+  // Config
+  config: text('config').default('{}'), // JSONB
+  specialInstructions: text('special_instructions'),
+
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// 2. Agent Briefings (Pre-Meeting Output)
+export const agentBriefings = pgTable('agent_briefings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'cascade' }),
+  meetingId: uuid('meeting_id').references(() => events.id, { onDelete: 'set null' }),
+
+  summary: text('summary'),
+  strategy: text('strategy'),
+  talkingPoints: text('talking_points'), // JSONB
+
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// 3. Commitments (The Ledger of Promises)
+export const commitments = pgTable('commitments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'cascade' }),
+  meetingId: uuid('meeting_id').references(() => events.id, { onDelete: 'set null' }),
+
+  title: text('title').notNull(),
+  description: text('description'),
+
+  // Responsibility
+  actorRole: text('actor_role', { enum: ['client', 'internal_team', 'cesar'] }),
+  assigneeUserId: text('assignee_user_id'),
+  assigneeName: text('assignee_name'),
+
+  // Timing
+  dueDate: timestamp('due_date', { withTimezone: true }),
+  gracePeriodDays: integer('grace_period_days').default(0),
+
+  // State Machine
+  status: text('status', {
+    enum: ['draft', 'active', 'at_risk', 'fulfilled', 'broken']
+  }).default('draft'),
+
+  severity: text('severity', {
+    enum: ['low', 'medium', 'high']
+  }).default('medium'),
+
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});

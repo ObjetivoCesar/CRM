@@ -36,7 +36,9 @@ import { cn } from '@/lib/utils'
 import { Client, Interaction, Task } from '@/lib/types'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Sparkles as DonnaIcon, CheckCircle2 } from 'lucide-react'
+import { MeetingBriefingCard } from '@/components/donna/MeetingBriefingCard'
+import { PostMeetingReviewModal } from '@/components/donna/PostMeetingReviewModal'
 
 export default function ClientDetailPage() {
     const params = useParams()
@@ -74,12 +76,25 @@ export default function ClientDetailPage() {
         priority: 'medium'
     })
 
+    // Donna State
+    const [isDonnaReviewOpen, setIsDonnaReviewOpen] = useState(false)
+    const [reviewNotes, setReviewNotes] = useState('')
+    const [activeTab, setActiveTab] = useState('historial')
+    const [agent, setAgent] = useState<any>(null)
+
     const fetchClientDetails = useCallback(async () => {
         try {
             const response = await fetch(`/api/clients/${params.id}`)
             if (!response.ok) throw new Error('Failed to fetch client')
             const result = await response.json()
             setData(result)
+
+            // Fetch Donna Agent Status
+            const agentResponse = await fetch(`/api/donna/agent/${params.id}`)
+            if (agentResponse.ok) {
+                const agentData = await agentResponse.json()
+                setAgent(agentData.agent)
+            }
         } catch (error) {
             console.error('Error:', error)
             toast.error('Error al cargar detalles del cliente')
@@ -350,6 +365,8 @@ export default function ClientDetailPage() {
             }
             // -----------------------------
 
+            // -----------------------------
+
             setNewInteraction({
                 type: 'call',
                 direction: 'outbound',
@@ -358,6 +375,14 @@ export default function ClientDetailPage() {
                 duration: 0
             })
             fetchClientDetails()
+
+            // --- DONNA TRIGGER (Phase 4) ---
+            if (newInteraction.type === 'meeting') {
+                setReviewNotes(newInteraction.content || "");
+                setIsDonnaReviewOpen(true);
+            }
+            // -------------------------------
+
         } catch (error) {
             console.error('Error:', error)
             toast.error('Error al registrar interacción')
@@ -410,21 +435,35 @@ export default function ClientDetailPage() {
         <DashboardLayout>
             <div className='space-y-6'>
                 {/* Header */}
-                <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
-                    <div className='flex items-center gap-4'>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="flex items-center gap-4">
                         <Button variant="ghost" size="icon" onClick={() => router.push('/clients')}>
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
-                        <div>
-                            <h2 className='text-3xl font-bold text-foreground'>{client.businessName}</h2>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <span className="font-medium">{client.contactName}</span>
+                        <div className="flex flex-col">
+                            <h2 className="text-3xl font-bold tracking-tight">{client?.contactName || client?.businessName}</h2>
+                            <div className="flex items-center gap-2 text-muted-foreground mt-1">
+                                <Badge variant="outline" className="font-mono">{client?.id.split('-')[0]}</Badge>
                                 <span>•</span>
-                                <Badge variant="outline">{client.businessType || 'Cliente'}</Badge>
+                                <span className="capitalize">{client?.relationshipType}</span>
                             </div>
                         </div>
+
+                        {/* Donna Fast-Action Button - Only if Agent exists or after a meeting */}
+                        {(agent || interactions?.some((i: any) => i.type === 'meeting')) && (
+                            <Button
+                                onClick={() => {
+                                    setActiveTab('estrategia');
+                                    toast.success(agent ? "Donna: Preparando tu briefing estratégico..." : "Iniciando máquina de fidelización...");
+                                }}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 border-indigo-400/50 animate-in fade-in zoom-in duration-500"
+                            >
+                                <Sparkles className="mr-2 h-4 w-4" />
+                                {agent ? 'Donna: Prepárame para hoy' : 'Donna: Activar Agente'}
+                            </Button>
+                        )}
                     </div>
-                    <div className='flex gap-2'>
+                    <div className="flex items-center gap-2">
                         <Button variant="outline" onClick={startEditingFull} className="rounded-xl">
                             <FileText className="mr-2 h-4 w-4" /> Gestionar Expediente
                         </Button>
@@ -531,10 +570,15 @@ export default function ClientDetailPage() {
 
                 <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
                     <div className='lg:col-span-3'>
-                        <Tabs defaultValue="estrategia" className="w-full">
-                            <TabsList className="grid w-full grid-cols-3 mb-8 h-12 bg-muted/50 p-1 rounded-xl max-w-2xl">
+                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                            <TabsList className={cn(
+                                "grid w-full mb-8 h-12 bg-muted/50 p-1 rounded-xl max-w-2xl",
+                                (agent || interactions.some((i: any) => i.type === 'meeting')) ? "grid-cols-3" : "grid-cols-2"
+                            )}>
                                 <TabsTrigger value="historial" className="rounded-lg font-semibold">Historial</TabsTrigger>
-                                <TabsTrigger value="estrategia" className="rounded-lg font-semibold">Estrategia</TabsTrigger>
+                                {(agent || interactions.some((i: any) => i.type === 'meeting')) && (
+                                    <TabsTrigger value="estrategia" className="rounded-lg font-semibold">Estrategia</TabsTrigger>
+                                )}
                                 <TabsTrigger value="tareas" className="rounded-lg font-semibold">Seguimiento</TabsTrigger>
                             </TabsList>
 
@@ -606,7 +650,10 @@ export default function ClientDetailPage() {
                             </TabsContent>
 
                             <TabsContent value="estrategia" className="outline-none space-y-6">
-                                <StrategicBoard client={client} />
+                                <div className="grid grid-cols-1 gap-6">
+                                    <MeetingBriefingCard meetingId={params.id as string} />
+                                    <StrategicBoard client={client} />
+                                </div>
                             </TabsContent>
 
                             <TabsContent value="tareas" className="outline-none">
@@ -763,6 +810,14 @@ export default function ClientDetailPage() {
                 changes={pendingChanges}
                 onConfirm={handleConfirmProfileUpdate}
                 onReject={handleRejectProfileUpdate}
+            />
+
+            {/* DONNA COMPONENTS */}
+            <PostMeetingReviewModal
+                isOpen={isDonnaReviewOpen}
+                onClose={() => setIsDonnaReviewOpen(false)}
+                meetingId={params.id as string}
+                notes={reviewNotes}
             />
         </DashboardLayout>
     )

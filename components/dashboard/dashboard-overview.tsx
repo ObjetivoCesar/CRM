@@ -2,6 +2,7 @@
 
 
 import { FinancialAnalyticsWidget } from "@/components/dashboard/financial-analytics-widget"
+import { DonnaImpactWidget } from "@/components/donna/DonnaImpactWidget"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -93,6 +94,11 @@ export function DashboardOverview() {
             <Plus className="h-4 w-4 mr-2" /> Nuevo Prospecto
           </Button>
         </div>
+      </div>
+
+      {/* Donna "Auxiliar Brain" - Critical for ADHD Support */}
+      <div className="grid grid-cols-1 lg:grid-cols-1">
+        <DonnaImpactWidget />
       </div>
 
       {/* Financial Cards (The "Why") */}

@@ -1,104 +1,45 @@
-# Manual Técnico - Módulo Donna (AI Assistant)
+# Manual de Usuario: Donna v1.2 (Sistema de Confiabilidad)
 
-## 📋 Visión General
-**Propósito**: Asistente de IA conversacional para consultas y automatización.
+Donna no es solo una IA, es tu **Oficial de Cumplimiento**. Su objetivo es asegurar que cada promesa hecha a un cliente se convierta en una realidad, protegiendo tu reputación y la confianza del cliente.
 
-## 🤖 Características
+## 🚀 1. Antes de la Reunión: El Briefing Estratégico
+Cuando tienes una reunión programada, Donna analiza todo el historial del cliente y te prepara una tarjeta de estrategia.
 
-### 1. **Chat Conversacional**
-- Interfaz de chat estilo ChatGPT
-- Contexto del CRM
-- Respuestas en tiempo real
+*   **Dónde encontrarlo:** En la pestaña **Estrategia** del detalle del cliente.
+*   **Qué incluye:**
+    *   **Resumen:** Contexto clave de quién es el cliente y qué busca.
+    *   **Estrategia:** El enfoque psicológico o comercial recomendado.
+    *   **Puntos a Tocar:** Lista de verificación de temas que no puedes olvidar.
+    *   **Scripts:** Cómo responder a las objeciones más probables.
+    *   **Rompehielos:** Datos curiosos o recientes para conectar humanamente.
 
-### 2. **Capacidades**
-- **Consultas de Datos**: "¿Cuántos leads tengo pendientes?"
-- **Análisis**: "¿Cuál es mi tasa de conversión este mes?"
-- **Recomendaciones**: "¿A qué leads debo llamar hoy?"
-- **Automatización**: "Crea una tarea para llamar a Juan mañana"
+## ✍️ 2. El "Human Protocol" (Notas de Reunión)
+Donna extrae compromisos de tus notas, por lo que la calidad de tus notas es vital.
+**Consejo Senior:** Usa frases directas como *"El cliente enviará el logo el martes"* o *"Abel creará la propuesta"*.
 
-### 3. **Integración con Gemini**
-- Powered by Google Gemini
-- Acceso a datos del CRM
-- Contexto de usuario actual
+## ✅ 3. Después de la Reunión: Validación de Compromisos
+Este es el paso más crítico del sistema. Donna **nunca** creará un compromiso oficial sin tu aprobación.
 
-## 🎯 Casos de Uso
+1.  **Registra la reunión:** En el botón **Interactuar**, selecciona tipo **Reunión** y escribe tus notas.
+2.  **Validación Automática:** Al guardar, se abrirá el modal de **Revisión de Acuerdos de Donna**.
+3.  **Acciones en el Modal:**
+    *   **Corregir:** Puedes editar el título del compromiso.
+    *   **Asignar:** Define quién es el responsable (Cliente, Equipo o Tú).
+    *   **Fecha Límite:** Ajusta la fecha real de la promesa.
+    *   **Impacto:** Define la severidad (Bajo/Medio/Alto).
+4.  **Confirmar y Activar:** Una vez que das "OK", los compromisos pasan de *Draft* a **Active** en la base de datos oficial.
 
-### Consultas Rápidas
-```
-Usuario: "¿Cuántos clientes tengo en Loja?"
-Donna: "Tienes 23 clientes activos en Loja, 5 en negociación y 12 prospectos investigados."
-```
+## 🔔 4. El Vigía: Recordatorios Proactivos (WhatsApp)
+Donna ya no solo vive en tu pantalla; te busca para que nada se pierda.
 
-### Análisis
-```
-Usuario: "¿Cuál es mi mejor fuente de leads?"
-Donna: "Discovery ha generado el 65% de tus leads este mes, con una tasa de conversión del 32%."
-```
-
-### Automatización
-```
-Usuario: "Recuérdame llamar a Hotel XYZ mañana a las 10am"
-Donna: "✅ Tarea creada: Llamar a Hotel XYZ - Mañana 10:00 AM"
-```
-
-### Recomendaciones
-```
-Usuario: "¿Qué debo hacer hoy?"
-Donna: "Tienes 3 leads en tu cola de Discovery, 2 cotizaciones pendientes de seguimiento y 1 contrato por vencer en 15 días."
-```
-
-## 🔌 Integración
-
-### Acceso a Datos
-- **Leads**: Consultar, filtrar, analizar
-- **Clients**: Información de clientes
-- **Tasks**: Crear, listar, completar
-- **Events**: Agendar, consultar calendario
-- **Finanzas**: Métricas, reportes
-- **Discovery**: Prospectos, investigaciones
-
-### APIs Utilizadas
-- `POST /api/ai/agent/chat` - Chat principal
-- Acceso a todos los endpoints del CRM
-- Permisos según usuario
-
-## 🎨 Interfaz
-
-### Componentes
-- **Input de Chat**: Textarea con autocompletado
-- **Historial**: Conversación completa
-- **Sugerencias**: Preguntas frecuentes
-- **Acciones Rápidas**: Botones para tareas comunes
-
-### Características UX
-- Typing indicator
-- Markdown en respuestas
-- Links clickeables a registros
-- Botones de acción directa
-
-## 🚨 Limitaciones
-
-1. **Requiere Gemini API**: Sin API key no funciona
-2. **Sin Memoria Persistente**: No recuerda conversaciones previas
-3. **Permisos**: Solo accede a datos del usuario actual
-4. **Sin Voz**: Solo texto (por ahora)
-
-## 🔮 Mejoras Sugeridas
-
-### Corto Plazo
-1. **Historial de Conversaciones**: Guardar chats
-2. **Favoritos**: Guardar consultas frecuentes
-3. **Exportar**: Descargar conversación
-
-### Mediano Plazo
-4. **Voz**: Input y output por voz
-5. **Proactiva**: Notificaciones automáticas
-6. **Aprendizaje**: Mejora con uso
-
-### Largo Plazo
-7. **Multimodal**: Analizar imágenes/documentos
-8. **Workflows**: Crear automatizaciones complejas
-9. **Integración Externa**: Slack, WhatsApp, etc.
+*   **Para César y Abel (Interno):** Donna enviará mensajes Push vía WhatsApp cuando un compromiso esté cerca de vencer: *"Oye César, tienes pendiente X con Y para hoy"*.
+*   **Para el Cliente (Externo):** Si el cliente te debe algo (ej. el logo), Donna puede enviar un recordatorio amable por WhatsApp: *"Hola, te saluda Donna de Objetivo. Solo un recordatorio amable sobre el envío de X..."*.
+    *   **Importante:** Donna solo envía recordatorios, no negocia. Si el cliente responde con algo complejo, Donna te notificará de inmediato.
 
 ---
-**Versión**: 1.0 | **Última actualización**: Diciembre 2025
+> [!IMPORTANT]
+> **El Veredicto de Confianza:** Donna es tu mano derecha. Al automatizar estos toques de atención, eliminas la fricción del seguimiento manual y aseguras que el cliente siempre sienta que "estás encima" del proyecto.
+
+---
+> [!IMPORTANT]
+> **Recuerda:** Donna es tu asistente estratégica. Los mensajes que envía a los clientes están pre-definidos para sonar profesionales y asertivos, manteniendo tu autoridad como el experto líder.
