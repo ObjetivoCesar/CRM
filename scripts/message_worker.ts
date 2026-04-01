@@ -170,7 +170,7 @@ async function processQueue() {
                         if (!FORCE_TESTING_MODE && process.env.DISABLE_MESSAGE_PERSISTENCE !== 'true') {
                             try {
                                 const interactionResult = await db.insert(interactions).values({
-                                    type: platform,
+                                    type: platform as any,
                                     direction: 'inbound',
                                     content: unifiedContent,
                                     contactId: finalContactId || null,
