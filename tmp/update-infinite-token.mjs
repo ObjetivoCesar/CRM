@@ -17,15 +17,15 @@ const client = postgres(connectionString, { prepare: false });
 const db = drizzle(client);
 
 async function main() {
-  const NEW_TOKEN = "EAASfXJZBBSPkBRAZC04LqBPUdyyIM3TiZBLE6vU1c7AfJPaA6U3t0ssmN66V7Fw2IujUP0MGOSZAF9yWfQYZCstkmjdtBAZACX8HZCes2e49dsawZAFBisepZBDpEK02v3ClGyYqI3ZB5l73QxBxSTSwmhpaqRCmfZB3fe8sKOqz1IfEF28CZCzgItlJTACBMSVFdfUGVAZDZD";
+  const NEW_TOKEN = "EAASfXJZBBSPkBRLML1AA1CowW5ac9ZCayvRAfZAtd4ZCOdAoqav7CAqKY6hyLdYDPYR5twpNFI9Ihlh1GYyZBR50VuxoXk4MZC4enW6bvY79QOkhfWZB13a4EA718xH5r7EPpeLzOPLe7ZAXdz3AZA2bHjAP3t5weZAR6PLAhh1TNrlI2Hbyh6AOVwtOXUds4kr3VBEQZCl5ZBnsO7zdKkFNaQmsHdQOsmhbeVRrmmXfA0wupuZBHTmzPnwDZBzK85N0RawCNfz6FhZBHOlzZBktryHijQyBD9MLPVrgP1GoRP1pCWwZD";
 
   try {
     // We update system_settings using raw query to avoid complex schema imports right now
     await client`
       INSERT INTO system_settings (key, value)
       VALUES 
-        ('INSTAGRAM_ACCESS_TOKEN', ${NEW_TOKEN}),
-        ('FACEBOOK_ACCESS_TOKEN', ${NEW_TOKEN})
+        ('INSTAGRAM_ACCESS_TOKEN', ${JSON.stringify(NEW_TOKEN)}),
+        ('FACEBOOK_ACCESS_TOKEN', ${JSON.stringify(NEW_TOKEN)})
       ON CONFLICT (key) DO UPDATE
       SET value = EXCLUDED.value;
     `;

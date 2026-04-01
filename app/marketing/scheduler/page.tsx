@@ -49,6 +49,8 @@ export default function SchedulerPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
 
+  const [isUploading, setIsUploading] = useState(false)
+
   // New Post State
   const [newPost, setNewPost] = useState({
     content: "",
@@ -60,6 +62,33 @@ export default function SchedulerPage() {
   useEffect(() => {
     fetchData()
   }, [])
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    const formData = new FormData()
+    formData.append("file", file)
+
+    try {
+      const res = await fetch("/api/marketing/upload", {
+        method: "POST",
+        body: formData
+      })
+      const data = await res.json()
+      if (data.success) {
+        setNewPost(prev => ({ ...prev, mediaUrl: data.url }))
+        toast.success("Imagen subida con éxito")
+      } else {
+        toast.error("Error al subir: " + data.error)
+      }
+    } catch (error) {
+      toast.error("Fallo al subir archivo")
+    } finally {
+      setIsUploading(false)
+    }
+  }
 
   const fetchData = async () => {
     setIsLoading(true)
@@ -216,14 +245,32 @@ export default function SchedulerPage() {
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium">URL de Imagen (Pública)</label>
-                    <div className="relative">
-                      <ImageIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        placeholder="https://images.unsplash.com/..." 
-                        className="pl-9 rounded-xl"
-                        value={newPost.mediaUrl}
-                        onChange={e => setNewPost({ ...newPost, mediaUrl: e.target.value })}
-                      />
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <ImageIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                          placeholder="https://images.unsplash.com/..." 
+                          className="pl-9 rounded-xl text-xs"
+                          value={newPost.mediaUrl}
+                          onChange={e => setNewPost({ ...newPost, mediaUrl: e.target.value })}
+                        />
+                      </div>
+                      <div className="relative">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-xl aspect-square p-0 w-10 relative overflow-hidden"
+                          disabled={isUploading}
+                        >
+                          <Plus className={`h-4 w-4 ${isUploading ? "animate-spin" : ""}`} />
+                          <input 
+                            type="file" 
+                            className="absolute inset-0 opacity-0 cursor-pointer" 
+                            onChange={handleFileUpload}
+                            accept="image/*,video/*"
+                          />
+                        </Button>
+                      </div>
                     </div>
                   </div>
 

@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const platform = body.object === "page" ? "facebook" : "instagram";
     const entry = body.entry?.[0];
     if (!entry) return NextResponse.json({ ok: true });
 
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
     let text = "";
     let externalId = "";
     let isEcho = false;
-    let type: "instagram" | "instagram_comment" = "instagram";
+    let type = platform; // "instagram" or "facebook"
 
     // 1. EXTRACT DATA BASED ON EVENT TYPE
     if (entry.messaging) {
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
       text = messagingEvent.message.text;
       externalId = messagingEvent.message.mid;
       isEcho = messagingEvent.message.is_echo;
-      type = "instagram";
+      type = platform;
     } else if (entry.changes) {
       const change = entry.changes[0];
       if (change.field !== "comments") return NextResponse.json({ ok: true });
@@ -76,24 +77,24 @@ export async function POST(req: NextRequest) {
       senderId = commentData.from.id;
       text = commentData.text;
       externalId = commentData.id;
-      type = "instagram_comment";
+      type = `${platform}_comment`; // "instagram_comment" or "facebook_comment"
     }
 
     if (!senderId || isEcho) {
       return NextResponse.json({ ok: true });
     }
 
-    // 🔄 ANTI-LOOP: Skip comments/messages from our own Instagram Business Account
+    // 🔄 ANTI-LOOP: Skip comments/messages from our own Business Account
     try {
-      const [igConfig] = await db
+      const [config] = await db
         .select()
         .from(systemSettings)
-        .where(eq(systemSettings.key, "instagram_config"))
+        .where(eq(systemSettings.key, `${platform}_config`))
         .limit(1);
-      const ourIgAccountId = (igConfig?.value as any)?.instagramUserId;
-      if (ourIgAccountId && senderId === ourIgAccountId) {
+      const ourAccountId = (config?.value as any)?.[`${platform}UserId`];
+      if (ourAccountId && senderId === ourAccountId) {
         console.log(
-          `🔄 Ignoring event from our own IG account (${senderId}) — skipping to prevent reply loop.`,
+          `🔄 Ignoring event from our own ${platform} account (${senderId}) — skipping to prevent reply loop.`,
         );
         return NextResponse.json({ ok: true });
       }
@@ -101,17 +102,17 @@ export async function POST(req: NextRequest) {
       /* non-blocking */
     }
 
-    console.log(`📸 Instagram ${type} from ${senderId}: ${text}`);
+    console.log(`📸 ${platform.toUpperCase()} ${type} from ${senderId}: ${text}`);
 
     // 2. IDEMPOTENCY CHECK
     if (externalId) {
       try {
         await db.execute(sql`
                     INSERT INTO "webhook_events_processed" ("provider", "external_id") 
-                    VALUES ('instagram', ${String(externalId)})
+                    VALUES (${platform}, ${String(externalId)})
                 `);
       } catch (e) {
-        console.warn(`[Instagram] Skipping duplicate event: ${externalId}`);
+        console.warn(`[${platform}] Skipping duplicate event: ${externalId}`);
         return NextResponse.json({ ok: true });
       }
     }
@@ -124,7 +125,7 @@ export async function POST(req: NextRequest) {
       .from(contactChannels)
       .where(
         and(
-          eq(contactChannels.platform, "instagram"),
+          eq(contactChannels.platform, platform as any),
           eq(contactChannels.identifier, senderId),
         ),
       )
@@ -144,14 +145,15 @@ export async function POST(req: NextRequest) {
     } else {
       // Create Ghost Contact
       try {
+        const platformPrefix = platform === "facebook" ? "FB" : "IG";
         const [newGhost] = await db
           .insert(contacts)
           .values({
-            businessName: `Instagram User`, // Requerido NOT NULL — se actualiza cuando se identifica
-            contactName: `IG_${senderId.slice(-4)}`,
+            businessName: `${platformPrefix} User`, // Requerido NOT NULL — se actualiza cuando se identifica
+            contactName: `${platformPrefix}_${senderId.slice(-4)}`,
             status: "lead",
-            source: "instagram_inbound",
-            channelSource: "instagram",
+            source: `${platform}_inbound`,
+            channelSource: platform,
             entityType: "lead",
             lastActivityAt: new Date(),
             unreadCount: 1,
@@ -162,12 +164,12 @@ export async function POST(req: NextRequest) {
 
         await db.insert(contactChannels).values({
           contactId: newGhost.id,
-          platform: "instagram",
+          platform: platform as any,
           identifier: senderId,
           isPrimary: true,
         });
       } catch (err) {
-        console.error("Error creating IG ghost contact:", err);
+        console.error(`Error creating ${platform} ghost contact:`, err);
       }
     }
 
@@ -177,7 +179,7 @@ export async function POST(req: NextRequest) {
       direction: "inbound",
       content: text,
       contactId: contactId,
-      metadata: { platform: "instagram", senderId, externalId },
+      metadata: { platform, senderId, externalId },
       performedAt: new Date(),
     });
 
@@ -188,15 +190,15 @@ export async function POST(req: NextRequest) {
       source: "client",
       chatId: senderId,
       contactId: contactId as any,
-      platform: "instagram",
+      platform: platform as any,
       metadata: { type, externalId },
     });
 
     // 6. AUTOMATED TEST RESPONSE (Special request: Thank you message for comments)
-    if (type === "instagram_comment" && externalId) {
-      console.log(`🤖 Attempting to reply to comment: ${externalId}`);
+    if (type.includes("comment") && externalId) {
+      console.log(`🤖 Attempting to reply to ${platform} comment: ${externalId}`);
       const replyResult = await messagingService.replyToComment(
-        "instagram",
+        platform as any,
         externalId,
         "¡Gracias por tu comentario! Nos contactaremos enseguida. 🙌",
       );
