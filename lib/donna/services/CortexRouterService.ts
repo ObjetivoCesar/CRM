@@ -71,7 +71,7 @@ export class CortexRouterService {
     }
 
     // --- MEMORY SYSTEM ---
-    private async saveMessage(chatId: string, role: 'user' | 'assistant' | 'system', content: string, platform: 'telegram' | 'whatsapp' = 'whatsapp') {
+    private async saveMessage(chatId: string, role: 'user' | 'assistant' | 'system', content: string, platform: 'telegram' | 'whatsapp' | 'instagram' = 'whatsapp') {
         if (!chatId) return;
         if (process.env.DISABLE_MESSAGE_PERSISTENCE === 'true') {
             console.log(`⏭️ [Memory] Persistence disabled. Skipping save for ${chatId}`);
@@ -176,10 +176,11 @@ export class CortexRouterService {
         source: 'cesar' | 'client';
         contactId?: string;
         chatId?: string;
-        platform?: 'telegram' | 'whatsapp'; // New explicit platform
+        platform?: 'telegram' | 'whatsapp' | 'instagram'; // Added instagram support
         skipSave?: boolean; // Avoid redundant saves from webhooks
         onReply?: (text: string) => void;
         promptOverride?: string;
+        metadata?: any; // Added generic metadata support
     }): Promise<any> {
         console.log(`🧠 Cortex Router 2.0 processing path: ${input.text.substring(0, 20)}...`);
 

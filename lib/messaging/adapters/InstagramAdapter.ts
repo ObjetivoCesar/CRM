@@ -31,22 +31,41 @@ export class InstagramAdapter implements IMessagingAdapter {
         }
     }
 
-    async sendMessage(to: string, text: string, metadata?: any): Promise<{ success: boolean; data?: any; error?: string }> {
-        // Ensure initialized if called too fast (though constructor is sync, initialize is async)
-        // In practice, since sendMessage is called via UI interaction, initialize will likely be done.
-        if (!this.accessToken) {
-            await this.initialize();
-        }
-        if (!this.accessToken) {
-            console.error('❌ InstagramAdapter: INSTAGRAM_ACCESS_TOKEN missing');
-            return { success: false, error: 'Instagram Access Token missing' };
-        }
+    private async getInstagramUserId(): Promise<string | null> {
+        if (!this.accessToken) await this.initialize();
+        if (!this.accessToken) return null;
 
         try {
-            // Meta Graph API for Instagram Messages
-            // Endpoint: /{IG_USER_ID}/messages
-            // 'to' should be the ASID (App Scoped User ID) for the Instagram user
+            const [dbConfig] = await db.select().from(systemSettings).where(eq(systemSettings.key, 'instagram_config')).limit(1);
+            if (dbConfig?.value && (dbConfig.value as any).instagramUserId) {
+                return (dbConfig.value as any).instagramUserId;
+            }
 
+            // Fetch from Meta: We need the Instagram Business Account ID linked to the Page
+            // Step 1: Get pages
+            const pagesRes = await fetch(`${this.baseURL}/me/accounts?fields=instagram_business_account&access_token=${this.accessToken}`);
+            const pagesData = await pagesRes.json();
+            
+            const igUserId = pagesData.data?.[0]?.instagram_business_account?.id;
+
+            if (igUserId) {
+                const currentConfig = (dbConfig?.value as any) || {};
+                await db.update(systemSettings)
+                    .set({ value: { ...currentConfig, instagramUserId: igUserId } })
+                    .where(eq(systemSettings.key, 'instagram_config'));
+                return igUserId;
+            }
+        } catch (e) {
+            console.error('❌ InstagramAdapter: Error resolving IG User ID:', e);
+        }
+        return null;
+    }
+
+    async sendMessage(to: string, text: string, metadata?: any): Promise<{ success: boolean; data?: any; error?: string }> {
+        if (!this.accessToken) await this.initialize();
+        if (!this.accessToken) return { success: false, error: 'Instagram Access Token missing' };
+
+        try {
             const response = await fetch(`${this.baseURL}/me/messages`, {
                 method: 'POST',
                 headers: {
@@ -61,21 +80,89 @@ export class InstagramAdapter implements IMessagingAdapter {
             });
 
             const data = await response.json();
-
-            if (!response.ok) {
-                console.error('❌ Instagram API Error:', data);
-                return { success: false, error: data.error?.message || 'Instagram API Error', data };
-            }
-
+            if (!response.ok) return { success: false, error: data.error?.message || 'Instagram API Error', data };
             return { success: true, data };
         } catch (error: any) {
-            console.error('❌ InstagramAdapter Network Error:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async replyToComment(commentId: string, text: string): Promise<{ success: boolean; data?: any; error?: string }> {
+        if (!this.accessToken) await this.initialize();
+        if (!this.accessToken) return { success: false, error: 'Instagram Access Token missing' };
+
+        try {
+            const response = await fetch(`${this.baseURL}/${commentId}/replies`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.accessToken}`
+                },
+                body: JSON.stringify({ message: text })
+            });
+
+            const data = await response.json();
+            if (!response.ok) return { success: false, error: data.error?.message || 'Instagram API Error', data };
+            return { success: true, data };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    async createMediaContainer(mediaUrl: string, caption: string, isReel: boolean = false): Promise<{ success: boolean; creationId?: string; error?: string }> {
+        const igUserId = await this.getInstagramUserId();
+        if (!igUserId) return { success: false, error: 'Could not resolve Instagram Business Account ID' };
+
+        try {
+            const payload: any = {
+                caption,
+                access_token: this.accessToken
+            };
+
+            if (isReel) {
+                payload.video_url = mediaUrl;
+                payload.media_type = 'REELS';
+            } else {
+                payload.image_url = mediaUrl;
+            }
+
+            const response = await fetch(`${this.baseURL}/${igUserId}/media`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            if (!response.ok) return { success: false, error: data.error?.message };
+            return { success: true, creationId: data.id };
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    async publishMedia(creationId: string): Promise<{ success: boolean; data?: any; error?: string }> {
+        const igUserId = await this.getInstagramUserId();
+        if (!igUserId) return { success: false, error: 'Could not resolve Instagram Business Account ID' };
+
+        try {
+            const response = await fetch(`${this.baseURL}/${igUserId}/media_publish`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    creation_id: creationId,
+                    access_token: this.accessToken
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok) return { success: false, error: data.error?.message };
+            return { success: true, data };
+        } catch (error: any) {
             return { success: false, error: error.message };
         }
     }
 
     async validateContact(contact: string): Promise<boolean> {
-        // IDs are usually strings like "1234567890"
         return typeof contact === 'string' && contact.length > 5;
     }
 }

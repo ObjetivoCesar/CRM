@@ -327,12 +327,16 @@ export const quotations = pgTable('quotations', {
 export const campaigns = pgTable('campaigns', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
-  type: text('type', { enum: ['whatsapp', 'email'] }).notNull(),
+  type: text('type', { enum: ['whatsapp', 'email', 'meta_ads'] }).notNull(),
   status: text('status', { enum: ['draft', 'active', 'paused', 'completed'] }).default('draft'),
+  externalId: text('external_id'), // Meta Campaign ID
+  budget: doublePrecision('budget'),
   targetCount: integer('target_count').default(50),
   sentCount: integer('sent_count').default(0),
   responseCount: integer('response_count').default(0),
+  metadata: jsonb('metadata').default({}),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // Tasks Table
@@ -377,7 +381,7 @@ export const events = pgTable('events', {
 // Interactions Table (The "Clinical History")
 export const interactions = pgTable('interactions', {
   id: uuid('id').primaryKey().defaultRandom(),
-  type: text('type', { enum: ['call', 'email', 'meeting', 'whatsapp', 'instagram', 'telegram', 'note', 'other'] }).notNull(),
+  type: text('type', { enum: ['call', 'email', 'meeting', 'whatsapp', 'instagram', 'instagram_comment', 'telegram', 'note', 'other'] }).notNull(),
   direction: text('direction', { enum: ['inbound', 'outbound'] }), // For calls/messages
 
   content: text('content'), // Summary or body

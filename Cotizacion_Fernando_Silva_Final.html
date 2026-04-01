@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Propuesta de Ingeniería de Eficiencia - OBJETIVO</title>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --accent: #2563eb;
+            --text: #334155;
+            --light: #f8fafc;
+            --success: #059669;
+            --border: #e2e8f0;
+        }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            color: var(--text);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background: #f1f5f9;
+        }
+        .page {
+            max-width: 900px;
+            margin: 40px auto;
+            background: white;
+            padding: 60px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-bottom: 20px;
+            border-bottom: 3px solid var(--accent);
+            margin-bottom: 40px;
+        }
+        .brand-logo {
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--primary);
+            text-transform: uppercase;
+        }
+        .brand-logo span { color: var(--accent); }
+        .quote-info { text-align: right; font-size: 13px; color: #64748b; }
+        
+        .hero { margin-bottom: 40px; }
+        .tagline { color: var(--accent); font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 1.5px; }
+        h1 { font-size: 36px; color: var(--primary); margin: 5px 0 15px; }
+        
+        .section-title {
+            font-size: 20px;
+            color: var(--primary);
+            font-weight: 800;
+            margin-top: 50px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+        }
+        .section-title::before {
+            content: "";
+            width: 4px;
+            height: 24px;
+            background: var(--accent);
+            margin-right: 12px;
+            border-radius: 2px;
+        }
+
+        .service-card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 25px;
+            background: var(--light);
+        }
+        .service-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 15px;
+        }
+        .service-name { font-size: 18px; font-weight: 700; color: var(--primary); }
+        .service-price { font-size: 22px; font-weight: 800; color: var(--success); }
+        
+        .service-description { font-size: 14px; margin-bottom: 15px; font-style: italic; }
+        .tech-specs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            font-size: 13px;
+        }
+        .tech-specs ul { padding-left: 18px; margin: 0; }
+        .tech-specs li { margin-bottom: 5px; }
+
+        .strategic-service {
+            background: var(--primary);
+            color: white;
+            padding: 35px;
+            border-radius: 12px;
+            margin-top: 25px;
+        }
+        .strategic-service h3 { color: #60a5fa; margin-top: 0; font-size: 20px; }
+        .strategic-service .price { color: #34d399; font-size: 24px; font-weight: 800; margin: 10px 0; }
+        
+        .terms {
+            margin-top: 50px;
+            padding: 25px;
+            border: 1px dashed var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+            background: #fafafb;
+        }
+        
+        .footer {
+            margin-top: 60px;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            padding-top: 30px;
+            color: #94a3b8;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="page">
+    <div class="header">
+        <div class="brand-logo">OBJETIVO<span>.com</span></div>
+        <div class="quote-info">
+            <strong>PROPUESTA ESTRATÉGICA DIGITAL</strong><br>
+            Para: Fernando Silva | Agencia de Marketing<br>
+            Fecha: 25 de Marzo, 2026
+        </div>
+    </div>
+
+    <div class="hero">
+        <div class="tagline">Ingeniería de Eficiencia e Inteligencia Artificial</div>
+        <h1>Tus clientes ya te buscan en Google... <br>Hagamos que te encuentren.</h1>
+        <p>Fernando, esta propuesta está diseñada bajo la metodología de <strong>OBJETIVO</strong>: No construimos "páginas", construimos activos que transforman gastos operativos en rentabilidad medible. Aquí tienes el desglose técnico y estratégico completo.</p>
+    </div>
+
+    <div class="section-title">DESARROLLO WEB: EL DONDE</div>
+    <p style="font-size: 14px; margin-bottom: 30px;">
+        <em>Infraestructura Premium Incluida en TODOS los planes:</em> Dominio y Hosting (1er año), Certificado SSL (Seguridad), Diseño 100% Adaptable (Mobile First), Optimización SEO Básica (Indexación Google), Integración con Google Analytics/Pixel FB y Copias de Seguridad Mensuales.
+    </p>
+
+    <!-- PLAN GO 2025 -->
+    <div class="service-card">
+        <div class="service-header">
+            <div class="service-name">Páginas Web "GO 2025" (Esencial)</div>
+            <div class="service-price">$250 USD</div>
+        </div>
+        <div class="service-description">"Ideal para negocios que necesitan una presencia sólida y rápida para empezar a captar leads por WhatsApp."</div>
+        <div class="tech-specs">
+            <ul>
+                <li><strong>Estructura:</strong> 3 Secciones (Portada, Servicios, Contacto).</li>
+                <li><strong>Conversión:</strong> Botones fijos de WhatsApp y Compartir.</li>
+                <li><strong>Diseño:</strong> Cabecera fija con logotipo.</li>
+            </ul>
+            <ul>
+                <li><strong>SEO:</strong> Configuración de keyword principal + 3 relacionadas.</li>
+                <li><strong>Velocidad:</strong> Carga optimizada para redes móviles.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- PLAN NEGOCIO 24/7 -->
+    <div class="service-card">
+        <div class="service-header">
+            <div class="service-name">Tu Negocio 24/7 (Profesional)</div>
+            <div class="service-price">$500 USD</div>
+        </div>
+        <div class="service-description">"Diseño enfocado en la Experiencia de Usuario (UX) para establecer una presencia de marca profesional."</div>
+        <div class="tech-specs">
+            <ul>
+                <li><strong>Capacidad:</strong> Hasta 5 secciones personalizadas (Nosotros, Portafolio, etc).</li>
+                <li><strong>Contenido:</strong> Blog integrado para posicionamiento SEO.</li>
+                <li><strong>Seguridad:</strong> Formulario de contacto avanzado con protección Anti-SPAM.</li>
+            </ul>
+            <ul>
+                <li><strong>Análisis:</strong> Integración completa de Google Analytics.</li>
+                <li><strong>Social:</strong> Botones interactivos de vinculación de redes.</li>
+                <li><strong>Propiedad:</strong> Cero dependencias tras la entrega.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- PLAN EMPRESA ONLINE -->
+    <div class="service-card">
+        <div class="service-header">
+            <div class="service-name">Tu Empresa Online + Chatbot (Estratégico)</div>
+            <div class="service-price">$700 USD</div>
+        </div>
+        <div class="service-description">"Plataforma robusta y escalable para empresas que dominarán su sector local e internacional."</div>
+        <div class="tech-specs">
+            <ul>
+                <li><strong>Escala:</strong> Hasta 20 páginas estratégicas indexables.</li>
+                <li><strong>Inteligencia:</strong> Integración de Chatbot / Asistente Online.</li>
+                <li><strong>Multilingüe:</strong> Configuración Español / Inglés.</li>
+            </ul>
+            <ul>
+                <li><strong>SEO Avanzado:</strong> Estrategia de palabras clave integrada por página.</li>
+                <li><strong>CRM:</strong> Integración con CRM básico de gestión de clientes.</li>
+                <li><strong>Google Maps:</strong> Optimización de geolocalización avanzada.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- E-COMMERCE -->
+    <div class="service-card">
+        <div class="service-header">
+            <div class="service-name">Tu Sucursal Online (E-commerce)</div>
+            <div class="service-price">$950 USD</div>
+        </div>
+        <div class="service-description">"Sistema de ventas digital optimizado para flujos de compra sin fricción."</div>
+        <div class="tech-specs">
+            <ul>
+                <li><strong>Tienda:</strong> Hasta 40 productos iniciales con páginas propias.</li>
+                <li><strong>Pagos:</strong> Integración con Pasarelas (Tarjetas, PayPal, Transferencias).</li>
+                <li><strong>Gestión:</strong> Carrito de compras y buscador en tiempo real.</li>
+            </ul>
+            <ul>
+                <li><strong>Marketing:</strong> Configuración de Pixel de Facebook para Retargeting.</li>
+                <li><strong>Técnico:</strong> Optimización de caching y velocidad de carga crítica.</li>
+                <li><strong>Capacitación:</strong> Sesión de manejo de inventario incluida.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section-title">PLANIFICACIÓN Y ESTUDIOS: EL PORQUÉ</div>
+    <p style="font-size: 14px;">La razón por la que la mayoría de empresas fallan es porque lanzan herramientas sin estrategia. Nosotros resolvemos el <strong>porqué</strong> del negocio.</p>
+
+    <div class="strategic-service">
+        <h3>Estrategia Ganar Clientes (Plan Integral)</h3>
+        <div class="price">$1,550 USD</div>
+        <div class="tech-specs" style="color: #e2e8f0;">
+            <ul>
+                <li><strong>Análisis FODA Digital:</strong> Radiografía real frente al mercado.</li>
+                <li><strong>Espionaje de Competencia:</strong> Análisis de sus palabras clave y fugas de clientes.</li>
+                <li><strong>Plan SEO 2000+:</strong> Identificación de hasta 2000 keywords de alta intención.</li>
+                <li><strong>Manual de Identidad:</strong> Definición de Propuesta de Valor Única (PVU).</li>
+            </ul>
+            <ul>
+                <li><strong>Sesiones de Consultoría:</strong> 3 mentorías directas de implementación.</li>
+                <li><strong>Calendario de Acción:</strong> Guía de contenidos para redes y blog.</li>
+                <li><strong>Garantía de Seguimiento:</strong> Sesión de ajuste a los 3 meses incluida.</li>
+                <li><strong>Marketing ROI:</strong> Definición de KPIs y presupuesto realista.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="service-card" style="margin-top:20px;">
+        <div class="service-header">
+            <div class="service-name">Plan para Salir en Google (Estudio SEO)</div>
+            <div class="service-price">$1,300 USD</div>
+        </div>
+        <p style="font-size: 13px;">Estudio exhaustivo de mercado utilizando <strong>SEMRush</strong>. Identificamos las "palabras mágicas" que tus clientes usan para buscarte. Incluye entrega de archivo Excel estratégico y guía de creación de artículos (Clusters/Pilares).</p>
+    </div>
+
+    <div class="terms">
+        <strong>TÉRMINOS COMERCIALES:</strong><br>
+        • <strong>Forma de pago:</strong> 60% inicial para firma de contrato y 40% contra entrega final.<br>
+        • <strong>Financiamiento:</strong> Diferido hasta 12 meses con tarjeta de crédito disponible.<br>
+        • <strong>Propiedad:</strong> El diseño, código y contenido son 100% propiedad del cliente tras el pago final.<br>
+        • <strong>Soporte:</strong> 1 mes de garantía técnica post-lanzamiento.
+    </div>
+
+    <div class="footer">
+        <strong>Ing. César Reyes Jaramillo</strong><br>
+        Especialista en Desarrollo Web y SEO | CEO Objetivo<br>
+        <em>"Transformando los retos de las empresas en soluciones tecnológicas de alta rentabilidad."</em>
+    </div>
+</div>
+
+</body>
+</html>

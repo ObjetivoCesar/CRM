@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
 import { cortexRouter } from '@/lib/donna/services/CortexRouterService';
 
-// HANDLE MESSAGES (POST)
+// HANDLE MESSAGES AND COMMENTS (POST)
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
@@ -35,38 +35,65 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Not an instagram object' }, { status: 400 });
         }
 
-        // Meta sends updates in a specific structure
         const entry = body.entry?.[0];
-        const messagingEvent = entry?.messaging?.[0];
+        if (!entry) return NextResponse.json({ ok: true });
 
-        // 1. Skip if it's NOT a message (e.g., read receipt) or if it's from the bot itself
-        if (!messagingEvent?.message || messagingEvent.message.is_echo) {
+        let senderId = '';
+        let text = '';
+        let externalId = '';
+        let isEcho = false;
+        let type: 'instagram' | 'instagram_comment' = 'instagram';
+
+        // 1. EXTRACT DATA BASED ON EVENT TYPE
+        if (entry.messaging) {
+            const messagingEvent = entry.messaging[0];
+            if (!messagingEvent.message) return NextResponse.json({ ok: true });
+            
+            senderId = messagingEvent.sender.id;
+            text = messagingEvent.message.text;
+            externalId = messagingEvent.message.mid;
+            isEcho = messagingEvent.message.is_echo;
+            type = 'instagram';
+        } else if (entry.changes) {
+            const change = entry.changes[0];
+            if (change.field !== 'comments') return NextResponse.json({ ok: true });
+            
+            const commentData = change.value;
+            // Skip if it's a deletion or if it doesn't have text
+            if (change.value.verb === 'remove' || !commentData.text) return NextResponse.json({ ok: true });
+
+            senderId = commentData.from.id;
+            text = commentData.text;
+            externalId = commentData.id;
+            type = 'instagram_comment';
+            
+            // Note: comments don't have is_echo in the same way, 
+            // but we might want to skip our own comments if needed.
+            // For now, let's assume we want to log everything.
+        }
+
+        if (!senderId || isEcho) {
             return NextResponse.json({ ok: true });
         }
 
-        const senderId = messagingEvent.sender.id;
-        const text = messagingEvent.message.text;
-
-        console.log(`📸 Instagram message from ${senderId}: ${text}`);
+        console.log(`📸 Instagram ${type} from ${senderId}: ${text}`);
 
         // 2. IDEMPOTENCY CHECK
-        const messageId = messagingEvent.message.mid;
-        if (messageId) {
+        if (externalId) {
             try {
                 await db.execute(sql`
                     INSERT INTO "webhook_events_processed" ("provider", "external_id") 
-                    VALUES ('instagram', ${String(messageId)})
+                    VALUES ('instagram', ${String(externalId)})
                 `);
             } catch (e) {
-                console.warn(`[Instagram] Skipping duplicate message: ${messageId}`);
+                console.warn(`[Instagram] Skipping duplicate event: ${externalId}`);
                 return NextResponse.json({ ok: true });
             }
         }
 
-        // 2.5 IDENTITY RESOLUTION & ACTIVITY
+        // 3. IDENTITY RESOLUTION
         let contactId = null;
 
-        // A. Resolve via Channels
         const [channelMatch] = await db.select()
             .from(contactChannels)
             .where(and(eq(contactChannels.platform, 'instagram'), eq(contactChannels.identifier, senderId)))
@@ -74,10 +101,19 @@ export async function POST(req: NextRequest) {
 
         if (channelMatch) {
             contactId = channelMatch.contactId;
+            // Update existing contact activity
+            await db.update(contacts)
+                .set({
+                    lastActivityAt: new Date(),
+                    unreadCount: sql`${contacts.unreadCount} + 1`,
+                    updatedAt: new Date()
+                } as any)
+                .where(eq(contacts.id, contactId));
         } else {
-            // B. Create Ghost Contact for Instagram
+            // Create Ghost Contact
             try {
                 const [newGhost] = await db.insert(contacts).values({
+                    businessName: `Instagram User`,   // Requerido NOT NULL — se actualiza cuando se identifica
                     contactName: `IG_${senderId.slice(-4)}`,
                     status: 'lead',
                     source: 'instagram_inbound',
@@ -100,33 +136,25 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        if (contactId && channelMatch) {
-            // Update existing contact
-            await db.update(contacts)
-                .set({
-                    lastActivityAt: new Date(),
-                    unreadCount: sql`${contacts.unreadCount} + 1`,
-                    updatedAt: new Date()
-                } as any)
-                .where(eq(contacts.id, contactId));
-        }
-
-        // 3. Save Interaction (Clinical History)
+        // 4. SAVE INTERACTION
         await db.insert(interactions).values({
-            type: 'instagram',
+            type: type,
             direction: 'inbound',
             content: text,
             contactId: contactId,
-            metadata: { platform: 'instagram', senderId },
+            metadata: { platform: 'instagram', senderId, externalId },
             performedAt: new Date()
         });
 
-        // 4. Process with Cortex Router
+        // 5. PROCESS WITH CORTEX ROUTER (Only for DMs for now, or both?)
+        // Let's process both as Donna should be able to chime in on comments too.
         await cortexRouter.processInput({
             text: text,
             source: 'client',
             chatId: senderId,
-            contactId: contactId as any
+            contactId: contactId as any,
+            platform: 'instagram',
+            metadata: { type, externalId }
         });
 
         return NextResponse.json({ ok: true });
