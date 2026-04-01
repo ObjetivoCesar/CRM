@@ -25,12 +25,11 @@ export async function GET() {
         // Contacted today (whatsappSentAt is today)
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const todayTimestamp = Math.floor(today.getTime() / 1000);
 
         const contactedTodayResult = await db
             .select({ count: count() })
             .from(schema.prospects)
-            .where(sql`${schema.prospects.whatsappSentAt} >= ${todayTimestamp}`);
+            .where(sql`${schema.prospects.whatsappSentAt} >= ${today}`);
 
         const contactedToday = contactedTodayResult[0]?.count || 0;
 
