@@ -45,3 +45,5 @@ service-account.json
 
 # Analysis / Docs
 /docs/repositorios para el análisis/
+.vercel
+.env*.local

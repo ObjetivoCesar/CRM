@@ -314,6 +314,7 @@ async function processQueue() {
                     }
                 }));
             }
+        }
 
             // 4. Refresh TYPING for waiting chats
             typingRefreshChats.map(chat => {
