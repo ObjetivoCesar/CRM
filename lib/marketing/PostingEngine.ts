@@ -38,7 +38,11 @@ export class PostingEngine {
 
         if (legacy?.value) return legacy.value as unknown as string;
 
-        throw new Error(`Master Access Token not found in system_settings for ${platform}.`);
+        // Ultimate fallback to ENVIRONMENT variable
+        const envToken = process.env.INSTAGRAM_ACCESS_TOKEN || process.env.META_MA_ACCESS_TOKEN;
+        if (envToken) return envToken;
+
+        throw new Error(`Master Access Token not found in system_settings or ENV for ${platform}.`);
     }
 
     /**
