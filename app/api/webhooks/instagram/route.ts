@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
 
     // 4. SAVE INTERACTION
     await db.insert(interactions).values({
-      type: type,
+      type: type as any,
       direction: "inbound",
       content: text,
       contactId: contactId,
