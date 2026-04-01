@@ -41,7 +41,7 @@ export class MetaAccountSync {
         // Upsert FB Page
         const fbAccount = {
           platform: "facebook" as const,
-          accountId: page.id,
+          accountId: String(page.id),
           accountName: page.name,
           isActive: true,
         };
@@ -52,7 +52,7 @@ export class MetaAccountSync {
           .where(
             and(
               eq(socialAccounts.platform, "facebook"),
-              eq(socialAccounts.accountId, page.id)
+              eq(socialAccounts.accountId, String(page.id))
             )
           )
           .limit(1);
@@ -82,7 +82,7 @@ export class MetaAccountSync {
           if (igData) {
             const igAccount = {
               platform: "instagram" as const,
-              accountId: igData.id,
+              accountId: String(igData.id),
               accountName: igData.username || igData.name || `IG: ${page.name}`,
               isActive: true,
             };
@@ -93,7 +93,7 @@ export class MetaAccountSync {
               .where(
                 and(
                   eq(socialAccounts.platform, "instagram"),
-                  eq(socialAccounts.accountId, igData.id)
+                  eq(socialAccounts.accountId, String(igData.id))
                 )
               )
               .limit(1);
