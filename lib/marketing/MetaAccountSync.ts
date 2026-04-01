@@ -16,12 +16,26 @@ export class MetaAccountSync {
     const results: any[] = [];
 
     try {
-      // 1. Fetch FB Pages
-      const pagesRes = await axios.get(`${this.graphUrl}/me/accounts`, {
-        params: { access_token: token },
-      });
-
-      const pages = pagesRes.data.data || [];
+      // 1. Fetch FB Pages or try direct Page Token lookup
+      let pages: any[] = [];
+      try {
+        const pagesRes = await axios.get(`${this.graphUrl}/me/accounts`, {
+          params: { access_token: token },
+        });
+        pages = pagesRes.data.data || [];
+      } catch (err: any) {
+        // If the token is a Page Access Token, `/me/accounts` fails with OAuthException code 100.
+        // We catch it and assume it's a Page Token, so we just ask `/me` for the Page profile.
+        if (err.response?.data?.error?.code === 100) {
+          console.log("[MetaAccountSync] Detected Page Access Token. Falling back to /me.");
+          const meRes = await axios.get(`${this.graphUrl}/me`, {
+            params: { fields: "id,name", access_token: token },
+          });
+          pages = [meRes.data];
+        } else {
+          throw err;
+        }
+      }
 
       for (const page of pages) {
         // Upsert FB Page
@@ -56,6 +70,7 @@ export class MetaAccountSync {
 
         // 2. Fetch IG Business Account linked to this page
         try {
+          // Since we might be using a Page Token, we query the Page node directly
           const igRes = await axios.get(`${this.graphUrl}/${page.id}`, {
             params: {
               fields: "instagram_business_account{id,name,username}",
