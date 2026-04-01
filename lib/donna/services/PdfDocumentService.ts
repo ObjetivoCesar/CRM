@@ -1,6 +1,5 @@
 import React from 'react';
-import { renderToBuffer } from '@react-pdf/renderer';
-import { UniversalPdfDocument } from '@/components/pdf/UniversalPdfDocument';
+// Importaciones movidas dinámicamente dentro de la función para evitar errores de ESM en Vercel
 
 export type DocumentType = 'quotation' | 'contract' | 'generic';
 
@@ -34,6 +33,9 @@ export class PdfDocumentService {
 
             const defaultLogo = getAssetPath('logo-membrete.png');
             const defaultFooter = getAssetPath('pie-pagina.png');
+
+            const { renderToBuffer } = await import('@react-pdf/renderer');
+            const { UniversalPdfDocument } = await import('@/components/pdf/UniversalPdfDocument');
 
             const docElement = React.createElement(UniversalPdfDocument, {
                 content,
