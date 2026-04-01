@@ -42,3 +42,6 @@ Thumbs.db
 # Credentials
 google_credentials.json
 service-account.json
+
+# Analysis / Docs
+/docs/repositorios para el análisis/
