@@ -38,9 +38,9 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    if (body.object !== "instagram") {
+    if (body.object !== "instagram" && body.object !== "page") {
       return NextResponse.json(
-        { error: "Not an instagram object" },
+        { error: "Not an instagram or page object" },
         { status: 400 },
       );
     }

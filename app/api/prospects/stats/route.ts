@@ -2,6 +2,8 @@ import { db, schema } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { sql, count } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
     try {
         // Total prospects
@@ -29,7 +31,7 @@ export async function GET() {
         const contactedTodayResult = await db
             .select({ count: count() })
             .from(schema.prospects)
-            .where(sql`${schema.prospects.whatsappSentAt} >= ${today}`);
+            .where(sql`${schema.prospects.whatsappSentAt} >= ${today.toISOString()}`);
 
         const contactedToday = contactedTodayResult[0]?.count || 0;
 

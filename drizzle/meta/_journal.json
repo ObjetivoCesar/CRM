@@ -29,6 +29,13 @@
       "when": 1775008373879,
       "tag": "0003_noisy_leo",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775022144062,
+      "tag": "0004_social_scheduler_tables",
+      "breakpoints": true
     }
   ]
 }

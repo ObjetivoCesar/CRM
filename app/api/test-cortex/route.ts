@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cortexRouter } from '@/lib/donna/services/CortexRouterService';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * TEST ENDPOINT - Prueba directa del Cortex Router
  * Accede a: http://localhost:3000/api/test-cortex?text=El+compadre+Claudio+me+pidió+cambiar+el+logo

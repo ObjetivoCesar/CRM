@@ -858,3 +858,31 @@ export const donnaSessionTelemetry = pgTable('donna_session_telemetry', {
   wasSuccessful: boolean('was_successful').default(true).notNull(), // Did it end in 'closed' or 'abandoned'?
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// ============================================
+// SOCIAL MEDIA SCHEDULER (Meta Posting)
+// ============================================
+
+export const socialAccounts = pgTable('social_accounts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  platform: text('platform', { enum: ['facebook', 'instagram'] }).notNull(),
+  accountId: text('account_id').notNull(), // The Facebook Page ID or IG User ID
+  accountName: text('account_name'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const socialPosts = pgTable('social_posts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  accountId: uuid('account_id').references(() => socialAccounts.id, { onDelete: 'cascade' }).notNull(),
+  content: text('content'), // The text/caption
+  mediaUrls: jsonb('media_urls').default('[]'), // Array of image/video URLs
+  mediaType: text('media_type', { enum: ['IMAGE', 'VIDEO', 'CAROUSEL'] }).default('IMAGE').notNull(),
+  scheduledFor: timestamp('scheduled_for').notNull(), // When it should be posted
+  status: text('status', { enum: ['draft', 'scheduled', 'publishing', 'published', 'failed'] }).default('draft').notNull(),
+  metaPostId: text('meta_post_id'), // The ID returned by Meta after successful publishing
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});

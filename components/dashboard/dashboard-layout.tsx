@@ -98,6 +98,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: "Finanzas", icon: MessageSquare, href: "/finance" }, // Usando MessageSquare temporalmente, cambiar a Banknote si disponible
     { name: "Cotizaciones", icon: FileText, href: "/cotizaciones" },
     { name: "Contratos", icon: FileSignature, href: "/contratos" },
+    { name: "Marketing", icon: Users, href: "/marketing/scheduler" },
     { name: "Discovery", icon: Search, href: "/discovery" },
     { name: "Entrenador", icon: Mic, href: "/trainer" },
     { name: "Donna", icon: Sparkles, href: "/donna", badge: "AI" },
