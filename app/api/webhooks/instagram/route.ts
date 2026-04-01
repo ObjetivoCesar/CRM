@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
 }
 
 import { cortexRouter } from '@/lib/donna/services/CortexRouterService';
+import { messagingService } from '@/lib/messaging/MessagingService';
 
 // HANDLE MESSAGES AND COMMENTS (POST)
 export async function POST(req: NextRequest) {
@@ -146,7 +147,7 @@ export async function POST(req: NextRequest) {
             performedAt: new Date()
         });
 
-        // 5. PROCESS WITH CORTEX ROUTER (Only for DMs for now, or both?)
+        // 5. PROCESS WITH CORTEX ROUTER
         // Let's process both as Donna should be able to chime in on comments too.
         await cortexRouter.processInput({
             text: text,
@@ -156,6 +157,12 @@ export async function POST(req: NextRequest) {
             platform: 'instagram',
             metadata: { type, externalId }
         });
+
+        // 6. AUTOMATED TEST RESPONSE (Special request: Thank you message for comments)
+        if (type === 'instagram_comment' && externalId) {
+            console.log(`🤖 Sending automated test response to comment: ${externalId}`);
+            await messagingService.replyToComment('instagram', externalId, '¡Gracias por tu comentario! Nos contactaremos enseguida.');
+        }
 
         return NextResponse.json({ ok: true });
     } catch (error) {

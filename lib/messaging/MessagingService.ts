@@ -84,12 +84,12 @@ export class MessagingService {
             }
 
             const adapter = this.adapters.get(requestedChannel);
-            if (!adapter) throw new Error(`No adapter found for channel: ${requestedChannel} `);
+            if (!adapter) throw new Error(`No adapter found for channel: ${requestedChannel}`);
 
-            console.log(`📨 MessagingService: Sending via ${requestedChannel}.Destination: ${destination} `);
+            console.log(`📨 MessagingService: Sending via ${requestedChannel}. Destination: ${destination}`);
 
             if (!destination) {
-                throw new Error(`No valid destination identifier found for ${id} on ${requestedChannel} `);
+                throw new Error(`No valid destination identifier found for ${id} on ${requestedChannel}`);
             }
 
             const result = await adapter.sendMessage(destination, text, metadata);
@@ -109,8 +109,6 @@ export class MessagingService {
                         .catch(e => console.warn('⚠️ LastActivity update failed:', e));
                 }
 
-                // REDUNDANCY REMOVED: WhatsAppService already logs to interactions and donnaChatMessages
-                // We only return the result here.
                 return result;
             }
 
@@ -118,6 +116,22 @@ export class MessagingService {
 
         } catch (error: any) {
             console.error('MessagingService Error:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Responde directamente a un comentario público
+     */
+    async replyToComment(platform: 'instagram', commentId: string, text: string) {
+        try {
+            const adapter = this.adapters.get(platform) as any;
+            if (!adapter || !adapter.replyToComment) {
+                throw new Error(`El adaptador de ${platform} no soporta respuestas a comentarios.`);
+            }
+            return await adapter.replyToComment(commentId, text);
+        } catch (error: any) {
+            console.error(`❌ Error en MessagingService.replyToComment (${platform}):`, error);
             return { success: false, error: error.message };
         }
     }
