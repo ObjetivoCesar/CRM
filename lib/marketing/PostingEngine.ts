@@ -15,9 +15,18 @@ export class PostingEngine {
 
     /**
      * Resolves the access token from the database configuration.
-     * Priority: facebook_config > instagram_config > Legacy Environment
+     * Priority: Environment > Database (facebook_config/instagram_config)
      */
     static async getAccessToken(platform: 'facebook' | 'instagram' = 'facebook'): Promise<string> {
+        // 1. Ultimate Priority: ENVIRONMENT variable
+        // This allows users to override database issues by just updating Render/Vercel secrets.
+        const envToken = process.env.INSTAGRAM_ACCESS_TOKEN || process.env.META_MA_ACCESS_TOKEN;
+        if (envToken) {
+            console.log(`🔌 PostingEngine: Using Access Token from Environment for ${platform}`);
+            return envToken;
+        }
+
+        // 2. Database Fallback (facebook_config / instagram_config)
         const configKey = `${platform}_config`;
         const [record] = await db
             .select({ value: systemSettings.value })
@@ -29,7 +38,7 @@ export class PostingEngine {
             return (record.value as any).accessToken;
         }
 
-        // Legacy fallback
+        // 3. Legacy Database fallback (Case Insensitive or All Caps)
         const [legacy] = await db
             .select({ value: systemSettings.value })
             .from(systemSettings)
@@ -38,11 +47,7 @@ export class PostingEngine {
 
         if (legacy?.value) return legacy.value as unknown as string;
 
-        // Ultimate fallback to ENVIRONMENT variable
-        const envToken = process.env.INSTAGRAM_ACCESS_TOKEN || process.env.META_MA_ACCESS_TOKEN;
-        if (envToken) return envToken;
-
-        throw new Error(`Master Access Token not found in system_settings or ENV for ${platform}.`);
+        throw new Error(`Master Access Token not found in ENV or system_settings for ${platform}.`);
     }
 
     /**

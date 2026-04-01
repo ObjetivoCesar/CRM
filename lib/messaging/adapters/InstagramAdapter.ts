@@ -19,25 +19,31 @@ export class InstagramAdapter implements IMessagingAdapter {
   private async getToken(): Promise<string> {
     if (this._accessToken !== null) return this._accessToken;
 
+    // 1. Priority: Environment Variable (Standard for Vercel/Render)
+    if (process.env.INSTAGRAM_ACCESS_TOKEN) {
+      this._accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
+      console.log("🔌 InstagramAdapter: Token loaded from Environment: FOUND");
+      return this._accessToken;
+    }
+
+    // 2. Fallback: Database Configuration
     try {
       const [dbConfig] = await db
         .select()
         .from(systemSettings)
         .where(eq(systemSettings.key, "instagram_config"))
         .limit(1);
+
       if (dbConfig?.value && (dbConfig.value as any).accessToken) {
         this._accessToken = (dbConfig.value as any).accessToken;
         console.log("🔌 InstagramAdapter: Token loaded from Database");
       } else {
-        this._accessToken = process.env.INSTAGRAM_ACCESS_TOKEN || "";
-        console.log(
-          "🔌 InstagramAdapter: Token loaded from Environment:",
-          this._accessToken ? "FOUND" : "MISSING",
-        );
+        console.warn("🔌 InstagramAdapter: Token MISSING in Env and Database");
+        this._accessToken = "";
       }
     } catch (e) {
-      console.error("❌ InstagramAdapter: Error loading token:", e);
-      this._accessToken = process.env.INSTAGRAM_ACCESS_TOKEN || "";
+      console.error("❌ InstagramAdapter: Error loading token from DB:", e);
+      this._accessToken = "";
     }
 
     return this._accessToken as string;
