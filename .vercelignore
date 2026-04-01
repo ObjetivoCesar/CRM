@@ -1,0 +1,21 @@
+# Reference repositories (analysis only, not for deploy)
+docs/repositorios para el análisis/
+
+# Other non-deploy files
+*.log
+*.bat
+*.sql
+build.log
+build_log.txt
+logs/
+tmp/
+donna_docs/
+skills_registry.txt
+google_credentials.json
+service-account.json
+DIAGNOSTICO_PITCH.bat
+PDR_CRM_OBJETIVO.md
+INFORME_PLAN_ACCION.md
+CRM_MASTER_RULES.md
+Cotizacion_*.html
+token de whatsapp.txt
