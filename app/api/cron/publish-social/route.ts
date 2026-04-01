@@ -38,23 +38,22 @@ export async function GET(req: NextRequest) {
       // Actualizar a 'publishing' para evitar doble envío si el cron se solapa
       await db.update(socialPosts).set({ status: "publishing" }).where(eq(socialPosts.id, post.id));
 
-      let publishResult;
-      const mediaUrl = post.mediaUrls && Array.isArray(post.mediaUrls) ? post.mediaUrls[0] : null;
+      let publishResult: any;
+      const mediaUrls = Array.isArray(post.mediaUrls) ? post.mediaUrls as string[] : [];
 
       if (account.platform === "facebook") {
-        publishResult = await PostingEngine.publishToFacebook(
-          account.accountId,
-          post.content || "",
-          mediaUrl
-        );
+        publishResult = await PostingEngine.publishToFacebook({
+          pageId: account.accountId,
+          message: post.content || "",
+          mediaUrls: mediaUrls
+        });
       } else if (account.platform === "instagram") {
-        // En IG el mediaUrl es obligatorio para esta versión del PostingEngine
-        publishResult = await PostingEngine.publishToInstagram(
-          account.accountId,
-          post.content || "",
-          mediaUrl || "",
-          post.mediaType as any
-        );
+        publishResult = await PostingEngine.publishToInstagram({
+          igUserId: account.accountId,
+          caption: post.content || "",
+          mediaUrls: mediaUrls,
+          mediaType: post.mediaType as any
+        });
       }
 
       if (publishResult?.success) {

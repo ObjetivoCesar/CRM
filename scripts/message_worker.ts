@@ -138,7 +138,29 @@ async function processQueue() {
                         }));
 
                         const unifiedContent = processedMessages.map(m => m.content).join('\n');
-                        const platform = (messages[0]?.platform as 'telegram' | 'whatsapp') || 'whatsapp';
+                        const rawPlatform = messages[0]?.platform || 'whatsapp';
+                        
+                        // Define valid types for interactions and chat history
+                        const interactionTypeMap: Record<string, 'whatsapp' | 'telegram' | 'instagram' | 'instagram_comment' | 'facebook' | 'facebook_comment'> = {
+                            whatsapp: 'whatsapp',
+                            telegram: 'telegram',
+                            instagram: 'instagram',
+                            instagram_comment: 'instagram_comment',
+                            facebook: 'facebook',
+                            facebook_comment: 'facebook_comment',
+                        };
+
+                        const chatPlatformMap: Record<string, 'whatsapp' | 'telegram' | 'instagram' | 'facebook'> = {
+                            whatsapp: 'whatsapp',
+                            telegram: 'telegram',
+                            instagram: 'instagram',
+                            instagram_comment: 'instagram',
+                            facebook: 'facebook',
+                            facebook_comment: 'facebook',
+                        };
+
+                        const platform = interactionTypeMap[rawPlatform] || 'whatsapp';
+                        const chatPlatform = chatPlatformMap[rawPlatform] || 'whatsapp';
 
                         // B. Identify Contact for Persistence
                         const { contacts, contactChannels, discoveryLeads, interactions, donnaChatMessages } = await import('../lib/db/schema');
@@ -170,7 +192,7 @@ async function processQueue() {
                         if (!FORCE_TESTING_MODE && process.env.DISABLE_MESSAGE_PERSISTENCE !== 'true') {
                             try {
                                 const interactionResult = await db.insert(interactions).values({
-                                    type: platform as any,
+                                    type: platform,
                                     direction: 'inbound',
                                     content: unifiedContent,
                                     contactId: finalContactId || null,
@@ -188,7 +210,7 @@ async function processQueue() {
                                     chatId: chat.chatId,
                                     role: 'user',
                                     content: unifiedContent,
-                                    platform: platform,
+                                    platform: chatPlatform,
                                     messageTimestamp: new Date(),
                                     metadata: { source: 'worker_batch' }
                                 }).returning();
@@ -246,7 +268,7 @@ async function processQueue() {
                             const aiResult = await cortexRouter.processInput({
                                 text: unifiedContent,
                                 source: 'client',
-                                platform,
+                                platform: chatPlatform,
                                 contactId: finalContactId,
                                 chatId: chat.chatId,
                                 skipSave: true // We handle persistence here

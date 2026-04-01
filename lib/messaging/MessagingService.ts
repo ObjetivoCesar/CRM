@@ -7,6 +7,7 @@ import { eq, or, desc, sql, and } from 'drizzle-orm';
 import { WhatsAppAdapter } from './adapters/WhatsAppAdapter';
 import { TelegramAdapter } from './adapters/TelegramAdapter';
 import { InstagramAdapter } from './adapters/InstagramAdapter';
+import { FacebookAdapter } from './adapters/FacebookAdapter';
 
 export class MessagingService {
     private adapters: Map<string, IMessagingAdapter> = new Map();
@@ -18,6 +19,7 @@ export class MessagingService {
         this.registerAdapter(new WhatsAppAdapter());
         this.registerAdapter(new TelegramAdapter());
         this.registerAdapter(new InstagramAdapter());
+        this.registerAdapter(new FacebookAdapter());
     }
 
     /**
@@ -123,7 +125,7 @@ export class MessagingService {
     /**
      * Responde directamente a un comentario público
      */
-    async replyToComment(platform: 'instagram', commentId: string, text: string) {
+    async replyToComment(platform: 'instagram' | 'facebook', commentId: string, text: string) {
         try {
             const adapter = this.adapters.get(platform) as any;
             if (!adapter || !adapter.replyToComment) {

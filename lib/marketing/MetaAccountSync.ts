@@ -12,7 +12,7 @@ export class MetaAccountSync {
    * Sincroniza las páginas de Facebook y cuentas de Instagram asociadas al token maestro
    */
   static async syncAccounts() {
-    const token = await PostingEngine.getMasterToken();
+    const token = await PostingEngine.getAccessToken('facebook');
     const results: any[] = [];
 
     try {

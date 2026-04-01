@@ -71,7 +71,7 @@ export class CortexRouterService {
     }
 
     // --- MEMORY SYSTEM ---
-    private async saveMessage(chatId: string, role: 'user' | 'assistant' | 'system', content: string, platform: 'telegram' | 'whatsapp' | 'instagram' = 'whatsapp') {
+    private async saveMessage(chatId: string, role: 'user' | 'assistant' | 'system', content: string, platform: 'telegram' | 'whatsapp' | 'instagram' | 'facebook' = 'whatsapp') {
         if (!chatId) return;
         if (process.env.DISABLE_MESSAGE_PERSISTENCE === 'true') {
             console.log(`⏭️ [Memory] Persistence disabled. Skipping save for ${chatId}`);
@@ -176,7 +176,7 @@ export class CortexRouterService {
         source: 'cesar' | 'client';
         contactId?: string;
         chatId?: string;
-        platform?: 'telegram' | 'whatsapp' | 'instagram'; // Added instagram support
+        platform?: 'telegram' | 'whatsapp' | 'instagram' | 'facebook'; // Added facebook support
         skipSave?: boolean; // Avoid redundant saves from webhooks
         onReply?: (text: string) => void;
         promptOverride?: string;
@@ -776,23 +776,29 @@ Estructura:
     }
 
     private async sendToOriginalChannel(input: any, replyContext: any, text: string, media?: any) {
-        // Helper: Replies on the same channel and number César originally wrote from
-        if (input.chatId && (input.platform === 'whatsapp' || input.source === 'client')) {
-            if (media) {
-                await whatsappService.sendMessage(input.chatId, '', replyContext, media);
-            } else {
-                await whatsappService.sendMessage(input.chatId, text, replyContext);
-            }
+        // Resolve platform: use input platform or infer from source
+        const platform = input.platform || (input.source === 'client' ? 'whatsapp' : 'telegram');
+        
+        // Helper: Replies on the same channel and number the user originally wrote from
+        if (input.chatId) {
+            // Enhanced with MessagingService to support multiple adapters
+            console.log(`📤 Sending reply to ${input.chatId} via ${platform}`);
+            
+            await messagingService.send(input.chatId, text, { 
+                ...replyContext, 
+                platform, 
+                media 
+            });
         } else {
-            // Fallback to Telegram for commands originally from Telegram
+            // Fallback to Telegram for commands originally from Telegram or system
             await internalNotificationService.notifyCesar(text, replyContext);
         }
 
-        // 📝 LOG ASSISTANT RESPONSE (Phase 10 Fix)
+        // 📝 LOG ASSISTANT RESPONSE
         // Note: For CHAT intent, message_worker handles this. This part is for 
         // intermediate messages (like "Dame un minuto...") or PDF send confirmation.
         if (input.chatId && text) {
-            await this.saveMessage(input.chatId, 'assistant', text, input.platform || 'whatsapp');
+            await this.saveMessage(input.chatId, 'assistant', text, platform as any);
         }
     }
 
