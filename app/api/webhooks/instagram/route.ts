@@ -160,8 +160,13 @@ export async function POST(req: NextRequest) {
 
         // 6. AUTOMATED TEST RESPONSE (Special request: Thank you message for comments)
         if (type === 'instagram_comment' && externalId) {
-            console.log(`🤖 Sending automated test response to comment: ${externalId}`);
-            await messagingService.replyToComment('instagram', externalId, '¡Gracias por tu comentario! Nos contactaremos enseguida.');
+            console.log(`🤖 Attempting to reply to comment: ${externalId}`);
+            const replyResult = await messagingService.replyToComment('instagram', externalId, '¡Gracias por tu comentario! Nos contactaremos enseguida. 🙌');
+            if (replyResult?.success) {
+                console.log(`✅ Comment reply sent successfully:`, JSON.stringify(replyResult.data));
+            } else {
+                console.error(`❌ Comment reply FAILED:`, JSON.stringify(replyResult));
+            }
         }
 
         return NextResponse.json({ ok: true });
