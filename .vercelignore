@@ -1,5 +1,5 @@
-# Reference repositories (analysis only, not for deploy)
-docs/repositorios para el análisis/
+# Entire docs folder (reference only, not production code)
+docs/
 
 # Other non-deploy files
 *.log
@@ -19,3 +19,6 @@ INFORME_PLAN_ACCION.md
 CRM_MASTER_RULES.md
 Cotizacion_*.html
 token de whatsapp.txt
+.agent/
+.git/
+node_modules/
