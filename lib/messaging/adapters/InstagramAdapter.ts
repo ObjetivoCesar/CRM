@@ -85,27 +85,66 @@ export class InstagramAdapter implements IMessagingAdapter {
     return null;
   }
 
+  private async getPageId(): Promise<string | null> {
+    const token = await this.getToken();
+    if (!token) return null;
+
+    try {
+      // 1. Check database for existing Page ID
+      const [dbConfig] = await db
+        .select()
+        .from(systemSettings)
+        .where(eq(systemSettings.key, "instagram_config"))
+        .limit(1);
+      
+      if (dbConfig?.value && (dbConfig.value as any).facebookPageId) {
+        return (dbConfig.value as any).facebookPageId;
+      }
+
+      // 2. Fetch from Meta: Get the Facebook Page ID linked to this token
+      const pagesRes = await fetch(
+        `${this.baseURL}/me/accounts?access_token=${token}`,
+      );
+      const pagesData = await pagesRes.json();
+      const pageId = pagesData.data?.[0]?.id;
+
+      if (pageId) {
+        const currentConfig = (dbConfig?.value as any) || {};
+        await db
+          .update(systemSettings)
+          .set({ value: { ...currentConfig, facebookPageId: pageId } })
+          .where(eq(systemSettings.key, "instagram_config"));
+        return pageId;
+      }
+    } catch (e) {
+      console.error("❌ InstagramAdapter: Error resolving Page ID:", e);
+    }
+    return null;
+  }
+
   async sendMessage(
     to: string,
     text: string,
     metadata?: any,
   ): Promise<{ success: boolean; data?: any; error?: string }> {
     const token = await this.getToken();
-    const igUserId = await this.getInstagramUserId();
+    // IMPORTANT: For Instagram Messaging, we must POST to the PAGE ID, not the IG User ID
+    // but the token must have instagram_manage_messages.
+    const pageId = await this.getPageId(); 
 
     if (!token)
       return { success: false, error: "Instagram Access Token missing" };
-    if (!igUserId)
+    if (!pageId)
       return {
         success: false,
-        error: "Could not resolve Instagram Business Account ID",
+        error: "Could not resolve Linked Facebook Page ID",
       };
 
     try {
       // Instagram DMs via Messenger API for Instagram
-      // Ref: https://developers.facebook.com/docs/messenger-platform/instagram
+      // Endpoint: POST /v19.0/{PAGE-ID}/messages
       const response = await fetch(
-        `${this.baseURL}/${igUserId}/messages?access_token=${token}`,
+        `${this.baseURL}/${pageId}/messages?access_token=${token}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -165,6 +204,7 @@ export class InstagramAdapter implements IMessagingAdapter {
       // NOT as Authorization header — Meta requires this for IG Comment API
       const url = `${this.baseURL}/${commentId}/replies?access_token=${token}`;
       const params = new URLSearchParams({ message: text });
+
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },

@@ -12,12 +12,9 @@ import http from 'http';
 
 const port = Number(process.env.PORT) || 10000;
 const server = http.createServer((req, res) => {
-    if (req.url === '/api/health' || req.url === '/') {
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
-        return res.end('Worker Active');
-    }
-    res.writeHead(404);
-    res.end('Not Found');
+    // Respond 200 OK to EVERYTHING on this port to keep Render happy
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Worker Active');
 });
 
 server.listen(port, '0.0.0.0', () => {
