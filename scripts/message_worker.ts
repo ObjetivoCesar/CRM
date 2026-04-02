@@ -34,14 +34,16 @@ process.on('SIGINT', () => {
     process.exit(0);
 });
 
-// 🔔 KEEP-ALIVE: Ping ourselves every 9 min to prevent Render Free Tier idle shutdown (threshold is 10 min)
-// Uses internal localhost to avoid DNS issues. The HTTP server above makes this reliable.
+// 🔔 KEEP-ALIVE: Ping ourselves externally every 9 min to prevent Render Free Tier idle shutdown
+// We MUST ping the external URL (or a configured RENDER_EXTERNAL_URL) so that Render's ingress router sees the traffic.
+// Localhost pings do NOT reset the 15-minute idle timer.
 setInterval(async () => {
     try {
-        const res = await fetch(`http://localhost:${port}/api/health`);
-        console.log(`🏓 Keep-alive ping: ${res.status} OK @ ${new Date().toISOString()}`);
+        const renderUrl = process.env.RENDER_EXTERNAL_URL || 'https://crm-nbul.onrender.com';
+        const res = await fetch(`${renderUrl}/api/health`);
+        console.log(`🏓 External Keep-alive ping (${renderUrl}): ${res.status} OK @ ${new Date().toISOString()}`);
     } catch (e: any) {
-        console.warn(`🏓 Keep-alive ping failed: ${e.message}`);
+        console.warn(`🏓 External Keep-alive ping failed: ${e.message}`);
     }
 }, 9 * 60 * 1000); // every 9 minutes
 
