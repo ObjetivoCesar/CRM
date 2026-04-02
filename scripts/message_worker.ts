@@ -24,16 +24,26 @@ server.listen(port, '0.0.0.0', () => {
     console.log(`🌍 Health Check Server running on port ${port}`);
 });
 
-// 🔔 KEEP-ALIVE: Ping ourselves every 10 min to prevent Render Free Tier spin-down
-const RENDER_SERVICE_URL = process.env.RENDER_EXTERNAL_URL || process.env.RENDER_SERVICE_URL || `http://localhost:${port}`;
+// 🛡️ SIGTERM HANDLER: Log the shutdown signal so we can diagnose it in Render
+process.on('SIGTERM', () => {
+    console.warn('⚠️ SIGTERM received! Worker is being shut down by Render. Check Render logs and ensure the health check URL is correctly configured.');
+    process.exit(0);
+});
+process.on('SIGINT', () => {
+    console.warn('⚠️ SIGINT received! Worker stopping.');
+    process.exit(0);
+});
+
+// 🔔 KEEP-ALIVE: Ping ourselves every 9 min to prevent Render Free Tier idle shutdown (threshold is 10 min)
+// Uses internal localhost to avoid DNS issues. The HTTP server above makes this reliable.
 setInterval(async () => {
     try {
-        const res = await fetch(`${RENDER_SERVICE_URL}/api/health`);
-        console.log(`🏓 Internal Keep-alive ping: ${res.status} OK`);
+        const res = await fetch(`http://localhost:${port}/api/health`);
+        console.log(`🏓 Keep-alive ping: ${res.status} OK @ ${new Date().toISOString()}`);
     } catch (e: any) {
-        console.warn(`🏓 Internal Keep-alive ping failed: ${e.message}`);
+        console.warn(`🏓 Keep-alive ping failed: ${e.message}`);
     }
-}, 10 * 60 * 1000); // every 10 minutes
+}, 9 * 60 * 1000); // every 9 minutes
 
 import { db } from '../lib/db';
 import { pendingMessagesQueue } from '../lib/db/schema';

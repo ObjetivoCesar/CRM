@@ -102,25 +102,35 @@ export class InstagramAdapter implements IMessagingAdapter {
       };
 
     try {
-      const response = await fetch(`${this.baseURL}/${igUserId}/messages`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          recipient: { id: to },
-          message: { text: text },
-          messaging_type: "RESPONSE",
-        }),
-      });
+      // Instagram DMs via Messenger API for Instagram
+      // Ref: https://developers.facebook.com/docs/messenger-platform/instagram
+      const response = await fetch(
+        `${this.baseURL}/${igUserId}/messages?access_token=${token}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recipient: { id: to },
+            message: { text: text },
+            messaging_type: "RESPONSE",
+          }),
+        }
+      );
 
       const data = await response.json();
       if (!response.ok) {
-        console.error(
-          `❌ InstagramAdapter.sendMessage failed [${response.status}]:`,
-          JSON.stringify(data),
-        );
+        // Error #3 = Missing advanced access / permission scope for DMs
+        if (data.error?.code === 3) {
+          console.error(
+            `❌ InstagramAdapter.sendMessage: App lacks 'instagram_manage_messages' Advanced Access on Meta. Cannot send DMs.`,
+            JSON.stringify(data)
+          );
+        } else {
+          console.error(
+            `❌ InstagramAdapter.sendMessage failed [${response.status}]:`,
+            JSON.stringify(data),
+          );
+        }
         return {
           success: false,
           error: data.error?.message || "Instagram API Error",
@@ -151,14 +161,14 @@ export class InstagramAdapter implements IMessagingAdapter {
     );
 
     try {
-      const url = `${this.baseURL}/${commentId}/replies`;
+      // Access token must be sent as query param for comment replies
+      // NOT as Authorization header — Meta requires this for IG Comment API
+      const url = `${this.baseURL}/${commentId}/replies?access_token=${token}`;
+      const params = new URLSearchParams({ message: text });
       const response = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ message: text }),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params.toString(),
       });
 
       const data = await response.json();
@@ -169,6 +179,14 @@ export class InstagramAdapter implements IMessagingAdapter {
             `⚠️ InstagramAdapter.replyToComment: Meta API rejected duplicate reply to comment ${commentId}. Ignoring.`,
           );
           return { success: true, data }; // Consider it a success to stop retries
+        }
+
+        // Ignore "response format not supported" — usually means reply already sent
+        if (data.error?.error_subcode === 1772107) {
+          console.warn(
+            `⚠️ InstagramAdapter.replyToComment: Comment ${commentId} already has a reply or format not supported. Ignoring.`,
+          );
+          return { success: true, data };
         }
 
         console.error(
