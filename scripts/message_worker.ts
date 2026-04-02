@@ -8,17 +8,32 @@ if (fs.existsSync('.env.local')) {
 } else {
     console.log('🌐 No .env.local found, assuming production environment variables');
 }
-
-// CRITICAL: Start health check server FIRST for Render Free Tier
 import http from 'http';
-const port = process.env.PORT || 10000;
+
+const port = Number(process.env.PORT) || 10000;
 const server = http.createServer((req, res) => {
-    res.writeHead(200);
-    res.end('Worker Active');
+    if (req.url === '/api/health' || req.url === '/') {
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        return res.end('Worker Active');
+    }
+    res.writeHead(404);
+    res.end('Not Found');
 });
+
 server.listen(port, '0.0.0.0', () => {
     console.log(`🌍 Health Check Server running on port ${port}`);
 });
+
+// 🔔 KEEP-ALIVE: Ping ourselves every 10 min to prevent Render Free Tier spin-down
+const RENDER_SERVICE_URL = process.env.RENDER_EXTERNAL_URL || process.env.RENDER_SERVICE_URL || `http://localhost:${port}`;
+setInterval(async () => {
+    try {
+        const res = await fetch(`${RENDER_SERVICE_URL}/api/health`);
+        console.log(`🏓 Internal Keep-alive ping: ${res.status} OK`);
+    } catch (e: any) {
+        console.warn(`🏓 Internal Keep-alive ping failed: ${e.message}`);
+    }
+}, 10 * 60 * 1000); // every 10 minutes
 
 import { db } from '../lib/db';
 import { pendingMessagesQueue } from '../lib/db/schema';
@@ -210,7 +225,7 @@ async function processQueue() {
                                     chatId: chat.chatId,
                                     role: 'user',
                                     content: unifiedContent,
-                                    platform: chatPlatform,
+                                    platform: chatPlatform as any,
                                     messageTimestamp: new Date(),
                                     metadata: { source: 'worker_batch' }
                                 }).returning();
@@ -282,7 +297,7 @@ async function processQueue() {
                                         chatId: chat.chatId,
                                         role: 'assistant',
                                         content: aiResult.response,
-                                        platform: platform,
+                                        platform: chatPlatform as any,
                                         messageTimestamp: new Date(),
                                         metadata: { source: 'worker_ai_response' }
                                     });
