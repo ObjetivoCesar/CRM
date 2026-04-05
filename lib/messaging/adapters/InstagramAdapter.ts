@@ -128,23 +128,15 @@ export class InstagramAdapter implements IMessagingAdapter {
     metadata?: any,
   ): Promise<{ success: boolean; data?: any; error?: string }> {
     const token = await this.getToken();
-    // IMPORTANT: For Instagram Messaging, we must POST to the PAGE ID, not the IG User ID
-    // but the token must have instagram_manage_messages.
-    const pageId = await this.getPageId(); 
 
     if (!token)
       return { success: false, error: "Instagram Access Token missing" };
-    if (!pageId)
-      return {
-        success: false,
-        error: "Could not resolve Linked Facebook Page ID",
-      };
 
     try {
       // Instagram DMs via Messenger API for Instagram
-      // Endpoint: POST /v19.0/{PAGE-ID}/messages
+      // Endpoint: POST /v19.0/me/messages (which dynamically resolves to the connected Page via the token)
       const response = await fetch(
-        `${this.baseURL}/${pageId}/messages?access_token=${token}`,
+        `${this.baseURL}/me/messages?access_token=${token}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -176,6 +168,8 @@ export class InstagramAdapter implements IMessagingAdapter {
           data,
         };
       }
+      
+      console.log(`✅ InstagramAdapter.sendMessage succeeded:`, JSON.stringify(data));
       return { success: true, data };
     } catch (error: any) {
       console.error("❌ InstagramAdapter.sendMessage threw:", error);
