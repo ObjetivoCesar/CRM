@@ -171,12 +171,15 @@ export async function POST(req: NextRequest) {
 
     // 5. IMMEDIATE "FAST" RESPONSE (Special Case for Comments)
     if (type.includes("comment") && externalId) {
-      // Non-blocking fire-and-forget for the "Thank you" reply
-      messagingService.replyToComment(
-        platform as any,
-        externalId,
-        "¡Gracias por tu comentario! Nos contactaremos enseguida. 🙌"
-      ).catch(err => console.error("❌ Comment auto-reply error:", err));
+      try {
+        await messagingService.replyToComment(
+          platform as any,
+          externalId,
+          "¡Gracias por tu comentario! Nos contactaremos enseguida. 🙌"
+        );
+      } catch (err) {
+        console.error("❌ Comment auto-reply error:", err);
+      }
     }
 
     return NextResponse.json({ ok: true });
