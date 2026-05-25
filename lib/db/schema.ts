@@ -838,6 +838,23 @@ export const conversationalSessions = pgTable('conversational_sessions', {
 }));
 
 // ============================================
+// ============================================
+// LOPDP LEGAL CONSENT (Audit Trail for activaqr.com/privacidad)
+// ============================================
+export const lopdpConsentimientos = pgTable('lopdp_consentimientos', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  auditId: text('audit_id').notNull(),
+  numero: text('numero').notNull(),
+  nombre: text('nombre'),
+  email: text('email'),
+  aceptaComercial: boolean('acepta_comercial').default(true),
+  ip: text('ip'),
+  userAgent: text('user_agent'),
+  version: text('version'),
+  urlOrigen: text('url_origen'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // DONNA BRAINS: INSTRUCTIONAL RAG (Long-term Knowledge Base)
 // ============================================
 export const donnaInstructions = pgTable('donna_instructions', {

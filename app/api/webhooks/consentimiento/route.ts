@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { contacts, conversationStates, donnaChatMessages } from '@/lib/db/schema';
+import { contacts, conversationStates, donnaChatMessages, lopdpConsentimientos } from '@/lib/db/schema';
 import { whatsappService } from '@/lib/whatsapp/WhatsAppService';
 import { getAIClient, getModelId } from '@/lib/ai/client';
 import { eq, sql } from 'drizzle-orm';
@@ -37,6 +37,24 @@ export async function POST(req: Request) {
     const auditId = 'REG-' + Math.random().toString(36).substr(2, 9).toUpperCase();
 
     console.log(`🛡️ [LOPDP] Webhook recibido para ${cleanPhone} (${nombre || 'sin nombre'})`);
+
+    // 0. Save audit trail in lopdp_consentimientos
+    try {
+      await db.insert(lopdpConsentimientos).values({
+        auditId,
+        numero: cleanPhone,
+        nombre: nombre || null,
+        email: email || null,
+        aceptaComercial: acepta_comercial ?? true,
+        ip,
+        userAgent,
+        version: version || null,
+        urlOrigen: url_origen || null,
+      });
+      console.log(`🛡️ [LOPDP] Audit trail guardado: ${auditId}`);
+    } catch (e: any) {
+      console.error('🛡️ [LOPDP] Error guardando audit trail:', e.message);
+    }
 
     // 1. Sync consent to contacts table
     try {
