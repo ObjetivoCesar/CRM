@@ -985,6 +985,7 @@ export async function procesarMensajeActivaQR(
 
   // Guard ILógico — 3 strikes
   if (ficha.agente_activo && categoria === 'ambiguo' && texto.length < 80) {
+    if (!ficha.sesion) ficha.sesion = {};
     ficha.sesion.mensajes_ilogicos = (ficha.sesion.mensajes_ilogicos || 0) + 1;
     if (ficha.sesion.mensajes_ilogicos >= 3) {
       return { respuesta: null, nuevaFicha: ficha, transferir: false };
