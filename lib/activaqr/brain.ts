@@ -839,10 +839,9 @@ export async function procesarMensajeActivaQR(
   }
 
   // ─── TIMEOUT DE SESIÓN (30 min) ───
-  checkSessionTimeout(ficha, tel);
-
   // Clonar ficha para no mutar la original
   const ficha: FichaCliente = JSON.parse(JSON.stringify(fichaActual));
+  checkSessionTimeout(ficha, tel);
 
   // Inicializar estructuras internas
   if (!ficha.sesion) ficha.sesion = {};
