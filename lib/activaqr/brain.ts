@@ -738,26 +738,52 @@ async function ejecutarOnboarding(
   if (ficha.sesion.paso_onboarding === undefined) ficha.sesion.paso_onboarding = 0;
 
   const paso = ficha.sesion.paso_onboarding;
-  const nombreConocido = ficha.nombre || '';
+  const tel = ficha.numero || 'unknown';
+  let nombreConocido = ficha.nombre || '';
 
-  // Intentar extraer nombre del mensaje (patrones inequívocos)
-  if (!nombreConocido) {
-    const introMatch = texto.match(/(?:me\s+llamo|mi\s+nombre\s+es|soy)\s+(\S.*)/i);
-    if (introMatch) {
-      const palabras = introMatch[1].split(/[\s,\.!?]+/);
-      const nombreParts: string[] = [];
-      for (const p of palabras) {
-        if (/^[A-ZÁÉÍÓÚÑ]/.test(p)) nombreParts.push(p.replace(/[!?.,;:]+$/, ''));
-        else break;
-      }
-      if (nombreParts.length > 0) {
-        const nombreExtraido = nombreParts.join(' ');
-        const BLOQUEADAS = /^(Hola|Buenas|Soy|Tengo|Quiero|Ok|Dale|Gracias|Acepto|Listo|Claro)$/;
-        if (!BLOQUEADAS.test(nombreExtraido)) {
-          ficha.nombre = nombreExtraido;
-          console.log(`[ActivaQR-Brain] Nombre extraído: "${nombreExtraido}"`);
+  // ─── EXTRACCIÓN DE NOMBRE (multi-patrón) ───
+  async function extraerNombre(texto: string): Promise<string | null> {
+    // Patrones explícitos
+    const patrones = [
+      /(?:me\s+llamo|mi\s+nombre\s+es)\s+(\S.*)/i,
+      /(?:soy|soy\s+el|soy\s+la)\s+(\S.*)/i,
+    ];
+    for (const patron of patrones) {
+      const match = texto.match(patron);
+      if (match) {
+        const palabras = match[1].split(/[\s,\.!?]+/);
+        const nombreParts: string[] = [];
+        for (const p of palabras) {
+          if (/^[A-ZÁÉÍÓÚÑ]/.test(p)) nombreParts.push(p.replace(/[!?.,;:]+$/, ''));
+          else break;
+        }
+        if (nombreParts.length > 0) {
+          const nombreExtraido = nombreParts.join(' ');
+          const BLOQUEADAS = /^(Hola|Buenas|Soy|Tengo|Quiero|Ok|Dale|Gracias|Acepto|Listo|Claro|Con|De|Te|Me|Mi|Un|Una)$/;
+          if (!BLOQUEADAS.test(nombreExtraido)) return nombreExtraido;
         }
       }
+    }
+
+    // Patrón "Con X" (ecuatoriano: "Con César", "Con Juan", "Aquí Carlos")
+    const conMatch = texto.match(/^(?:con|aquí|a\s+sus\s+órdenes|te\s+habla)\s+(\S+)/i);
+    if (conMatch) {
+      const posibleNombre = conMatch[1].replace(/[!?.,;:]+$/, '');
+      if (/^[A-ZÁÉÍÓÚÑ]/.test(posibleNombre) && posibleNombre.length >= 2) {
+        return posibleNombre.charAt(0).toUpperCase() + posibleNombre.slice(1).toLowerCase();
+      }
+    }
+
+    return null;
+  }
+
+  if (!nombreConocido) {
+    const nombreExtraido = await extraerNombre(texto);
+    if (nombreExtraido) {
+      ficha.nombre = nombreExtraido;
+      nombreConocido = nombreExtraido;
+      detectarTemperamentoTemprano(texto, ficha);
+      log('ONBOARDING', tel, `Nombre extraído: "${nombreExtraido}"`);
     }
   }
 
@@ -782,6 +808,36 @@ async function ejecutarOnboarding(
         nuevaFicha: ficha
       };
     }
+
+    // Fallback: intentar extraer nombre con LLM
+    log('ONBOARDING', tel, 'Regex no capturó nombre. Intentando con LLM...');
+    try {
+      const aiClient = getAIClient('FAST');
+      const modelId = getModelId('FAST');
+      const resp = await aiClient.chat.completions.create({
+        model: modelId,
+        messages: [
+          { role: 'system', content: 'Eres un extractor de nombres propios. Del mensaje, extrae ÚNICAMENTE el primer nombre propio (1 sola palabra). Responde SOLO con esa palabra con mayúscula inicial. Si no hay nombre, responde exactamente: null' },
+          { role: 'user', content: texto }
+        ],
+        temperature: 0,
+        max_tokens: 10,
+      });
+      const nombreLLM = resp.choices[0]?.message?.content?.trim() || '';
+      if (nombreLLM && nombreLLM !== 'null' && nombreLLM.length > 1) {
+        ficha.nombre = nombreLLM.replace(/[.!?;:"',]+$/, '');
+        ficha.sesion.paso_onboarding = 2;
+        detectarTemperamentoTemprano(texto, ficha);
+        log('ONBOARDING', tel, `Nombre extraído por LLM: "${ficha.nombre}"`);
+        return {
+          respuesta: `¡${ficha.nombre}, un gusto enorme! 😊 Cuéntame, ¿en qué rubro o tipo de negocio estás? Así te explico lo que aplica para ti.`,
+          nuevaFicha: ficha
+        };
+      }
+    } catch (e: any) {
+      log('ONBOARDING', tel, `Error LLM extrayendo nombre: ${e.message}`);
+    }
+
     // Reintentar
     return {
       respuesta: 'Perdón, no capté tu nombre. ¿Me lo repites? 😊',
