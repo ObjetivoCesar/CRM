@@ -814,6 +814,7 @@ async function ejecutarOnboarding(
     try {
       const aiClient = getAIClient('FAST');
       const modelId = getModelId('FAST');
+      log('LLM-EXTRAE', tel, `Modelo: ${modelId} | Input: "${texto.substring(0, 60)}"`);
       const resp = await aiClient.chat.completions.create({
         model: modelId,
         messages: [
@@ -824,6 +825,7 @@ async function ejecutarOnboarding(
         max_tokens: 10,
       });
       const nombreLLM = resp.choices[0]?.message?.content?.trim() || '';
+      log('LLM-EXTRAE', tel, `Respuesta cruda del LLM: "${nombreLLM}"`);
       if (nombreLLM && nombreLLM !== 'null' && nombreLLM.length > 1) {
         ficha.nombre = nombreLLM.replace(/[.!?;:"',]+$/, '');
         ficha.sesion.paso_onboarding = 2;
