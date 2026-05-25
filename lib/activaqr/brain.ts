@@ -487,7 +487,7 @@ interface ResultadoBarrera {
   aceptado: boolean;
 }
 
-function barreraLegal(texto: string, ficha: FichaCliente, categoria: string): ResultadoBarrera {
+function barreraLegal(texto: string, ficha: FichaCliente, categoria: string, textoOriginalBarrier?: string): ResultadoBarrera {
   const msgs = getMensajesLegales();
   const textoLimpio = texto.toLowerCase().trim();
 
@@ -502,6 +502,10 @@ function barreraLegal(texto: string, ficha: FichaCliente, categoria: string): Re
   if (pasoBarrera === 0) {
     // Primera vez: mostrar barrera
     ficha.sesion = { ...(ficha.sesion || {}), paso_barrera: 1 };
+    // Guardar mensaje original para replay cuando el webhook de consentimiento llegue
+    if (textoOriginalBarrier) {
+      ficha.sesion.mensaje_pendiente = textoOriginalBarrier;
+    }
     const esUrgente = ['close_concreto', 'close_general'].includes(categoria);
     return {
       respuesta: esUrgente ? msgs.barreraUrgente : msgs.barrera,
@@ -1038,7 +1042,7 @@ export async function procesarMensajeActivaQR(
 
   if ((esInfoSensible && politicasPendientes) || (ficha.sesion.paso_barrera || 0) > 0) {
     log('F2-BARRERA', tel, `InfoSensible=${esInfoSensible} Pendientes=${politicasPendientes} paso=${ficha.sesion.paso_barrera || 0}`);
-    const resultadoBarrera = barreraLegal(texto, ficha, categoria);
+    const resultadoBarrera = barreraLegal(texto, ficha, categoria, texto);
     ficha.sesion = resultadoBarrera.nuevaFicha.sesion;
     ficha.acepto_proteccion = resultadoBarrera.nuevaFicha.acepto_proteccion;
 
