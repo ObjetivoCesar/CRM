@@ -45,9 +45,10 @@ setInterval(async () => {
 }, 9 * 60 * 1000); // every 9 minutes
 
 import { db } from '../lib/db';
-import { pendingMessagesQueue } from '../lib/db/schema';
+import { pendingMessagesQueue, conversationStates } from '../lib/db/schema';
 import { eq, sql, and, or, desc, inArray } from 'drizzle-orm';
 import { cortexRouter } from '../lib/donna/services/CortexRouterService';
+import { procesarMensajeActivaQR, FichaCliente } from '../lib/activaqr/brain';
 import { transcriptionService } from '../lib/ai/TranscriptionService';
 import { whatsappService } from '../lib/whatsapp/WhatsAppService';
 
@@ -289,30 +290,98 @@ async function processQueue() {
                         if (shouldSkipAI) {
                             console.log(`🔕 skipping AI for ${chat.chatId} (Reason: ${skipReason})`);
                         } else {
-                            const aiResult = await cortexRouter.processInput({
-                                text: unifiedContent,
-                                source: 'client',
-                                platform: chatPlatform,
-                                contactId: finalContactId,
-                                chatId: chat.chatId,
-                                skipSave: true // We handle persistence here
-                            });
-                            console.log(`✅ AI Response processed for ${chat.chatId}`);
+                            // ─── ACTIVAQR BRAIN (Ale) ───
+                            // Cargar ficha desde conversationStates
+                            let fichaCliente: FichaCliente = { numero: chat.chatId };
+                            try {
+                                const [state] = await db.select()
+                                    .from(conversationStates)
+                                    .where(eq(conversationStates.key, chat.chatId))
+                                    .limit(1);
+                                if (state?.data) {
+                                    const parsed = typeof state.data === 'string' ? JSON.parse(state.data as string) : state.data;
+                                    fichaCliente = { ...fichaCliente, ...(parsed.ficha || parsed) };
+                                    console.log(`📋 Ficha cargada para ${chat.chatId}`);
+                                }
+                            } catch (e: any) {
+                                console.warn(`⚠️ No se pudo cargar ficha para ${chat.chatId}:`, e.message);
+                            }
 
-                            // E. PERSIST DONNA'S RESPONSE (Single Writer)
-                            if (!FORCE_TESTING_MODE && process.env.DISABLE_MESSAGE_PERSISTENCE !== 'true' && aiResult?.response) {
+                            // Cargar historial reciente
+                            const historialMsgs: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+                            try {
+                                const recentHistory = await db.select()
+                                    .from(donnaChatMessages)
+                                    .where(eq(donnaChatMessages.chatId, chat.chatId))
+                                    .orderBy(desc(donnaChatMessages.messageTimestamp))
+                                    .limit(10);
+                                historialMsgs.push(...recentHistory.reverse().map(m => ({
+                                    role: m.role as 'user' | 'assistant',
+                                    content: m.content || ''
+                                })));
+                            } catch (e: any) {
+                                console.warn(`⚠️ No se pudo cargar historial para ${chat.chatId}:`, e.message);
+                            }
+
+                            const resultado = await procesarMensajeActivaQR(unifiedContent, fichaCliente, historialMsgs);
+                            console.log(`✅ ActivaQR Brain procesado para ${chat.chatId} (transferir=${resultado.transferir})`);
+
+                            // E. PERSIST FICHA ACTUALIZADA
+                            if (!FORCE_TESTING_MODE && process.env.DISABLE_MESSAGE_PERSISTENCE !== 'true') {
                                 try {
-                                    await db.insert(donnaChatMessages).values({
-                                        chatId: chat.chatId,
-                                        role: 'assistant',
-                                        content: aiResult.response,
-                                        platform: chatPlatform as any,
-                                        messageTimestamp: new Date(),
-                                        metadata: { source: 'worker_ai_response' }
+                                    await db.insert(conversationStates).values({
+                                        key: chat.chatId,
+                                        data: JSON.stringify({ ficha: resultado.nuevaFicha }),
+                                        updatedAt: new Date()
+                                    }).onConflictDoUpdate({
+                                        target: conversationStates.key,
+                                        set: {
+                                            data: JSON.stringify({ ficha: resultado.nuevaFicha }),
+                                            updatedAt: new Date()
+                                        }
                                     });
-                                    console.log(`✅ Donna's response saved to chat history`);
-                                } catch (persistErr) {
-                                    console.error(`❌ Error saving Donna's response:`, persistErr);
+                                    console.log(`💾 Ficha persistida para ${chat.chatId}`);
+                                } catch (fichaErr) {
+                                    console.error(`❌ Error guardando ficha:`, fichaErr);
+                                }
+                            }
+
+                            // F. SEND & PERSIST ALE'S RESPONSE
+                            if (resultado.respuesta) {
+                                try {
+                                    console.log(`🤖 Ale responde a ${chat.chatId}: "${resultado.respuesta.substring(0, 60)}..."`);
+                                    await whatsappService.sendMessage(chat.chatId, resultado.respuesta);
+                                } catch (sendErr) {
+                                    console.error(`❌ Error enviando respuesta WhatsApp:`, sendErr);
+                                }
+
+                                // Persist response in chat history
+                                if (!FORCE_TESTING_MODE && process.env.DISABLE_MESSAGE_PERSISTENCE !== 'true') {
+                                    try {
+                                        await db.insert(donnaChatMessages).values({
+                                            chatId: chat.chatId,
+                                            role: 'assistant',
+                                            content: resultado.respuesta,
+                                            platform: chatPlatform as any,
+                                            messageTimestamp: new Date(),
+                                            metadata: { source: 'activaqr_brain' }
+                                        });
+                                        console.log(`✅ Ale's response saved to chat history`);
+                                    } catch (persistErr) {
+                                        console.error(`❌ Error saving Ale's response:`, persistErr);
+                                    }
+                                }
+                            }
+
+                            // G. HANDLE TRANSFER
+                            if (resultado.transferir && finalContactId) {
+                                try {
+                                    await db.update(contacts)
+                                        .set({ botMode: 'paused' } as any)
+                                        .where(eq(contacts.id, finalContactId));
+                                    console.log(`🤝 Bot pausado para ${chat.chatId} — transferido a humano`);
+                                } catch (transferErr) {
+                                    console.error(`❌ Error en transferencia:`, transferErr);
                                 }
                             }
                         }

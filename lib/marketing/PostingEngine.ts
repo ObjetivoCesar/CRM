@@ -66,6 +66,24 @@ export class PostingEngine {
 
         try {
             const isScheduled = !!scheduledPublishTime;
+
+            // ✅ BRIDGE MODE: If N8N_PUBLISH_WEBHOOK_URL is set, use the n8n bridge
+            const n8nUrl = process.env.N8N_PUBLISH_WEBHOOK_URL;
+            if (n8nUrl) {
+                console.log("🌉 PostingEngine: Using n8n bridge for Facebook Post");
+                const response = await axios.post(n8nUrl, {
+                    platform: 'facebook',
+                    content: message,
+                    mediaUrls: mediaUrls || [],
+                    mediaType: (mediaUrls && mediaUrls.length > 1) ? 'CAROUSEL' : (mediaUrls && mediaUrls.length === 1 ? 'IMAGE' : 'TEXT'),
+                    accountId: pageId,
+                    accessToken: token,
+                    scheduledPublishTime: scheduledPublishTime
+                });
+                return { success: true, id: response.data.id };
+            }
+
+            // ❌ LEGACY DIRECT MODE: Standard fetch to Meta Graph API
             const commonParams: any = {
                 access_token: token,
                 published: !isScheduled,
@@ -127,6 +145,22 @@ export class PostingEngine {
         const { igUserId, caption, mediaUrls, mediaType } = params;
 
         try {
+            // ✅ BRIDGE MODE: If N8N_PUBLISH_WEBHOOK_URL is set, use the n8n bridge
+            const n8nUrl = process.env.N8N_PUBLISH_WEBHOOK_URL;
+            if (n8nUrl) {
+                console.log("🌉 PostingEngine: Using n8n bridge for Instagram Post");
+                const response = await axios.post(n8nUrl, {
+                    platform: 'instagram',
+                    content: caption,
+                    mediaUrls: mediaUrls,
+                    mediaType: mediaType,
+                    accountId: igUserId,
+                    accessToken: token
+                });
+                return { success: true, id: response.data.id };
+            }
+
+            // ❌ LEGACY DIRECT MODE: Standard fetch to Meta Graph API
             let containerId = "";
 
             if (mediaType === 'CAROUSEL' && mediaUrls.length > 1) {

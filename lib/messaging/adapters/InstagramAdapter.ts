@@ -133,6 +133,30 @@ export class InstagramAdapter implements IMessagingAdapter {
       return { success: false, error: "Instagram Access Token missing" };
 
     try {
+      // ✅ 1. BRIDGE MODE: If N8N_MESSAGING_WEBHOOK_URL is set, use the n8n bridge
+      const n8nUrl = process.env.N8N_MESSAGING_WEBHOOK_URL;
+      if (n8nUrl) {
+        console.log("🌉 InstagramAdapter: Using n8n bridge for DM");
+        const response = await fetch(n8nUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "sendMessage",
+            recipientId: to,
+            text: text,
+            accessToken: token,
+          }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          console.error("❌ InstagramAdapter (n8n bridge) failed:", JSON.stringify(data));
+          return { success: false, error: data.error || "n8n Bridge Error", data };
+        }
+        return { success: true, data };
+      }
+
+      // ❌ 2. LEGACY DIRECT MODE: Standard fetch to Meta Graph API
       // Instagram DMs via Messenger API for Instagram
       // Endpoint: POST /v19.0/me/messages (which dynamically resolves to the connected Page via the token)
       const response = await fetch(
@@ -194,6 +218,30 @@ export class InstagramAdapter implements IMessagingAdapter {
     );
 
     try {
+      // ✅ 1. BRIDGE MODE: If N8N_MESSAGING_WEBHOOK_URL is set, use the n8n bridge
+      const n8nUrl = process.env.N8N_MESSAGING_WEBHOOK_URL;
+      if (n8nUrl) {
+        console.log(`Bridge: Responding to comment ${commentId} via n8n`);
+        const response = await fetch(n8nUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "replyToComment",
+            commentId: commentId,
+            text: text,
+            accessToken: token,
+          }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          console.error("❌ InstagramAdapter (n8n bridge) reply failed:", JSON.stringify(data));
+          return { success: false, error: data.error || "n8n Bridge Error", data };
+        }
+        return { success: true, data };
+      }
+
+      // ❌ 2. LEGACY DIRECT MODE: Standard fetch to Meta Graph API
       // Access token must be sent as query param for comment replies
       // NOT as Authorization header — Meta requires this for IG Comment API
       const url = `${this.baseURL}/${commentId}/replies?access_token=${token}`;
