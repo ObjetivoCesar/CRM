@@ -848,6 +848,18 @@ export async function procesarMensajeActivaQR(
   if (!ficha.informador) ficha.informador = { contador: 0, paso: 0 };
   if (!ficha.closer) ficha.closer = { contador: 0, paso: 0 };
 
+  // ─── COMANDO /reset ───
+  const textoNormalizado = texto.toLowerCase().trim();
+  if (['/reset', '/reser', 'reset', '#reset', 'resetear', 'reiniciar', '/reinicio', 'clear', '/clear'].includes(textoNormalizado)) {
+    log('RESET', tel, 'Comando /reset recibido. Limpiando sesión.');
+    // Devolver ficha limpia — solo preservar número
+    return {
+      respuesta: '🧹 *Sesión reiniciada.* He borrado todo el historial de conversación. Puedes saludar para empezar de nuevo. 😊',
+      nuevaFicha: { numero: tel, sesion: { onboarding_completado: false, paso_onboarding: 0 } },
+      transferir: false,
+    };
+  }
+
   // ─── DETECCIÓN DE BAJA ───
   if (detectarBaja(texto)) {
     log('BAJA', tel, `Baja LOPDP detectada: "${texto.substring(0, 60)}"`);
