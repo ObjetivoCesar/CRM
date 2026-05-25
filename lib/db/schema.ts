@@ -86,6 +86,10 @@ export const contacts = pgTable('contacts', {
   categoryTags: text('category_tags').array().default([]),
   whatsappOptOut: boolean('whatsapp_opt_out').default(false),
 
+  // LOPDP Legal Consent
+  aceptoProteccion: boolean('acepto_proteccion').default(false),
+  aceptoFecha: timestamp('acepto_fecha'),
+
   // Metadata
   notes: text('notes'),
   investigacion: text('investigacion'), // Legacy field

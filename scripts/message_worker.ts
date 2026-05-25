@@ -344,6 +344,21 @@ async function processQueue() {
                                 } catch (fichaErr) {
                                     console.error(`❌ Error guardando ficha:`, fichaErr);
                                 }
+
+                                // LOPDP: Sync consent to contacts table (legal audit trail)
+                                if (resultado.nuevaFicha.acepto_proteccion && finalContactId) {
+                                    try {
+                                        await db.update(contacts)
+                                            .set({
+                                                aceptoProteccion: true,
+                                                aceptoFecha: new Date(resultado.nuevaFicha.acepto_fecha || new Date().toISOString())
+                                            } as any)
+                                            .where(eq(contacts.id, finalContactId));
+                                        console.log(`🛡️ LOPDP Consent synced to contacts for ${chat.chatId}`);
+                                    } catch (consentErr) {
+                                        console.error(`❌ Error syncing LOPDP consent:`, consentErr);
+                                    }
+                                }
                             }
 
                             // F. SEND & PERSIST ALE'S RESPONSE
