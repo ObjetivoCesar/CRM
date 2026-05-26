@@ -606,9 +606,9 @@ function cargarSkillPrompt(nombreArchivo: string, ficha: FichaCliente, historial
     if (ficha.temperamento && ficha.temperamento_confianza !== 'bajo') {
       const estilos: Record<string, string> = {
         flematico: "Es directo y lógico. Sin rodeos. Responde corto y concreto. No uses emojis.",
-        sanguineo: "Es energético y emotivo. Usa su entusiasmo. Dale protagonismo. Puede tener emojis.",
-        colerico: "Es evaluador y dominante. Mantén postura de igual. No te sometas. Tono firme.",
-        melancolico: "Es inseguro y busca respaldo. Valida su duda sin ampliarla. Dale seguridad sin presionar."
+        sanguineo: "Es energético y emotivo. Usa su entusiasmo. Dale protagonismo. Usa emojis con naturalidad 😊👍.",
+        colerico: "Es evaluador y dominante. Mantén postura de igual. No te sometas. Tono firme pero cercano. Algún emoji sutil como 👍 o ✅ está bien.",
+        melancolico: "Es inseguro y busca respaldo. Valida su duda sin ampliarla. Dale seguridad sin presionar. Usa emojis cálidos 😊 para generar confianza."
       };
       prompt += `\n🧠 PERFIL (temperamento ${ficha.temperamento}, confianza ${ficha.temperamento_confianza}):\n${estilos[ficha.temperamento] || ''}\n`;
     }
