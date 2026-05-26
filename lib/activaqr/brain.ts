@@ -472,11 +472,13 @@ async function clasificarYRazonar(
 // FASE 2: BARRERA LEGAL LOPDP (determinista)
 // ═══════════════════════════════════════════
 
-function getMensajesLegales() {
+function getMensajesLegales(tel?: string) {
+  const base = process.env.LINK_POLITICAS || 'https://activaqr.com/privacidad';
+  const linkConTel = tel ? `${base}?tel=${tel}` : base;
   return {
-    link: process.env.LINK_POLITICAS || 'https://activaqr.com/privacidad',
-    barrera: `Antes de seguir, por ley (LOPDP) necesito que aceptes nuestras políticas de privacidad. Es rapidito, mira: ${process.env.LINK_POLITICAS || 'https://activaqr.com/privacidad'}\nCuando aceptes en la web, escríbeme *"Listo"* y seguimos de una. 😊`,
-    barreraUrgente: `Un segundo antes de darte los detalles — por ley (LOPDP) necesito tu autorización. Literal 30 segundos: ${process.env.LINK_POLITICAS || 'https://activaqr.com/privacidad'}\nCuando termines, escríbeme *"Listo"* y seguimos. 😊`,
+    link: base,
+    barrera: `Antes de seguir, por ley (LOPDP) necesito que aceptes nuestras políticas de privacidad. Es rapidito, mira: ${linkConTel}\nCuando aceptes en la web, escríbeme *"Listo"* y seguimos de una. 😊`,
+    barreraUrgente: `Un segundo antes de darte los detalles — por ley (LOPDP) necesito tu autorización. Literal 30 segundos: ${linkConTel}\nCuando termines, escríbeme *"Listo"* y seguimos. 😊`,
     noAcepta: 'Entendido perfectamente. Por la Ley de Protección de Datos (LOPDP) no podemos enviarte información sin tu autorización expresa. Si cambias de opinión, solo vuelve a escribirnos. ¡Que tengas un excelente día!',
   };
 }
@@ -489,7 +491,7 @@ interface ResultadoBarrera {
 }
 
 function barreraLegal(texto: string, ficha: FichaCliente, categoria: string, textoOriginalBarrier?: string): ResultadoBarrera {
-  const msgs = getMensajesLegales();
+  const msgs = getMensajesLegales(ficha.numero);
   const textoLimpio = texto.toLowerCase().trim();
 
   // Si ya aceptó, no hay barrera
