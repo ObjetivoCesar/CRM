@@ -111,6 +111,7 @@ export interface FichaCliente {
     bot_pausado?: boolean;
     paso_barrera?: number;
     mensaje_original?: any;
+    mensaje_pendiente?: string;
     intencion_barrera?: string;
     etiqueta_forzada?: string;
     mensajes_ilogicos?: number;
