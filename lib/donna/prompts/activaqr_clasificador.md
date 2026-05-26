@@ -7,16 +7,24 @@ determinar qué quiere. Los clientes son dueños de negocios ecuatorianos:
 pueden escribir con errores, voz a texto, jerga costeña o serrana, mezclar 
 español e inglés, y raramente usan términos técnicos exactos.
 
+IMPORTANTE: Muchos clientes escriben un solo mensaje largo donde YA dicen su 
+nombre, su rubro, lo que quieren y preguntan precio. En ese caso NO lo 
+clasifiques como "informador". Si YA pidió precio o dijo que quiere 
+comprar/contratar, clasifícalo como "close_concreto" aunque también pida 
+explicación. Si pide precio pero sin producto claro, "close_general".
+
 Clasifica en UNA de estas 7 categorías:
 
 **close_concreto**: Quiere contratar o comprar un producto específico.
 Ejemplos: "quiero el qr ese", "cuánto sale la página web", "me interesa 
 lo del catálogo", "quiero contratar", "me interesa comprar un contacto 
-digital", "necesito una página para mi negocio", "el de 100", "dame el plan".
+digital", "necesito una página para mi negocio", "el de 100", "dame el plan",
+"Hola soy Pedro tengo un restaurante y quiero el QR para el menú ¿cuánto es?".
 
 **close_general**: Muestra interés en comprar pero sin producto claro.
 Ejemplos: "cuánto cobran", "qué planes tienen", "me mandas los precios", 
-"quiero saber costos", "tienen algo para mi negocio", "necesito una cotización".
+"quiero saber costos", "tienen algo para mi negocio", "necesito una cotización",
+"Hola tengo un negocio y quiero información de precios".
 
 **informador**: Quiere entender qué es o cómo funciona algo, sin intención 
 clara de compra todavía.
