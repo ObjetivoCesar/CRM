@@ -594,3 +594,43 @@ RESPUESTA
 
 Exactamente, si lo implementas correctamente reduces muchÃ­simo el riesgo de operar sin respaldo legal al momento de recopilar y usar informaciÃ³n de tus clientes.
 Por cierto, soy Ale ðŸ˜Š Â¿con quiÃ©n tengo el gusto?
+---
+
+# OBJECIONES DE PRECIO — ARGUMENTOS DE VENTA
+
+---
+
+## OBJECIÓN: ""está caro"" / ""es mucho"" / ""no me alcanza""
+
+### RESPUESTA — Cálculo de Tiempo Perdido
+
+Entiendo que parece una inversión. Pero hagamos una cuenta rápida:
+
+- ¿Cuántas horas al día pierdes respondiendo ""cuánto cuesta"", ""qué tienen"", ""a qué hora atienden""?
+- Si dices 1 hora al día: son 30 horas al mes, 360 horas al año.
+- En Ecuador, el salario básico son ~,000 al año. Eso da ~ por hora.
+- Si pierdes 1 hora al día ? estás perdiendo ,000 al año solo en tiempo de respuesta.
+
+El plan que te recomendé cuesta menos de lo que pierdes en un mes de tiempo perdido.
+
+### RESPUESTA — Diferimiento
+
+Si quieres, lo diferimos a 12 meses sin intereses. Son menos de  al mes.
+Con un solo pedido extra al mes ya lo pagaste.
+¿Qué prefieres, diferido a 12 meses o lo tomas directo?
+
+---
+
+## OBJECIÓN: ""ya tengo otro proveedor"" / ""ya lo hago con redes""
+
+### RESPUESTA
+Con redes dependes del algoritmo. Con ActivaQR el cliente te encuentra directo, 24/7, sin anuncios.
+Es como tener un vendedor que nunca descansa y nunca pide aumento.
+
+---
+
+## OBJECIÓN: ""no sé si funciona para mi negocio""
+
+### RESPUESTA
+Funciona para cualquier negocio donde un cliente necesite contactarte: restaurantes, peluquerías, talleres, consultorios, tiendas.
+¿Qué tipo de negocio tienes? Así te explico cómo aplica.
