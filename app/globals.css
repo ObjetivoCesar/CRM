@@ -5,90 +5,104 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+  ─── CRM OBJETIVO v3 · Navy + Gold · Less is More ───
+  Palette extracted from the logo: deep navy background, warm gold for accents.
+  No glassmorphism, no gradients. Pure structure, pure focus.
+*/
+
 :root {
-  /* Updated color tokens for CRM glassmorphism design */
-  /* Updated color tokens for CRM glassmorphism design */
-  --background: oklch(1 0 0);
-  /* Pure White background */
-  --foreground: oklch(0.13 0.02 260);
-  /* Deep Blue/Black text */
-  --card: oklch(1 0 0 / 0.7);
-  /* Increased transparency for glass effect */
-  --card-foreground: oklch(0.13 0.02 260);
-  --popover: oklch(1 0 0 / 0.9);
-  --popover-foreground: oklch(0.13 0.02 260);
-  --primary: oklch(0.6 0.22 25);
-  /* Brand Tomate */
+  /* Surface */
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.15 0.02 260);
+
+  /* Cards */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0.02 260);
+
+  /* Popover */
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.02 260);
+
+  /* Primary: Navy */
+  --primary: oklch(0.2 0.03 260);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.96 0.01 200);
-  /* Very light gray for secondary actions */
-  --secondary-foreground: oklch(0.13 0.02 260);
-  --muted: oklch(0.96 0.01 200);
-  --muted-foreground: oklch(0.45 0.02 200);
-  --accent: oklch(0.9 0.05 200);
-  /* Subtle glass highlight */
-  --accent-foreground: oklch(0.13 0.02 260);
+
+  /* Secondary: Warm Gold */
+  --secondary: oklch(0.88 0.14 85);
+  --secondary-foreground: oklch(0.2 0.03 260);
+
+  /* Muted */
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.5 0.02 260);
+
+  /* Accent: Gold highlight */
+  --accent: oklch(0.78 0.14 85);
+  --accent-foreground: oklch(0.2 0.03 260);
+
+  /* Destructive */
   --destructive: oklch(0.55 0.2 25);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0 0 0 / 0.1);
-  --input: oklch(1 0 0 / 0.5);
-  /* Semi-transparent inputs */
-  --ring: oklch(0.6 0.22 25 / 0.5);
 
-  --radius: 1rem;
-  /* 16px radius for cards */
+  /* Borders & inputs */
+  --border: oklch(0.9 0.01 260);
+  --input: oklch(1 0 0);
+  --ring: oklch(0.78 0.14 85 / 0.5);
 
-  /* Glassmorphism System Tokens (Naluz Reference) */
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.12);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-  --glass-blur: 20px;
+  /* Radius */
+  --radius: 0.625rem;
+
+  /* Charts */
+  --chart-1: oklch(0.2 0.03 260);
+  --chart-2: oklch(0.78 0.14 85);
+  --chart-3: oklch(0.5 0.02 260);
+  --chart-4: oklch(0.88 0.10 85);
+  --chart-5: oklch(0.35 0.03 260);
+
+  /* Sidebar */
+  --sidebar: oklch(0.17 0.03 260);
+  --sidebar-foreground: oklch(0.92 0.01 260);
+  --sidebar-primary: oklch(0.78 0.14 85);
+  --sidebar-primary-foreground: oklch(0.17 0.03 260);
+  --sidebar-accent: oklch(0.22 0.03 260);
+  --sidebar-accent-foreground: oklch(0.92 0.01 260);
+  --sidebar-border: oklch(0.25 0.03 260);
+  --sidebar-ring: oklch(0.78 0.14 85 / 0.5);
 }
 
 .dark {
-  /* Enforcing Light Mode variables as requested by user preference */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.13 0.02 260);
-  --card: oklch(1 0 0 / 0.8);
-  --card-foreground: oklch(0.25 0.02 200);
-  --popover: oklch(1 0 0 / 0.9);
-  --popover-foreground: oklch(0.25 0.02 200);
-  --primary: oklch(0.6 0.22 25);
-  /* Brand Tomate primary */
-  --primary-foreground: oklch(1 0 0);
-  /* White text on primary */
-  --secondary: oklch(0.65 0.15 65);
-  /* Orange secondary #ff9800 */
-  --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(0.85 0.01 200);
-  /* Light gray muted */
-  --muted-foreground: oklch(0.45 0.02 200);
-  --accent: oklch(0.65 0.15 65);
-  /* Orange accent */
-  --accent-foreground: oklch(1 0 0);
+  --background: oklch(0.13 0.02 260);
+  --foreground: oklch(0.92 0.01 260);
+  --card: oklch(0.17 0.03 260);
+  --card-foreground: oklch(0.92 0.01 260);
+  --popover: oklch(0.17 0.03 260);
+  --popover-foreground: oklch(0.92 0.01 260);
+  --primary: oklch(0.78 0.14 85);
+  --primary-foreground: oklch(0.17 0.03 260);
+  --secondary: oklch(0.22 0.03 260);
+  --secondary-foreground: oklch(0.92 0.01 260);
+  --muted: oklch(0.22 0.03 260);
+  --muted-foreground: oklch(0.55 0.02 260);
+  --accent: oklch(0.78 0.14 85);
+  --accent-foreground: oklch(0.17 0.03 260);
   --destructive: oklch(0.55 0.2 25);
-  /* Red for destructive actions */
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0 0 0 / 0.1);
-  /* Light transparent border */
-  --input: oklch(1 0 0);
-  /* White input background */
-  --ring: oklch(0.6 0.22 25 / 0.5);
-  /* Tomate focus ring */
-  --chart-1: oklch(0.6 0.22 25);
-  /* Tomate */
-  --chart-2: oklch(0.65 0.15 65);
-  --chart-3: oklch(0.45 0.15 250);
-  --chart-4: oklch(0.55 0.2 25);
-  --chart-5: oklch(0.5 0.15 300);
-  --sidebar: oklch(1 0 0 / 0.8);
-  --sidebar-foreground: oklch(0.25 0.02 200);
-  --sidebar-primary: oklch(0.55 0.15 142);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.65 0.15 65);
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --sidebar-border: oklch(0 0 0 / 0.1);
-  --sidebar-ring: oklch(0.55 0.15 142 / 0.5);
+  --border: oklch(0.25 0.03 260);
+  --input: oklch(0.25 0.03 260);
+  --ring: oklch(0.78 0.14 85 / 0.5);
+  --chart-1: oklch(0.78 0.14 85);
+  --chart-2: oklch(0.88 0.10 85);
+  --chart-3: oklch(0.55 0.02 260);
+  --chart-4: oklch(0.35 0.03 260);
+  --chart-5: oklch(0.65 0.14 85);
+  --sidebar: oklch(0.13 0.02 260);
+  --sidebar-foreground: oklch(0.92 0.01 260);
+  --sidebar-primary: oklch(0.78 0.14 85);
+  --sidebar-primary-foreground: oklch(0.13 0.02 260);
+  --sidebar-accent: oklch(0.17 0.03 260);
+  --sidebar-accent-foreground: oklch(0.92 0.01 260);
+  --sidebar-border: oklch(0.22 0.03 260);
+  --sidebar-ring: oklch(0.78 0.14 85 / 0.5);
 }
 
 @theme inline {
@@ -143,23 +157,18 @@
     @apply bg-background text-foreground font-sans;
   }
 
-  /* Glassmorphism utility classes */
-  .glass {
-    @apply backdrop-blur-xl bg-card shadow-glass;
-    border: 1px solid var(--glass-border);
+  /* Clean card — no glass, no noise */
+  .clean-card {
+    @apply bg-card border border-border rounded-xl shadow-sm;
   }
 
+  /* Legacy alias — maps glass-card to clean-card */
   .glass-card {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+    @apply bg-card border border-border rounded-xl shadow-sm;
   }
 
-  .glass-strong {
-    @apply backdrop-blur-2xl bg-white/30 shadow-elevated;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+  /* Gold accent line */
+  .accent-line {
+    @apply border-l-2 border-[#c8a84e];
   }
 }

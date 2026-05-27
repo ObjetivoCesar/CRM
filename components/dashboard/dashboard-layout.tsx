@@ -26,6 +26,7 @@ import {
   Mic,
   Sparkles,
   FileSignature,
+  TrendingUp,
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -99,6 +100,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: "Cotizaciones", icon: FileText, href: "/cotizaciones" },
     { name: "Contratos", icon: FileSignature, href: "/contratos" },
     { name: "Marketing", icon: Users, href: "/marketing/scheduler" },
+    { name: "Campañas", icon: TrendingUp, href: "/marketing/launch" },
     { name: "Discovery", icon: Search, href: "/discovery" },
     { name: "Entrenador", icon: Mic, href: "/trainer" },
     { name: "Donna", icon: Sparkles, href: "/donna", badge: "AI" },
@@ -120,8 +122,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 className="object-contain rounded-lg"
               />
               <div>
-                <span className="text-xl font-bold text-foreground">OBJETIVO</span>
-                <p className="text-xs text-muted-foreground">CRM Inteligente</p>
+                <span className="text-xl font-bold text-sidebar-foreground">OBJETIVO</span>
+                <p className="text-xs text-sidebar-foreground/60">CRM Inteligente</p>
               </div>
             </div>
           </SidebarHeader>

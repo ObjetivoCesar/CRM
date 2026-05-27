@@ -2,7 +2,7 @@
 import { IMessagingAdapter } from './interfaces';
 import { db } from '@/lib/db';
 import { contacts, clients, interactions, donnaChatMessages, contactChannels, discoveryLeads } from '@/lib/db/schema';
-import { eq, or, desc, sql, and } from 'drizzle-orm';
+import { eq, or, desc, sql, and, inArray } from 'drizzle-orm';
 
 import { WhatsAppAdapter } from './adapters/WhatsAppAdapter';
 import { TelegramAdapter } from './adapters/TelegramAdapter';
@@ -161,6 +161,25 @@ export class MessagingService {
                 relatedIdentifiers = Array.from(new Set([...relatedIdentifiers, ...siblings.map(s => s.phone).filter(Boolean) as string[]]));
                 contactIds = Array.from(new Set([...contactIds, ...siblings.map(s => s.id)]));
             }
+
+            // 🔥 FIX: Also fetch phone numbers from interactions metadata for this contact
+            // This handles cases where contacts.phone is null or format doesn't match donnaChatMessages.chatId
+            // ⚠️ Guard: solo si contactIds tiene elementos (evita SQL inválido con IN ())
+            if (contactIds.length > 0) {
+                const phonesFromInteractions = await db
+                    .select({ phone: sql<string>`metadata->>'phoneNumber'` })
+                    .from(interactions)
+                    .where(
+                        and(
+                            eq(interactions.contactId, contactIds[0]),
+                            sql`metadata->>'phoneNumber' IS NOT NULL`
+                        )
+                    )
+                    .groupBy(sql`metadata->>'phoneNumber'`) as any[];
+                for (const row of phonesFromInteractions) {
+                    if (row.phone) relatedIdentifiers.push(row.phone);
+                }
+            }
         } else {
             // Check Discovery Leads
             const [discovery] = await db.select().from(discoveryLeads).where(eq(discoveryLeads.id, id)).limit(1);
@@ -175,12 +194,23 @@ export class MessagingService {
 
         if (relatedIdentifiers.length === 0 && contactIds.length === 0) return [];
 
+        // 🔥 FIX: Normalize phone numbers — add both with and without '+' prefix
+        // This ensures matching regardless of format differences between contacts and donnaChatMessages
+        const normalizedIdentifiers = Array.from(new Set(relatedIdentifiers.filter(Boolean))).reduce((acc: string[], p) => {
+            const clean = p.replace(/^\+/, '');
+            acc.push(p);
+            if (p.startsWith('+')) acc.push(clean);
+            else acc.push('+' + clean);
+            return acc;
+        }, []);
+        const uniqueIds = Array.from(new Set(normalizedIdentifiers));
+
         // 3 & 4. Fetch History in Parallel
         const [outboundHistory, inboundHistory] = await Promise.all([
             db.select()
                 .from(donnaChatMessages)
                 .where(
-                    sql`${donnaChatMessages.chatId} IN ${relatedIdentifiers} `
+                    inArray(donnaChatMessages.chatId, uniqueIds)
                 )
                 .orderBy(desc(donnaChatMessages.messageTimestamp))
                 .limit(limit),

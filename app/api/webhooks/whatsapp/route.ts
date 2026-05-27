@@ -138,7 +138,7 @@ export async function POST(req: Request) {
                                 const [newGhost] = await db.insert(contacts).values({
                                     contactName: from, // Placeholder: Just the phone number
                                     phone: from,
-                                    status: 'lead', // Generic status so it appears in inbox
+                                    status: 'sin_contacto', // Kanban initial stage
                                     source: 'whatsapp_inbound',
                                     entity_type: 'lead',
                                     createdAt: new Date(),

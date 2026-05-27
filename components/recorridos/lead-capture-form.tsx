@@ -227,14 +227,17 @@ export function LeadCaptureForm({ leadId, onBack }: LeadCaptureFormProps) {
         body: formDataToSubmit,
       })
 
+      const data = await response.json()
+
       if (response.ok) {
-        const { transcription } = await response.json()
         const currentValue = formData[field as keyof typeof formData]
         const newValue = Array.isArray(currentValue) ? currentValue.join(', ') : currentValue;
-        const updatedValue = newValue ? `${newValue}\n${transcription}` : transcription
+        const updatedValue = newValue ? `${newValue}\n${data.transcription}` : data.transcription
         handleInputChange(field, updatedValue)
+      } else if (response.status === 413 && data.tooLong) {
+        alert(data.error || "El audio es demasiado largo. Máximo 2 minutos.")
       } else {
-        alert("Error al transcribir el audio.")
+        alert(data.error || "Error al transcribir el audio.")
       }
     } catch (error) {
       alert("Error al transcribir el audio.")

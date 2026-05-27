@@ -45,7 +45,7 @@ setInterval(async () => {
 }, 9 * 60 * 1000); // every 9 minutes
 
 import { db } from '../lib/db';
-import { pendingMessagesQueue, conversationStates } from '../lib/db/schema';
+import { pendingMessagesQueue, conversationStates, donnaChatMessages } from '../lib/db/schema';
 import { eq, sql, and, or, desc, inArray } from 'drizzle-orm';
 import { cortexRouter } from '../lib/donna/services/CortexRouterService';
 import { procesarMensajeActivaQR, FichaCliente } from '../lib/activaqr/brain';
@@ -143,6 +143,7 @@ async function processQueue() {
                         messageIds = messages.map(m => m.id);
 
                         // --- TRANSCRIPTION LOGIC ---
+                        let audioTooLong = false;
                         const processedMessages = await Promise.all(messages.map(async (m) => {
                             const meta = m.metadata as any;
                             if (meta?.mediaId && (meta.type === 'audio' || meta.type === 'voice')) {
@@ -151,6 +152,11 @@ async function processQueue() {
                                     const media = await whatsappService.getMedia(meta.mediaId);
                                     if (media?.buffer) {
                                         const transcription = await transcriptionService.transcribe(media.buffer);
+                                        // null = audio too long, send auto-response
+                                        if (transcription === null) {
+                                            audioTooLong = true;
+                                            return m; // Keep original message content
+                                        }
                                         if (transcription) {
                                             return { ...m, content: `[Audio Transcrito]: ${transcription}` };
                                         }
@@ -161,6 +167,37 @@ async function processQueue() {
                             }
                             return m;
                         }));
+
+                        // ⏰ AUTO-RESPONSE: Audio demasiado largo
+                        if (audioTooLong) {
+                            const tooLongMsg = transcriptionService.getTooLongMessage();
+                            console.log(`⏰ [WORKER] Audio too long for ${chat.chatId}. Sending auto-response...`);
+                            try {
+                                await whatsappService.sendMessage(chat.chatId, tooLongMsg);
+                            } catch (sendErr) {
+                                console.error(`❌ Error sending audio limit message:`, sendErr);
+                            }
+                            // Persist the auto-response
+                            if (!FORCE_TESTING_MODE && process.env.DISABLE_MESSAGE_PERSISTENCE !== 'true') {
+                                try {
+                                    await db.insert(donnaChatMessages).values({
+                                        chatId: chat.chatId,
+                                        role: 'assistant',
+                                        content: tooLongMsg,
+                                        platform: 'whatsapp',
+                                        messageTimestamp: new Date(),
+                                        metadata: { source: 'system_audio_limit' }
+                                    });
+                                    console.log(`✅ Audio limit response saved to chat history`);
+                                } catch (persistErr) {
+                                    console.error(`❌ Error saving audio limit response:`, persistErr);
+                                }
+                            }
+                            // Mark messages as claimed and skip AI
+                            await db.delete(pendingMessagesQueue).where(inArray(pendingMessagesQueue.id, messageIds));
+                            console.log(`🗑️ Cleared ${messageIds.length} messages from queue for ${chat.chatId} (audio too long)`);
+                            return; // Exit early — skip AI processing
+                        }
 
                         const unifiedContent = processedMessages.map(m => m.content).join('\n');
                         const rawPlatform = messages[0]?.platform || 'whatsapp';
@@ -357,6 +394,179 @@ async function processQueue() {
                                         console.log(`🛡️ LOPDP Consent synced to contacts for ${chat.chatId}`);
                                     } catch (consentErr) {
                                         console.error(`❌ Error syncing LOPDP consent:`, consentErr);
+                                    }
+                                }
+
+                                // 🔥 HITO 1.2 — AUTO-ENRIQUECER GHOST: Extraer datos de la ficha a contacts
+                                // Sobre-escribe campos VACÍOS o default. NO pisa cambios hechos por humano.
+                                if (finalContactId) {
+                                    const ficha = resultado.nuevaFicha;
+
+                                    // 1. Leer estado actual del contacto para no pisar campos llenos
+                                    const currentContact = await db.select({
+                                        contactName: contacts.contactName,
+                                        businessActivity: contacts.businessActivity,
+                                        interestedProduct: contacts.interestedProduct,
+                                        personalityType: contacts.personalityType,
+                                        pains: contacts.pains,
+                                        goals: contacts.goals,
+                                        objections: contacts.objections,
+                                        status: contacts.status,
+                                        entityType: contacts.entityType
+                                    }).from(contacts).where(eq(contacts.id, finalContactId)).limit(1).then(r => r[0]);
+
+                                    if (currentContact) {
+                                        const isGhostPhone = /^\+?\d{7,15}$/.test(currentContact.contactName || '');
+                                        const enrichFields: Record<string, any> = {};
+
+                                        // Solo llena si: está vacío, es un número (ghost), o el campo es default
+                                        if (ficha.nombre && (!currentContact.contactName || isGhostPhone || currentContact.contactName.startsWith('+'))) {
+                                            enrichFields.contactName = ficha.nombre;
+                                        }
+                                        if (ficha.rubro && !currentContact.businessActivity) {
+                                            enrichFields.businessActivity = ficha.rubro;
+                                        }
+                                        const detectedProduct = ficha.producto_interes || ficha.producto_detectado;
+                                        if (detectedProduct && !currentContact.interestedProduct) {
+                                            enrichFields.interestedProduct = detectedProduct;
+                                        }
+                                        if (ficha.temperamento && !currentContact.personalityType) {
+                                            const temperamentoMap: Record<string, string> = {
+                                                'flematico': 'Flemático (Analítico)',
+                                                'sanguineo': 'Sanguíneo (Social)',
+                                                'colerico': 'Colérico (Decidido)',
+                                                'melancolico': 'Melancólico (Detallista)'
+                                            };
+                                            enrichFields.personalityType = temperamentoMap[ficha.temperamento] || ficha.temperamento;
+                                        }
+                                        if (ficha.dolores && ficha.dolores.length > 0 && !currentContact.pains) {
+                                            enrichFields.pains = ficha.dolores.join('\n');
+                                        }
+                                        if (ficha.objetivo && !currentContact.goals) {
+                                            enrichFields.goals = ficha.objetivo;
+                                        }
+                                        if (ficha.objeciones && ficha.objeciones.length > 0 && !currentContact.objections) {
+                                            enrichFields.objections = ficha.objeciones.join('\n');
+                                        }
+
+                                        if (Object.keys(enrichFields).length > 0) {
+                                            try {
+                                                await db.update(contacts)
+                                                    .set({ ...enrichFields, updatedAt: new Date() } as any)
+                                                    .where(eq(contacts.id, finalContactId));
+                                                console.log(`✨ Ghost auto-enriched for ${chat.chatId}:`, Object.keys(enrichFields).join(', '));
+                                            } catch (enrichErr) {
+                                                console.error(`❌ Error enriching ghost:`, enrichErr);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // 🔥 HITO 2.2 — KANBAN AUTOMÁTICO: Avanzar etapa del lead según la conversación
+                                // ❗ REGLA DE ORO: NO pisa movimientos manuales. Solo avanza si el status
+                                // sigue siendo el que el sistema dejó. Si un humano movió el lead, se respeta.
+                                if (finalContactId) {
+                                    const ficha = resultado.nuevaFicha;
+                                    // Re-leer estado actual (puede haber cambiado desde enrich block)
+                                    const currentContact = await db.select({
+                                        status: contacts.status,
+                                        entityType: contacts.entityType
+                                    }).from(contacts).where(eq(contacts.id, finalContactId)).limit(1).then(r => r[0]);
+
+                                    if (currentContact) {
+                                        let newStatus: string | null = null;
+                                        let newEntityType: string | null = null;
+                                        const currentStatus = currentContact.status;
+                                        const validKanbanStatuses = ['sin_contacto', 'primer_contacto', 'segundo_contacto', 'tercer_contacto', 'lead'];
+
+                                        // Solo operamos en status que conocemos (no tocar si humano lo movió fuera del Kanban)
+                                        if (validKanbanStatuses.includes(currentStatus)) {
+
+                                            // Regla 1: Pago recibido → convertir a cliente (completo)
+                                            if (ficha.pago_recibido && currentContact.entityType !== 'client') {
+                                                newEntityType = 'client';
+                                                newStatus = 'convertido';
+                                                console.log(`🏆 [KANBAN] ${chat.chatId}: Pago recibido → CLIENTE`);
+
+                                                // Crear transacción financiera automática
+                                                try {
+                                                    const { transactions } = await import('../lib/db/schema');
+                                                    await db.insert(transactions).values({
+                                                        type: 'INCOME',
+                                                        category: 'Venta - ActivaQR',
+                                                        description: `Venta automática: ${ficha.producto_interes || ficha.producto_detectado || 'Producto ActivaQR'}`,
+                                                        amount: 0, // Se completa manualmente
+                                                        date: new Date(),
+                                                        status: 'PENDING',
+                                                        contactId: finalContactId,
+                                                    } as any);
+                                                    console.log(`💰 [KANBAN] Transacción creada para ${chat.chatId}`);
+                                                } catch (transErr) {
+                                                    console.error(`❌ [KANBAN] Error creando transacción:`, transErr);
+                                                }
+
+                                                // Registrar en interacciones (audit trail)
+                                                try {
+                                                    await db.insert(interactions).values({
+                                                        type: 'note',
+                                                        direction: 'outbound',
+                                                        content: `🤖 Conversión automática a cliente (${ficha.producto_interes || 'sin producto'})`,
+                                                        contactId: finalContactId,
+                                                        performedAt: new Date(),
+                                                    } as any);
+                                                    console.log(`📝 [KANBAN] Audit trail creado para ${chat.chatId}`);
+                                                } catch (auditErr) {
+                                                    console.error(`❌ [KANBAN] Error en audit trail:`, auditErr);
+                                                }
+                                            }
+
+                                            // Regla 2: Transferencia a humano → marcar como urgente
+                                            // ⚠️ FIX: Paréntesis correctos para precedencia de operadores
+                                            else if (resultado.transferir && (currentStatus === 'primer_contacto' || currentStatus === 'sin_contacto' || currentStatus === 'lead')) {
+                                                newStatus = 'tercer_contacto';
+                                                console.log(`📞 [KANBAN] ${chat.chatId}: Transferencia solicitada → Seguimiento`);
+                                            }
+
+                                            // Regla 3: Cliente pide precio o muestra intención de compra → mover a Interesado
+                                            else if (
+                                                (ficha.intencion_actual === 'close_concreto' ||
+                                                 ficha.intencion_actual === 'close_general' ||
+                                                 ficha.producto_interes) &&
+                                                (currentStatus === 'sin_contacto' || currentStatus === 'primer_contacto' || currentStatus === 'lead')
+                                            ) {
+                                                newStatus = 'segundo_contacto';
+                                                console.log(`🎯 [KANBAN] ${chat.chatId}: Intención de compra detectada → Interesado`);
+                                            }
+
+                                            // Regla 4: Primera respuesta del bot enviada → mover a Propuesta Enviada
+                                            else if (
+                                                resultado.respuesta &&
+                                                (currentStatus === 'sin_contacto' || currentStatus === 'lead')
+                                            ) {
+                                                newStatus = 'primer_contacto';
+                                                console.log(`📤 [KANBAN] ${chat.chatId}: Primera respuesta enviada → Propuesta Enviada`);
+                                            }
+                                        } else {
+                                            console.log(`🚫 [KANBAN] ${chat.chatId}: Status "${currentStatus}" es manual. No se auto-mueve.`);
+                                        }
+
+                                        // Aplicar cambios
+                                        const updateFields: Record<string, any> = { updatedAt: new Date() };
+                                        if (newStatus) updateFields.status = newStatus;
+                                        if (newEntityType) {
+                                            updateFields.entityType = newEntityType;
+                                            updateFields.convertedToClientAt = new Date();
+                                        }
+                                        if (newStatus || newEntityType) {
+                                            try {
+                                                await db.update(contacts)
+                                                    .set(updateFields as any)
+                                                    .where(eq(contacts.id, finalContactId));
+                                                console.log(`✅ [KANBAN] ${chat.chatId}: → ${newStatus || currentStatus}`);
+                                            } catch (kanbanErr) {
+                                                console.error(`❌ [KANBAN] Error:`, kanbanErr);
+                                            }
+                                        }
                                     }
                                 }
                             }

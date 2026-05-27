@@ -280,6 +280,22 @@ export function ContactDetailsPanel({ contactId, contactName }: ContactDetailsPa
                         </div>
                     </div>
 
+                    {/* 🔥 HITO 3 — Pre-llenado: Botón para abrir el formulario de Recorridos con datos ya cargados */}
+                    <a
+                        href={`/recorridos?leadId=${contactId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-full"
+                    >
+                        <Button
+                            variant="outline"
+                            className="w-full border-emerald-500/30 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10 text-xs h-8 font-bold"
+                        >
+                            <ClipboardList size={12} className="mr-2" />
+                            Completar Perfil en Recorridos
+                        </Button>
+                    </a>
+
                     <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
                         <h4 className="text-[10px] font-bold text-amber-500 uppercase mb-3 text-center tracking-wider">Estatus Comercial</h4>
                         <div className="flex flex-col gap-3">
@@ -295,6 +311,32 @@ export function ContactDetailsPanel({ contactId, contactName }: ContactDetailsPa
                             >
                                 <FileText size={12} className="mr-2" />
                                 Generar Estrategia IA
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="w-full border-[#c8a84e]/30 bg-[#c8a84e]/5 text-[#c8a84e] hover:bg-[#c8a84e]/10 text-xs h-8 font-bold"
+                                onClick={async () => {
+                                    try {
+                                        toast({ title: "Generando cotización..." });
+                                        const res = await fetch('/api/marketing/generate-quotation', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ contactId })
+                                        });
+                                        const data = await res.json();
+                                        if (data.success) {
+                                            toast({ title: "Cotización generada", description: `${data.quotation.title} — $${data.quotation.totalAmount}` });
+                                            fetchDetails(); // Refresh
+                                        } else {
+                                            toast({ title: "Error", description: data.error, variant: "destructive" });
+                                        }
+                                    } catch (e) {
+                                        toast({ title: "Error de conexión", variant: "destructive" });
+                                    }
+                                }}
+                            >
+                                <FileText size={12} className="mr-2" />
+                                Generar Cotización IA
                             </Button>
                         </div>
                     </div>
