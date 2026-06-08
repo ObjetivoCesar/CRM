@@ -740,7 +740,7 @@ async function ejecutarOnboarding(
   texto: string,
   ficha: FichaCliente,
   _historial: MensajeHistorial[]
-): Promise<{ respuesta: string; nuevaFicha: FichaCliente }> {
+): Promise<{ respuesta: string; nuevaFicha: FichaCliente; transferir?: boolean; motivoTransferencia?: string }> {
   if (!ficha.sesion) ficha.sesion = {};
   if (ficha.sesion.paso_onboarding === undefined) ficha.sesion.paso_onboarding = 0;
 
@@ -800,13 +800,32 @@ async function ejecutarOnboarding(
   if (paso === 0 && !nombreActualizado) {
     ficha.sesion.paso_onboarding = 1;
     return {
-      respuesta: '¡Hola! Soy Ale, de ActivaQR. 😊 ¿Con quién tengo el gusto?',
+      respuesta: '¡Hola! Soy Ale, asistente virtual de ActivaQR. 😊 ¿Con quién tengo el gusto?\\n\\nAntes de seguir, te pregunto rápido: ¿vienes de alguno de nuestros anuncios? 😊',
       nuevaFicha: ficha
     };
   }
 
   // Paso 1: ya preguntamos el nombre, esperando respuesta
   if (paso === 1) {
+    // Check si viene del anuncio
+    const textoLower = texto.toLowerCase().trim();
+    const respondeAfirmativo = /^(si|sip|yes|yep|claro|afirmativo|ya|ok|bueno|dale|exacto|sas|asi es)\\s*$/.test(textoLower)
+      || textoLower === 'si' || textoLower === 'yes' || textoLower === 'sip' || textoLower.includes('del anuncio');
+
+    if (respondeAfirmativo) {
+       ficha.contacto_humano_solicitado = true;
+       ficha.motivo_transferencia = 'campanna_anuncios';
+       ficha.sesion.paso_onboarding = 3;
+       ficha.sesion.onboarding_completado = true;
+       
+       return {
+         respuesta: `¡Perfecto! Como este anuncio es para ayudarte a incrementar tus ventas con nuestro sistema de QR, te va a atender directamente César. 😊\\n\\n💡 *Añádenos a tus contactos* porque pronto estaremos compartiendo promociones y tips de ventas por nuestros estados de WhatsApp. ¡César te escribe en unos minutos!`,
+         nuevaFicha: ficha,
+         transferir: true,
+         motivoTransferencia: 'campanna_anuncios'
+       };
+    }
+
     if (nombreActualizado) {
       ficha.sesion.paso_onboarding = 2;
       detectarTemperamentoTemprano(texto, ficha);
@@ -971,7 +990,7 @@ export async function procesarMensajeActivaQR(
     log('SALUDO', tel, 'Saludo detectado, inicio onboarding');
     ficha.sesion.paso_onboarding = 1;
     return {
-      respuesta: '¡Hola! Soy Ale, de ActivaQR. 😊 ¿Con quién tengo el gusto?',
+      respuesta: '¡Hola! Soy Ale, asistente virtual de ActivaQR. 😊 ¿Con quién tengo el gusto?\\n\\nAntes de seguir, te pregunto rápido: ¿vienes de alguno de nuestros anuncios? 😊',
       nuevaFicha: ficha,
       transferir: false,
     };
@@ -984,7 +1003,8 @@ export async function procesarMensajeActivaQR(
       return {
         respuesta: resultOnboarding.respuesta,
         nuevaFicha: resultOnboarding.nuevaFicha,
-        transferir: false,
+        transferir: resultOnboarding.transferir || false,
+        motivoTransferencia: resultOnboarding.motivoTransferencia,
       };
     }
     // Si onboarding devuelve null, seguir al clasificador
