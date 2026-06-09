@@ -826,6 +826,7 @@ async function ejecutarOnboarding(
        };
     }
 
+    // Si ya tenemos nombre (de regex en el bloque superior), continuar directo
     if (nombreActualizado) {
       ficha.sesion.paso_onboarding = 2;
       detectarTemperamentoTemprano(texto, ficha);
@@ -835,8 +836,8 @@ async function ejecutarOnboarding(
       };
     }
 
-    // Fallback: intentar extraer nombre con LLM
-    log('ONBOARDING', tel, 'Regex no capturó nombre. Intentando con LLM...');
+    // 🧠 LLM PRIMERO: Extraer nombre con IA (no con regex determinista)
+    log('ONBOARDING', tel, 'Extrayendo nombre con LLM (IA primero)...');
     try {
       const aiClient = getAIClient('FAST');
       const modelId = getModelId('FAST');
@@ -844,19 +845,22 @@ async function ejecutarOnboarding(
       const resp = await aiClient.chat.completions.create({
         model: modelId,
         messages: [
-          { role: 'system', content: 'Eres un extractor de nombres propios. Del mensaje, extrae ÚNICAMENTE el primer nombre propio (1 sola palabra). Responde SOLO con esa palabra con mayúscula inicial. Si no hay nombre, responde exactamente: null' },
+          { 
+            role: 'system', 
+            content: 'Eres un extractor de nombres propios. Tu tarea: del mensaje del usuario, identifica y extrae el primer nombre propio de persona (puede ser informal, apodo, o nombre completo). Responde SOLO con ese nombre con la primera letra en mayúscula. Si el mensaje no contiene ningún nombre de persona, responde exactamente: null' 
+          },
           { role: 'user', content: texto }
         ],
         temperature: 0,
-        max_tokens: 10,
+        max_tokens: 15,
       });
       const nombreLLM = resp.choices[0]?.message?.content?.trim() || '';
-      log('LLM-EXTRAE', tel, `Respuesta cruda del LLM: "${nombreLLM}"`);
+      log('LLM-EXTRAE', tel, `Respuesta del LLM: "${nombreLLM}"`);
       if (nombreLLM && nombreLLM.toLowerCase() !== 'null' && nombreLLM.length > 1) {
         ficha.nombre = nombreLLM.replace(/[.!?;:"',]+$/, '');
         ficha.sesion.paso_onboarding = 2;
         detectarTemperamentoTemprano(texto, ficha);
-        log('ONBOARDING', tel, `Nombre extraído por LLM: "${ficha.nombre}"`);
+        log('ONBOARDING', tel, `✅ Nombre extraído por IA: "${ficha.nombre}"`);
         return {
           respuesta: `¡${ficha.nombre}, un gusto enorme! 😊 Cuéntame, ¿en qué rubro o tipo de negocio estás? Así te explico lo que aplica para ti.`,
           nuevaFicha: ficha
@@ -866,7 +870,7 @@ async function ejecutarOnboarding(
       log('ONBOARDING', tel, `Error LLM extrayendo nombre: ${e.message}`);
     }
 
-    // Reintentar
+    // Solo si la IA falló completamente, pedir que repita
     return {
       respuesta: 'Perdón, no capté tu nombre. ¿Me lo repites? 😊',
       nuevaFicha: ficha
