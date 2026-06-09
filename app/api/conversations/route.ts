@@ -83,8 +83,12 @@ export async function GET(request: Request) {
                         name: c.contactName || c.businessName || identity.phone,
                         phone: c.phone || identity.phone,
                         type: 'contact',
-                        channel: c.channelSource || identity.channel
-                    };
+                        commercialStatus: c.status,
+                        channel: c.channelSource || identity.channel,
+                        botMode: c.botMode || 'active',
+                        unreadCount: c.unreadCount || 0,
+                        contactId: c.id,  // ← UUID real del contacto
+                    } as any;
                 }
             } else if (inter.discoveryLeadId) {
                 const [d] = await db.select().from(discoveryLeads).where(eq(discoveryLeads.id, inter.discoveryLeadId)).limit(1);
@@ -93,21 +97,27 @@ export async function GET(request: Request) {
                         name: d.nombreComercial || identity.phone,
                         phone: d.telefonoPrincipal || identity.phone,
                         type: 'discovery',
-                        channel: 'whatsapp'
-                    };
+                        commercialStatus: d.status,
+                        channel: 'whatsapp',
+                        botMode: d.botMode || 'active',
+                        unreadCount: 0,
+                        contactId: d.id,  // ← UUID real del lead
+                    } as any;
                 }
             }
 
             // 4. Populate Map
             chatsMap.set(chatKey, {
                 id: chatKey,
+                contactId: (identity as any).contactId || inter.contactId || null, // UUID real del contacto/lead
                 contactName: identity.name,
                 phone: identity.phone,
                 lastActivityAt: inter.performedAt,
                 channelSource: identity.channel,
-                unreadCount: 0,
-                status: identity.type,
+                unreadCount: (identity as any).unreadCount || 0,
+                status: (identity as any).commercialStatus || 'sin_contacto',
                 entityType: identity.type,
+                botMode: (identity as any).botMode || 'active',
                 lastMessage: inter.content,
                 direction: inter.direction
             });

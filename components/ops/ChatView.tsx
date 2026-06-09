@@ -1,13 +1,14 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Paperclip, Loader2, Mic, Image, FileIcon, Square, User, Bot, MessageSquareOff } from 'lucide-react';
+import { Send, Paperclip, Loader2, Mic, Image, FileIcon, Square, User, Bot, MessageSquareOff, Share2, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ClientLinkDialog } from './ClientLinkDialog';
 import { CreateContactDialog } from './CreateContactDialog';
+import { ExportChatDialog } from './ExportChatDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 
 interface Message {
     id: string;
@@ -317,6 +318,7 @@ export function ChatView({ contactId, contactName }: ChatViewProps) {
                     </div>
 
                     <div className="flex gap-2">
+                        <ExportChatDialog contactId={contactId} messages={messages} />
                         {isUnknownNumber && (
                             <CreateContactDialog contactId={contactId} phoneNumber={contactName} />
                         )}

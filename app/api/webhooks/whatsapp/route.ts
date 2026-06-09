@@ -136,11 +136,12 @@ export async function POST(req: Request) {
                             // The UI will detect this name/phone pattern and show the "Unknown" badge + "Create Contact" button.
                             try {
                                 const [newGhost] = await db.insert(contacts).values({
-                                    contactName: from, // Placeholder: Just the phone number
+                                    businessName: `WhatsApp ${from.slice(-4)}`,
+                                    contactName: 'Nuevo Contacto (WhatsApp)',
                                     phone: from,
                                     status: 'sin_contacto', // Kanban initial stage
                                     source: 'whatsapp_inbound',
-                                    entity_type: 'lead',
+                                    entityType: 'lead',
                                     createdAt: new Date(),
                                     updatedAt: new Date(),
                                     lastActivityAt: new Date()

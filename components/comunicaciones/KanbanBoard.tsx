@@ -14,9 +14,20 @@ import {
 import { KanbanColumn } from './KanbanColumn';
 import { KanbanCard } from './KanbanCard';
 import { Loader2 } from 'lucide-react';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Card {
     id: string;
+    contactId?: string;  // UUID real del contacto en DB
     contactName: string;
     lastMessage: string;
     lastMessageTime: Date | string;
@@ -32,13 +43,18 @@ interface Column {
 }
 
 interface KanbanBoardProps {
+    conversations: Card[];
     onCardClick: (contactId: string) => void;
 }
 
-export function KanbanBoard({ onCardClick }: KanbanBoardProps) {
+export function KanbanBoard({ conversations, onCardClick }: KanbanBoardProps) {
     const [columns, setColumns] = useState<Column[]>([]);
-    const [loading, setLoading] = useState(true);
     const [activeCard, setActiveCard] = useState<Card | null>(null);
+    const [pendingMove, setPendingMove] = useState<{
+        card: Card;
+        sourceId: string;
+        destId: string;
+    } | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -48,52 +64,98 @@ export function KanbanBoard({ onCardClick }: KanbanBoardProps) {
         })
     );
 
-    // Fetch Kanban data
+    // Categorize data whenever conversations change.
+    // ⚠️ Regla de oro: cada tarjeta pertenece a UNA sola columna.
+    // La categorización refleja exactamente lo que el PATCH guarda en DB:
+    //   entrada      → botMode='active'  + (status='sin_contacto' o no status o unreadCount > 0)
+    //   informador   → botMode='active'  + status='primer_contacto'
+    //   closer       → botMode='active'  + status='segundo_contacto'
+    //   soporte      → botMode='active'  + status='soporte'
+    //   intervencion → botMode='paused'  + status='tercer_contacto'
+    //   finalizados  → botMode='disabled' + status='convertido'
     useEffect(() => {
-        fetchKanbanData();
-        const interval = setInterval(fetchKanbanData, 10000); // Poll every 10s
-        return () => clearInterval(interval);
-    }, []);
+        // Map conversations → Card shape
+        const toCard = (c: any): Card => ({
+            id: c.id,
+            contactId: c.contactId || c.id,
+            contactName: c.contactName || c.phone || 'Desconocido',
+            lastMessage: c.lastMessage || '',
+            lastMessageTime: c.lastActivityAt || c.lastMessageTime || null,
+            channelSource: c.channelSource || 'whatsapp',
+            unreadCount: c.unreadCount || 0,
+        });
 
-    const fetchKanbanData = async () => {
-        try {
-            const res = await fetch('/api/conversations/kanban');
-            const data = await res.json();
+        const columnsData = [
+            {
+                id: 'entrada',
+                title: 'Entrada / Clasificador',
+                color: 'blue',
+                cards: conversations
+                    .filter((c: any) =>
+                        c.botMode === 'active' &&
+                        (c.status === 'sin_contacto' || !c.status)
+                    )
+                    .map(toCard),
+            },
+            {
+                id: 'informador',
+                title: 'Informador',
+                color: 'teal',
+                cards: conversations
+                    .filter((c: any) =>
+                        c.botMode === 'active' &&
+                        c.status === 'primer_contacto'
+                    )
+                    .map(toCard),
+            },
+            {
+                id: 'closer',
+                title: 'Closer',
+                color: 'green',
+                cards: conversations
+                    .filter((c: any) =>
+                        c.botMode === 'active' &&
+                        c.status === 'segundo_contacto'
+                    )
+                    .map(toCard),
+            },
+            {
+                id: 'soporte',
+                title: 'Soporte',
+                color: 'purple',
+                cards: conversations
+                    .filter((c: any) =>
+                        c.botMode === 'active' &&
+                        c.status === 'soporte'
+                    )
+                    .map(toCard),
+            },
+            {
+                id: 'intervencion',
+                title: 'Intervención César',
+                color: 'amber',
+                cards: conversations
+                    .filter((c: any) =>
+                        c.botMode === 'paused' ||
+                        c.status === 'tercer_contacto'
+                    )
+                    .map(toCard),
+            },
+            {
+                id: 'finalizados',
+                title: 'Finalizados',
+                color: 'slate',
+                cards: conversations
+                    .filter((c: any) =>
+                        c.botMode === 'disabled' ||
+                        c.status === 'convertido'
+                    )
+                    .map(toCard),
+            },
+        ];
 
-            const columnsData = [
-                {
-                    id: 'entrada',
-                    title: 'Entrada',
-                    color: 'blue',
-                    cards: data.entrada || [],
-                },
-                {
-                    id: 'donna',
-                    title: 'Donna Activa',
-                    color: 'green',
-                    cards: data.donna || [],
-                },
-                {
-                    id: 'intervencion',
-                    title: 'Intervención César',
-                    color: 'amber',
-                    cards: data.intervencion || [],
-                },
-                {
-                    id: 'finalizados',
-                    title: 'Finalizados',
-                    color: 'slate',
-                    cards: data.finalizados || [],
-                },
-            ];
-
-            setColumns(columnsData);
-            setLoading(false);
-        } catch (error) {
-            console.error('Error fetching kanban data:', error);
-            setLoading(false);
-        }
-    };
+        setColumns(columnsData as any);
+    }, [conversations]);
 
     const handleDragStart = (event: DragStartEvent) => {
         const { active } = event;
@@ -121,52 +183,67 @@ export function KanbanBoard({ onCardClick }: KanbanBoardProps) {
         if (!sourceColumn || !destColumn) return;
         if (sourceColumn.id === destColumn.id) return; // Same column, no change
 
-        // Optimistic UI update
+        // Instead of immediate update, open the confirmation dialog
         const movedCard = sourceColumn.cards.find(c => c.id === activeCardId);
         if (!movedCard) return;
 
+        setPendingMove({
+            card: movedCard,
+            sourceId: sourceColumn.id,
+            destId: destColumn.id
+        });
+    };
+
+    const confirmMove = async () => {
+        if (!pendingMove) return;
+
+        const { card, sourceId, destId } = pendingMove;
+        
+        // Find columns again in case they changed
+        const destColumn = columns.find(c => c.id === destId);
+        if (!destColumn) {
+            setPendingMove(null);
+            return;
+        }
+
+        // Optimistic UI update
         const newColumns = columns.map(col => {
-            if (col.id === sourceColumn.id) {
+            if (col.id === sourceId) {
                 return {
                     ...col,
-                    cards: col.cards.filter(c => c.id !== activeCardId),
+                    cards: col.cards.filter(c => c.id !== card.id),
                 };
             }
-            if (col.id === destColumn.id) {
+            if (col.id === destId) {
                 return {
                     ...col,
-                    cards: [...col.cards, movedCard],
+                    cards: [...col.cards, card],
                 };
             }
             return col;
         });
 
         setColumns(newColumns);
+        setPendingMove(null);
 
-        // Update backend
+        // Update backend — usar contactId (UUID) no card.id (chatKey/teléfono)
         try {
-            await fetch('/api/conversations/kanban', {
+            const res = await fetch('/api/conversations/kanban', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    contactId: activeCardId,
-                    column: destColumn.id,
+                    contactId: card.contactId || card.id,
+                    column: destId,
                 }),
             });
+            if (!res.ok) {
+                const err = await res.json();
+                console.error('Kanban PATCH error:', err);
+            }
         } catch (error) {
             console.error('Error updating kanban:', error);
-            // Revert on error
-            fetchKanbanData();
         }
     };
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
-            </div>
-        );
-    }
 
     return (
         <DndContext
@@ -192,6 +269,21 @@ export function KanbanBoard({ onCardClick }: KanbanBoardProps) {
                     </div>
                 ) : null}
             </DragOverlay>
+
+            <AlertDialog open={!!pendingMove} onOpenChange={(open) => !open && setPendingMove(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Confirmar cambio de estado?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Estás a punto de mover a <b>{pendingMove?.card.contactName}</b> a la columna de <b>{columns.find(c => c.id === pendingMove?.destId)?.title}</b>. ¿Deseas continuar?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setPendingMove(null)}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmMove}>Confirmar</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </DndContext>
     );
 }

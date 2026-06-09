@@ -34,6 +34,13 @@ export function KanbanCard({ card, onClick }: KanbanCardProps) {
         opacity: isDragging ? 0.5 : 1,
     };
 
+    // Safe date parsing — avoids RangeError on null / invalid values
+    const safeDate = (() => {
+        if (!card.lastMessageTime) return null;
+        const d = new Date(card.lastMessageTime);
+        return isNaN(d.getTime()) ? null : d;
+    })();
+
     const getPlatformBadge = (platform: string) => {
         switch (platform) {
             case 'whatsapp':
@@ -86,7 +93,9 @@ export function KanbanCard({ card, onClick }: KanbanCardProps) {
             {/* Footer: Time + Unread */}
             <div className="flex justify-between items-center text-[10px]">
                 <span className="text-slate-400 font-medium">
-                    {formatDistanceToNow(new Date(card.lastMessageTime), { locale: es, addSuffix: true })}
+                    {safeDate
+                        ? formatDistanceToNow(safeDate, { locale: es, addSuffix: true })
+                        : 'Sin actividad'}
                 </span>
                 {card.unreadCount > 0 && (
                     <span className="bg-red-500 text-white px-2 py-0.5 rounded-full font-bold shadow-sm animate-bounce">

@@ -7,8 +7,14 @@ import { ChatView } from '@/components/ops/ChatView';
 import { ContactDetailsPanel } from '@/components/ops/ContactDetailsPanel';
 import { KanbanBoard } from './KanbanBoard';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { Loader2, KanbanSquare, List as ListIcon, X } from 'lucide-react';
+import { Loader2, KanbanSquare, List as ListIcon, X, Filter, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function CommunicationsHub() {
     const [conversations, setConversations] = useState<any[]>([]);
@@ -16,6 +22,8 @@ export function CommunicationsHub() {
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
     const [showKanbanChat, setShowKanbanChat] = useState(false);
+    const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'instagram'>('all');
+    const [showInbox, setShowInbox] = useState(true);
 
     const fetchConversations = (showLoading = false) => {
         if (showLoading) setLoading(true);
@@ -88,8 +96,8 @@ export function CommunicationsHub() {
     }
 
     return (
-        <div className="h-full w-full">
-            <div className="flex items-center justify-between px-4 py-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex flex-col h-full w-full overflow-hidden">
+            <div className="flex-none flex items-center justify-between px-4 py-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                     Comunicaciones Unificadas
                     <span className="text-xs font-normal text-muted-foreground px-2 py-0.5 bg-muted rounded-full">
@@ -97,6 +105,26 @@ export function CommunicationsHub() {
                     </span>
                 </h2>
                 <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-8 gap-2">
+                                <Filter className="h-4 w-4" />
+                                {channelFilter === 'all' ? 'Todos los canales' : channelFilter === 'whatsapp' ? 'WhatsApp' : 'Instagram'}
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setChannelFilter('all')}>
+                                Todos los canales
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setChannelFilter('whatsapp')}>
+                                Solo WhatsApp
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setChannelFilter('instagram')}>
+                                Solo Instagram
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <div className="w-px h-6 bg-border mx-1" />
                     <Button
                         variant={viewMode === 'list' ? 'secondary' : 'ghost'}
                         size="sm"
@@ -119,14 +147,18 @@ export function CommunicationsHub() {
                 </div>
             </div>
 
-            {viewMode === 'kanban' ? (
-                // Kanban View with Optional Side Chat
-                <div className="h-[calc(100%-3.5rem)] flex relative">
-                    <div className={`transition-all duration-300 ${showKanbanChat ? 'flex-1' : 'w-full'}`}>
-                        <KanbanBoard onCardClick={(contactId) => {
-                            setSelectedId(contactId);
-                            setShowKanbanChat(true);
-                        }} />
+            <div className="flex-1 min-h-0 relative">
+                {viewMode === 'kanban' ? (
+                    // Kanban View with Optional Side Chat
+                    <div className="h-full flex relative">
+                        <div className={`transition-all duration-300 ${showKanbanChat ? 'flex-1' : 'w-full'}`}>
+                        <KanbanBoard 
+                            conversations={conversations.filter(c => channelFilter === 'all' || c.channelSource === channelFilter)}
+                            onCardClick={(contactId) => {
+                                setSelectedId(contactId);
+                                setShowKanbanChat(true);
+                            }} 
+                        />
                     </div>
 
                     {/* Side Chat Panel */}
@@ -164,23 +196,32 @@ export function CommunicationsHub() {
                     )}
                 </div>
             ) : (
-                // 3-Panel List View
-                <ResizablePanelGroup direction="horizontal" className="h-[calc(100%-3.5rem)]">
-                    {/* Left Panel: Inbox / Pipeline */}
-                    <ResizablePanel defaultSize={25} minSize={20} maxSize={30}>
-                        <div className="flex flex-col h-full bg-muted/20 border-r">
+                // 3-Panel List View — no horizontal scroll, collapsible inbox
+                <div className="h-full flex overflow-hidden">
+                    {/* Collapsible Left Panel: Inbox */}
+                    <div className={`flex-none border-r bg-muted/20 transition-all duration-300 overflow-hidden flex flex-col ${showInbox ? 'w-72' : 'w-0'}`}>
+                        <div className="flex-1 min-h-0 overflow-hidden">
                             <ConversationList
-                                conversations={conversations}
+                                conversations={conversations.filter(c => channelFilter === 'all' || c.channelSource === channelFilter)}
                                 selectedId={selectedId}
                                 onSelect={setSelectedId}
                             />
                         </div>
-                    </ResizablePanel>
+                    </div>
 
-                    <ResizableHandle withHandle />
+                    {/* Toggle Inbox Button */}
+                    <button
+                        onClick={() => setShowInbox(v => !v)}
+                        className="flex-none w-5 bg-muted/30 hover:bg-muted/60 border-r flex items-center justify-center transition-colors group"
+                        title={showInbox ? 'Ocultar bandeja' : 'Mostrar bandeja'}
+                    >
+                        {showInbox
+                            ? <PanelLeftClose className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
+                            : <PanelLeftOpen className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />}
+                    </button>
 
                     {/* Main Panel: Chat View */}
-                    <ResizablePanel defaultSize={50} minSize={30}>
+                    <div className="flex-1 min-w-0 overflow-hidden">
                         {selectedId && selectedConversation ? (
                             <ChatView
                                 key={`list-chat-${selectedId}`}
@@ -195,24 +236,25 @@ export function CommunicationsHub() {
                                     </div>
                                     <h3 className="text-lg font-medium">Selecciona una conversación</h3>
                                     <p className="text-sm max-w-sm mx-auto">
-                                        Gestiona todas tus comunicaciones de WhatsApp desde un solo lugar.
+                                        Gestiona todas tus comunicaciones desde un solo lugar.
                                     </p>
                                 </div>
                             </div>
                         )}
-                    </ResizablePanel>
+                    </div>
 
-                    <ResizableHandle withHandle />
-
-                    {/* Right Panel: Ficha Técnica 360 */}
-                    <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
-                        <ContactDetailsPanel
-                            contactId={selectedId || ''}
-                            contactName={selectedConversation?.contactName || ''}
-                        />
-                    </ResizablePanel>
-                </ResizablePanelGroup>
+                    {/* Right Panel: Ficha Técnica 360 — only shows when a chat is selected */}
+                    {selectedId && selectedConversation && (
+                        <div className="flex-none w-72 border-l overflow-hidden">
+                            <ContactDetailsPanel
+                                contactId={selectedId || ''}
+                                contactName={selectedConversation?.contactName || ''}
+                            />
+                        </div>
+                    )}
+                </div>
             )}
+            </div>
         </div>
     );
 }

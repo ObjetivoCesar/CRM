@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { contacts, donnaChatMessages } from '@/lib/db/schema';
+import { contacts, donnaChatMessages, conversationStates } from '@/lib/db/schema';
 import { desc, eq, and, sql, gt } from 'drizzle-orm';
 
 export async function GET(request: Request) {
@@ -40,29 +40,31 @@ export async function GET(request: Request) {
             })
         );
 
-        // Group conversations by Kanban column
-        const now = new Date();
-        const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
-
+        // Group conversations by Kanban column matching our new 6 stages
         const grouped = {
             entrada: conversationsWithLastMessage.filter(c =>
                 c.botMode === 'active' &&
-                (c.unreadCount || 0) > 0 &&
-                c.lastMessageRole === 'user'
+                (c.status === 'sin_contacto' || !c.status || (c.unreadCount || 0) > 0)
             ),
-            donna: conversationsWithLastMessage.filter(c =>
+            informador: conversationsWithLastMessage.filter(c =>
                 c.botMode === 'active' &&
-                c.lastActivityAt &&
-                new Date(c.lastActivityAt) > fiveMinutesAgo &&
-                c.lastMessageRole === 'assistant' &&
-                (c.unreadCount || 0) === 0
+                c.status === 'primer_contacto'
+            ),
+            closer: conversationsWithLastMessage.filter(c =>
+                c.botMode === 'active' &&
+                c.status === 'segundo_contacto'
+            ),
+            soporte: conversationsWithLastMessage.filter(c =>
+                c.botMode === 'active' &&
+                c.status === 'soporte'
             ),
             intervencion: conversationsWithLastMessage.filter(c =>
-                c.botMode === 'paused'
+                c.botMode === 'paused' ||
+                c.status === 'tercer_contacto'
             ),
             finalizados: conversationsWithLastMessage.filter(c =>
                 c.botMode === 'disabled' ||
-                (c.lastActivityAt && new Date(c.lastActivityAt) < new Date(now.getTime() - 24 * 60 * 60 * 1000))
+                c.status === 'convertido'
             ),
         };
 
@@ -78,30 +80,104 @@ export async function PATCH(request: Request) {
     try {
         const { contactId, column } = await request.json();
 
+        if (!contactId) {
+            return NextResponse.json({ error: 'contactId is required' }, { status: 400 });
+        }
+
         // Map column to database fields
         const updates: any = {};
 
         switch (column) {
             case 'entrada':
                 updates.botMode = 'active';
-                updates.unreadCount = sql`${contacts.unreadCount} + 1`;
+                updates.status = 'sin_contacto';
                 break;
-            case 'donna':
+            case 'informador':
                 updates.botMode = 'active';
+                updates.status = 'primer_contacto';
+                updates.unreadCount = 0;
+                break;
+            case 'closer':
+                updates.botMode = 'active';
+                updates.status = 'segundo_contacto';
+                updates.unreadCount = 0;
+                break;
+            case 'soporte':
+                updates.botMode = 'active';
+                updates.status = 'soporte';
                 updates.unreadCount = 0;
                 break;
             case 'intervencion':
                 updates.botMode = 'paused';
+                updates.status = 'tercer_contacto';
+                updates.unreadCount = 0;
                 break;
             case 'finalizados':
                 updates.botMode = 'disabled';
+                updates.status = 'convertido';
                 updates.unreadCount = 0;
                 break;
+            default:
+                return NextResponse.json({ error: `Unknown column: ${column}` }, { status: 400 });
         }
 
-        await db.update(contacts)
-            .set({ ...updates, updatedAt: new Date() })
-            .where(eq(contacts.id, contactId));
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(contactId);
+        let phone: string | null = null;
+
+        if (isUUID) {
+            const [c] = await db.select().from(contacts).where(eq(contacts.id, contactId)).limit(1);
+            if (c) {
+                phone = c.phone;
+            }
+            await db.update(contacts)
+                .set({ ...updates, updatedAt: new Date() })
+                .where(eq(contacts.id, contactId));
+        } else {
+            phone = contactId;
+            const normalized = contactId.replace(/^\+?593/, '0');
+            await db.update(contacts)
+                .set({ ...updates, updatedAt: new Date() })
+                .where(eq(contacts.phone, normalized));
+        }
+
+        // Sync state/intent in the Ficha (conversationStates) so Ale stays in sync
+        if (phone) {
+            const normalizedPhone = phone.replace(/^\+?593/, '0');
+            
+            // Try country code formats as well, since conversationStates key might be country code prefixed
+            const phoneKeys = [phone, normalizedPhone, `593${normalizedPhone.replace(/^0/, '')}`];
+            
+            for (const key of phoneKeys) {
+                const [state] = await db.select().from(conversationStates).where(eq(conversationStates.key, key)).limit(1);
+                if (state) {
+                    let currentFicha: any = {};
+                    try {
+                        currentFicha = typeof state.data === 'string' ? JSON.parse(state.data as string) : state.data;
+                    } catch (e) {
+                        currentFicha = {};
+                    }
+
+                    let intent = 'saludo';
+                    if (column === 'informador') intent = 'informador';
+                    else if (column === 'closer') intent = 'close_concreto';
+                    else if (column === 'intervencion') intent = 'humano';
+                    else if (column === 'soporte') intent = 'soporte';
+                    else if (column === 'finalizados') intent = 'finalizados';
+
+                    if (currentFicha.ficha) {
+                        currentFicha.ficha.intencion_actual = intent;
+                    } else {
+                        currentFicha.intencion_actual = intent;
+                    }
+
+                    const jsonData = JSON.stringify(currentFicha);
+                    await db.update(conversationStates)
+                        .set({ data: jsonData, updatedAt: new Date() })
+                        .where(eq(conversationStates.key, key));
+                    break;
+                }
+            }
+        }
 
         return NextResponse.json({ success: true });
 

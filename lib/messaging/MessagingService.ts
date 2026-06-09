@@ -147,48 +147,60 @@ export class MessagingService {
         let relatedIdentifiers: string[] = [];
         let contactIds: string[] = [];
 
-        const [contact] = await db.select().from(contacts).where(eq(contacts.id, id)).limit(1);
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
-        if (contact) {
-            contactIds.push(contact.id);
-            relatedIdentifiers.push(contact.phone!);
-            // Identity Merging (if client linked)
-            const linkedClientId = (contact as any).clientId;
-            if (linkedClientId) {
-                const siblings = await db.select({ id: contacts.id, phone: contacts.phone })
-                    .from(contacts)
-                    .where(eq(contacts.clientId, linkedClientId));
-                relatedIdentifiers = Array.from(new Set([...relatedIdentifiers, ...siblings.map(s => s.phone).filter(Boolean) as string[]]));
-                contactIds = Array.from(new Set([...contactIds, ...siblings.map(s => s.id)]));
-            }
+        if (isUUID) {
+            const [contact] = await db.select().from(contacts).where(eq(contacts.id, id)).limit(1);
 
-            // 🔥 FIX: Also fetch phone numbers from interactions metadata for this contact
-            // This handles cases where contacts.phone is null or format doesn't match donnaChatMessages.chatId
-            // ⚠️ Guard: solo si contactIds tiene elementos (evita SQL inválido con IN ())
-            if (contactIds.length > 0) {
-                const phonesFromInteractions = await db
-                    .select({ phone: sql<string>`metadata->>'phoneNumber'` })
-                    .from(interactions)
-                    .where(
-                        and(
-                            eq(interactions.contactId, contactIds[0]),
-                            sql`metadata->>'phoneNumber' IS NOT NULL`
+            if (contact) {
+                contactIds.push(contact.id);
+                if (contact.phone) relatedIdentifiers.push(contact.phone);
+                // Identity Merging (if client linked)
+                const linkedClientId = (contact as any).clientId;
+                if (linkedClientId) {
+                    const siblings = await db.select({ id: contacts.id, phone: contacts.phone })
+                        .from(contacts)
+                        .where(eq(contacts.clientId, linkedClientId));
+                    relatedIdentifiers = Array.from(new Set([...relatedIdentifiers, ...siblings.map(s => s.phone).filter(Boolean) as string[]]));
+                    contactIds = Array.from(new Set([...contactIds, ...siblings.map(s => s.id)]));
+                }
+
+                if (contactIds.length > 0) {
+                    const phonesFromInteractions = await db
+                        .select({ phone: sql<string>`metadata->>'phoneNumber'` })
+                        .from(interactions)
+                        .where(
+                            and(
+                                eq(interactions.contactId, contactIds[0]),
+                                sql`metadata->>'phoneNumber' IS NOT NULL`
+                            )
                         )
-                    )
-                    .groupBy(sql`metadata->>'phoneNumber'`) as any[];
-                for (const row of phonesFromInteractions) {
-                    if (row.phone) relatedIdentifiers.push(row.phone);
+                        .groupBy(sql`metadata->>'phoneNumber'`) as any[];
+                    for (const row of phonesFromInteractions) {
+                        if (row.phone) relatedIdentifiers.push(row.phone);
+                    }
+                }
+            } else {
+                // Check Discovery Leads
+                const [discovery] = await db.select().from(discoveryLeads).where(eq(discoveryLeads.id, id)).limit(1);
+                if (discovery) {
+                    if (discovery.telefonoPrincipal) relatedIdentifiers.push(discovery.telefonoPrincipal);
+                    contactIds.push(discovery.id);
+                } else {
+                    relatedIdentifiers.push(id);
                 }
             }
         } else {
-            // Check Discovery Leads
-            const [discovery] = await db.select().from(discoveryLeads).where(eq(discoveryLeads.id, id)).limit(1);
-            if (discovery) {
-                relatedIdentifiers.push(discovery.telefonoPrincipal!);
-                contactIds.push(discovery.id); // Discovery Leads use their own ID in interactions.contactId
-            } else {
-                // If it's a ghost (id is actually a phone number)
-                relatedIdentifiers.push(id);
+            // id is a phone number or platform identifier (ghost contact)
+            relatedIdentifiers.push(id);
+            // Try to find a contact by phone too
+            const byPhone = await db.select({ id: contacts.id, phone: contacts.phone })
+                .from(contacts)
+                .where(eq(contacts.phone, id))
+                .limit(3);
+            for (const c of byPhone) {
+                contactIds.push(c.id);
+                if (c.phone) relatedIdentifiers.push(c.phone);
             }
         }
 
@@ -214,33 +226,35 @@ export class MessagingService {
                 )
                 .orderBy(desc(donnaChatMessages.messageTimestamp))
                 .limit(limit),
-            db.select()
-                .from(interactions)
-                .where(
-                    and(
-                        sql`${interactions.contactId} IN ${contactIds.length > 0 ? contactIds : [id]} `,
-                        // Only fetch system interactions or things NOT in donnaChatMessages
-                        // Since donnaChatMessages now has both User & Assistant, we only need non-message interactions from here (Calls, Meetings, etc)
-                        or(
-                            and(
-                                eq(interactions.direction, 'inbound'),
-                                sql`NOT EXISTS (select 1 from ${donnaChatMessages} where ${donnaChatMessages.metadata}->>'metaMessageId' = ${interactions.metadata}->>'id')`
-                            ),
-                            and(
-                                eq(interactions.direction, 'outbound'),
-                                sql`NOT EXISTS (select 1 from ${donnaChatMessages} where ${donnaChatMessages.metadata}->>'metaMessageId' = ${interactions.metadata}->>'id')`,
-                                or(
-                                    eq(interactions.type, 'call'),
-                                    eq(interactions.type, 'meeting'),
-                                    eq(interactions.type, 'note'),
-                                    eq(interactions.type, 'email')
+            contactIds.length > 0
+                ? db.select()
+                    .from(interactions)
+                    .where(
+                        and(
+                            inArray(interactions.contactId, contactIds),
+                            // Only fetch system interactions or things NOT in donnaChatMessages
+                            // Since donnaChatMessages now has both User & Assistant, we only need non-message interactions from here (Calls, Meetings, etc)
+                            or(
+                                and(
+                                    eq(interactions.direction, 'inbound'),
+                                    sql`NOT EXISTS (select 1 from ${donnaChatMessages} where ${donnaChatMessages.metadata}->>'metaMessageId' = ${interactions.metadata}->>'id')`
+                                ),
+                                and(
+                                    eq(interactions.direction, 'outbound'),
+                                    sql`NOT EXISTS (select 1 from ${donnaChatMessages} where ${donnaChatMessages.metadata}->>'metaMessageId' = ${interactions.metadata}->>'id')`,
+                                    or(
+                                        eq(interactions.type, 'call'),
+                                        eq(interactions.type, 'meeting'),
+                                        eq(interactions.type, 'note'),
+                                        eq(interactions.type, 'email')
+                                    )
                                 )
                             )
                         )
                     )
-                )
-                .orderBy(desc(interactions.performedAt))
-                .limit(limit)
+                    .orderBy(desc(interactions.performedAt))
+                    .limit(limit)
+                : Promise.resolve([])
         ]);
 
         // 5. Merge and Normalize
