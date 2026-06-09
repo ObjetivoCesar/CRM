@@ -800,7 +800,7 @@ async function ejecutarOnboarding(
   if (paso === 0 && !nombreActualizado) {
     ficha.sesion.paso_onboarding = 1;
     return {
-      respuesta: '¡Hola! Soy Ale, asistente virtual de ActivaQR. 😊 ¿Con quién tengo el gusto?\\n\\nAntes de seguir, te pregunto rápido: ¿vienes de alguno de nuestros anuncios? 😊',
+      respuesta: '¡Hola! Soy Ale, asistente virtual de ActivaQR. 😊 ¿Con quién tengo el gusto?\n\nAntes de seguir, te pregunto rápido: ¿vienes de alguno de nuestros anuncios? 😊',
       nuevaFicha: ficha
     };
   }
@@ -809,7 +809,7 @@ async function ejecutarOnboarding(
   if (paso === 1) {
     // Check si viene del anuncio
     const textoLower = texto.toLowerCase().trim();
-    const respondeAfirmativo = /^(si|sip|yes|yep|claro|afirmativo|ya|ok|bueno|dale|exacto|sas|asi es)\\s*$/.test(textoLower)
+    const respondeAfirmativo = /^(si|sip|yes|yep|claro|afirmativo|ya|ok|bueno|dale|exacto|sas|asi es)\s*$/.test(textoLower)
       || textoLower === 'si' || textoLower === 'yes' || textoLower === 'sip' || textoLower.includes('del anuncio');
 
     if (respondeAfirmativo) {
@@ -819,7 +819,7 @@ async function ejecutarOnboarding(
        ficha.sesion.onboarding_completado = true;
        
        return {
-         respuesta: `¡Perfecto! Como este anuncio es para ayudarte a incrementar tus ventas con nuestro sistema de QR, te va a atender directamente César. 😊\\n\\n💡 *Añádenos a tus contactos* porque pronto estaremos compartiendo promociones y tips de ventas por nuestros estados de WhatsApp. ¡César te escribe en unos minutos!`,
+         respuesta: `¡Perfecto! Como este anuncio es para ayudarte a incrementar tus ventas con nuestro sistema de QR, te va a atender directamente César. 😊\n\n💡 *Añádenos a tus contactos* porque pronto estaremos compartiendo promociones y tips de ventas por nuestros estados de WhatsApp. ¡César te escribe en unos minutos!`,
          nuevaFicha: ficha,
          transferir: true,
          motivoTransferencia: 'campanna_anuncios'
@@ -852,7 +852,7 @@ async function ejecutarOnboarding(
       });
       const nombreLLM = resp.choices[0]?.message?.content?.trim() || '';
       log('LLM-EXTRAE', tel, `Respuesta cruda del LLM: "${nombreLLM}"`);
-      if (nombreLLM && nombreLLM !== 'null' && nombreLLM.length > 1) {
+      if (nombreLLM && nombreLLM.toLowerCase() !== 'null' && nombreLLM.length > 1) {
         ficha.nombre = nombreLLM.replace(/[.!?;:"',]+$/, '');
         ficha.sesion.paso_onboarding = 2;
         detectarTemperamentoTemprano(texto, ficha);

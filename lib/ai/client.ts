@@ -37,7 +37,7 @@ function createCascadeProxy(clients: { client: OpenAI; model: string }[]): OpenA
                                                     lastError = e;
                                                     console.warn(`⚠️ [AIClient Cascade] Error with client ${i} (${model}):`, e.message);
                                                     const status = e.status || (e.response && e.response.status);
-                                                    if (status === 402 || status === 429 || status === 500 || status === 502 || status === 503 || status === 401) {
+                                                    if (status === 402 || status === 429 || status === 500 || status === 502 || status === 503 || status === 401 || status === 413) {
                                                         console.warn(`🔄 Falling back to next AI provider...`);
                                                         continue; // Fallback
                                                     }
