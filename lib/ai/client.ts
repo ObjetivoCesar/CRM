@@ -8,32 +8,97 @@ interface AIClientConfig {
     defaultModel: string;
 }
 
+function createCascadeProxy(clients: { client: OpenAI; model: string }[]): OpenAI {
+    if (clients.length === 0) throw new Error("No AI clients provided for cascade");
+    
+    const primary = clients[0].client;
+    
+    const handler: ProxyHandler<any> = {
+        get(target, prop, receiver) {
+            if (prop === 'chat') {
+                return new Proxy(target.chat, {
+                    get(chatTarget, chatProp) {
+                        if (chatProp === 'completions') {
+                            return new Proxy(chatTarget.completions, {
+                                get(compTarget, compProp) {
+                                    if (compProp === 'create') {
+                                        return async (params: any, options: any) => {
+                                            let lastError = null;
+                                            // The caller might provide their own model, but we override it if the client has a specific model we need to fallback to
+                                            for (let i = 0; i < clients.length; i++) {
+                                                const { client, model } = clients[i];
+                                                try {
+                                                    // If the caller explicitly passed a model, we use it for the primary client only, 
+                                                    // otherwise we use the fallback model
+                                                    const useModel = (i === 0 && params.model) ? params.model : model;
+                                                    const p = { ...params, model: useModel };
+                                                    return await client.chat.completions.create(p, options);
+                                                } catch (e: any) {
+                                                    lastError = e;
+                                                    console.warn(`⚠️ [AIClient Cascade] Error with client ${i} (${model}):`, e.message);
+                                                    const status = e.status || (e.response && e.response.status);
+                                                    if (status === 402 || status === 429 || status === 500 || status === 502 || status === 503 || status === 401) {
+                                                        console.warn(`🔄 Falling back to next AI provider...`);
+                                                        continue; // Fallback
+                                                    }
+                                                    throw e; // Non-retryable error
+                                                }
+                                            }
+                                            console.error(`❌ [AIClient Cascade] All providers failed. Last error:`, lastError?.message);
+                                            throw lastError;
+                                        };
+                                    }
+                                    return Reflect.get(compTarget, compProp);
+                                }
+                            });
+                        }
+                        return Reflect.get(chatTarget, chatProp);
+                    }
+                });
+            }
+            return Reflect.get(target, prop, receiver);
+        }
+    };
+    
+    return new Proxy(primary, handler);
+}
+
 export class AIClient {
     private static instance: AIClient;
 
     private reasoningClient: OpenAI;
     private standardClient: OpenAI;
-    private audioClient: OpenAI; // Usually standard OpenAI for Whisper
+    private audioClient: OpenAI;
 
     private constructor() {
-        // 1. Configure Reasoning Client (DeepSeek)
-        const deepSeekKey = process.env.DEEPSEEK_API_KEY;
-        this.reasoningClient = new OpenAI({
-            apiKey: deepSeekKey || "dummy",
-            baseURL: "https://api.deepseek.com",
-        });
-
-        // 2. Configure Standard Client (Fallback to DeepSeek since OpenAI quota is exhausted)
+        const groqKey = process.env.GROQ_API_KEY;
         const openAIKey = process.env.OPENAI_API_KEY;
-        this.standardClient = new OpenAI({
-            apiKey: deepSeekKey || openAIKey || "dummy",
-            baseURL: deepSeekKey ? "https://api.deepseek.com" : undefined,
-        });
+        const geminiKey = process.env.GOOGLE_API_KEY || process.env.GOOGLE_AI_API_KEY;
+        const deepSeekKey = process.env.DEEPSEEK_API_KEY;
 
-        // 3. Configure Audio Client (OpenAI standard strictly, although currently out of quota)
-        this.audioClient = new OpenAI({
-            apiKey: openAIKey || "dummy",
-        });
+        const groqClient = groqKey ? new OpenAI({ apiKey: groqKey, baseURL: "https://api.groq.com/openai/v1" }) : null;
+        const openAIClientObj = openAIKey ? new OpenAI({ apiKey: openAIKey }) : null;
+        const geminiClient = geminiKey ? new OpenAI({ apiKey: geminiKey, baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/" }) : null;
+        const deepSeekClient = deepSeekKey ? new OpenAI({ apiKey: deepSeekKey, baseURL: "https://api.deepseek.com" }) : null;
+
+        // Cascade for Reasoning: DeepSeek -> Groq -> OpenAI -> Gemini
+        const reasoningCascade = [];
+        if (deepSeekClient) reasoningCascade.push({ client: deepSeekClient, model: "deepseek-reasoner" });
+        if (groqClient) reasoningCascade.push({ client: groqClient, model: "llama-3.3-70b-versatile" });
+        if (openAIClientObj) reasoningCascade.push({ client: openAIClientObj, model: "gpt-4o" });
+        if (geminiClient) reasoningCascade.push({ client: geminiClient, model: "gemini-2.5-pro" });
+
+        // Cascade for Fast/Standard: DeepSeek -> Groq -> OpenAI -> Gemini
+        const standardCascade = [];
+        if (deepSeekClient) standardCascade.push({ client: deepSeekClient, model: "deepseek-chat" });
+        if (groqClient) standardCascade.push({ client: groqClient, model: "llama-3.1-8b-instant" });
+        if (openAIClientObj) standardCascade.push({ client: openAIClientObj, model: "gpt-4o-mini" });
+        if (geminiClient) standardCascade.push({ client: geminiClient, model: "gemini-2.5-flash" });
+
+        this.reasoningClient = reasoningCascade.length > 0 ? createCascadeProxy(reasoningCascade) : new OpenAI({ apiKey: "dummy" });
+        this.standardClient = standardCascade.length > 0 ? createCascadeProxy(standardCascade) : new OpenAI({ apiKey: "dummy" });
+
+        this.audioClient = openAIClientObj || new OpenAI({ apiKey: "dummy" });
     }
 
     public static getInstance(): AIClient {
@@ -58,18 +123,22 @@ export class AIClient {
     }
 
     public getModel(intent: AIIntent): string {
+        // We now rely on the cascade to inject the right model string internally,
+        // but if code needs it, we can return the first available model.
+        const groqKey = process.env.GROQ_API_KEY;
+        const openAIKey = process.env.OPENAI_API_KEY;
+        const deepSeekKey = process.env.DEEPSEEK_API_KEY;
+
         switch (intent) {
             case 'REASONING':
-                return "deepseek-reasoner";
+                return deepSeekKey ? "deepseek-reasoner" : (groqKey ? "llama-3.3-70b-versatile" : "gpt-4o");
             case 'STANDARD':
-                return "deepseek-chat"; // Fallback to DeepSeek
             case 'FAST':
-                return "deepseek-chat"; // Fallback to DeepSeek
+                return deepSeekKey ? "deepseek-chat" : (groqKey ? "llama-3.1-8b-instant" : "gpt-4o-mini");
             case 'AUDIO':
                 return "whisper-1";
             default:
-                return "deepseek-chat";
-
+                return "gpt-4o-mini";
         }
     }
 }
