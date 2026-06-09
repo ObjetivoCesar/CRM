@@ -527,15 +527,17 @@ async function processQueue() {
                                                 console.log(`📞 [KANBAN] ${chat.chatId}: Transferencia solicitada → Seguimiento`);
                                             }
 
-                                            // Regla 3: Cliente pide precio o muestra intención de compra → mover a Interesado
+                                            // Regla 3: Cliente pide precio o muestra intención de compra → mover a Interesado (Closer)
                                             else if (
-                                                (ficha.intencion_actual === 'close_concreto' ||
+                                                (ficha.agente_activo === 'close_concreto' ||
+                                                 ficha.agente_activo === 'close_general' ||
+                                                 ficha.intencion_actual === 'close_concreto' ||
                                                  ficha.intencion_actual === 'close_general' ||
                                                  ficha.producto_interes) &&
                                                 (currentStatus === 'sin_contacto' || currentStatus === 'primer_contacto' || currentStatus === 'lead')
                                             ) {
                                                 newStatus = 'segundo_contacto';
-                                                console.log(`🎯 [KANBAN] ${chat.chatId}: Intención de compra detectada → Interesado`);
+                                                console.log(`🎯 [KANBAN] ${chat.chatId}: Intención de compra detectada (agente_activo=${ficha.agente_activo}) → Closer`);
                                             }
 
                                             // Regla 4: Primera respuesta del bot enviada → mover a Propuesta Enviada

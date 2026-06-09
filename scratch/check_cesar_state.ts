@@ -7,11 +7,8 @@ const sql = postgres(process.env.DATABASE_URL!, { ssl: { rejectUnauthorized: fal
 
 async function run() {
     try {
-        const contacts = await sql`SELECT id, phone, status, outreach_status, bot_mode FROM contacts WHERE phone = '593963410409' OR phone = '0963410409'`;
-        console.log("Contacts:", contacts);
-        
         const state = await sql`SELECT * FROM conversation_states WHERE key = '593963410409'`;
-        console.log("Conversation state:", state);
+        console.log("Conversation state:", JSON.stringify(state[0].data, null, 2));
     } catch (e) {
         console.error(e);
     } finally {
