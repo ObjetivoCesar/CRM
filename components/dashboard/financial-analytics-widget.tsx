@@ -132,7 +132,7 @@ export function FinancialAnalyticsWidget() {
                     </div>
                     <div className="space-y-1">
                         <p className="text-xs text-muted-foreground">Cobranza</p>
-                        <p className="text-xl font-bold text-[#1a2236]">
+                        <p className="text-xl font-bold text-[var(--brand-carbon)]">
                             {data ? data.summary.collectionEfficiency.toFixed(0) : '—'}%
                         </p>
                     </div>
@@ -178,7 +178,7 @@ export function FinancialAnalyticsWidget() {
                         {data?.breakdown?.map((item: any, i: number) => (
                             <div key={i} className="flex items-center justify-between text-sm">
                                 <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-[#1a2236]" />
+                                    <div className="w-2 h-2 rounded-full bg-[var(--brand-carbon)]" />
                                     <span className="truncate max-w-[100px]" title={item.name}>{item.name}</span>
                                 </div>
                                 <span className="font-mono text-xs">{formatCurrency(item.value)}</span>

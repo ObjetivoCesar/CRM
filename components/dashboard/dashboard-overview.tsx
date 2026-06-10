@@ -68,10 +68,10 @@ export function DashboardOverview() {
   }
 
   const funnelData = [
-    { name: 'Prospectos', value: stats?.pipeline.total || 0, color: '#94a3b8' },
-    { name: 'Contactados', value: stats?.pipeline.contacted || 0, color: '#64748b' },
-    { name: 'Interesados', value: stats?.pipeline.interested || 0, color: '#c8a84e' },
-    { name: 'Cerrados', value: stats?.pipeline.converted || 0, color: '#1a2236' },
+    { name: 'Prospectos',  value: stats?.pipeline.total || 0,     color: 'var(--brand-grey-border)' },
+    { name: 'Contactados', value: stats?.pipeline.contacted || 0,  color: 'var(--brand-carbon-muted)' },
+    { name: 'Interesados', value: stats?.pipeline.interested || 0, color: 'var(--brand-blue)' },
+    { name: 'Cerrados',    value: stats?.pipeline.converted || 0,  color: 'var(--brand-carbon)' },
   ]
 
   // KPI cards
@@ -207,7 +207,7 @@ export function DashboardOverview() {
                   />
                   <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40}>
                     {(stats?.clientBreakdown || []).map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#1a2236' : '#c8a84e'} />
+                      <Cell key={`cell-${index}`} fill={index % 2 === 0 ? 'var(--brand-carbon)' : 'var(--brand-blue)'} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -227,7 +227,7 @@ export function DashboardOverview() {
           <CardContent className="space-y-3">
             {(stats?.clientBreakdown || []).slice(0, 3).map((segment, i) => (
               <div key={i} className="flex gap-3 p-3 rounded-lg bg-muted/60">
-                <div className="w-8 h-8 rounded-lg bg-[#1a2236] flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-[var(--brand-carbon)] flex items-center justify-center text-[var(--brand-white)] font-bold text-sm flex-shrink-0">
                   {segment.value}
                 </div>
                 <div>

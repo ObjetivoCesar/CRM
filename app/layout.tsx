@@ -1,15 +1,22 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Poppins } from "next/font/google"
+import { Montserrat, Poiret_One } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/sonner"
 import { GlobalWidgetsWrapper } from "@/components/layout/global-widgets-wrapper"
 
-const poppins = Poppins({
+const montserrat = Montserrat({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["300", "400", "500", "600", "700", "800"],
   display: "swap",
-  variable: "--font-poppins",
+  variable: "--font-montserrat",
+})
+
+const poiretOne = Poiret_One({
+  subsets: ["latin"],
+  weight: ["400"],
+  display: "swap",
+  variable: "--font-poiret",
 })
 
 export const metadata: Metadata = {
@@ -37,8 +44,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className={`${poppins.variable} antialiased`} suppressHydrationWarning>
-      <body className="font-poppins bg-background text-foreground" suppressHydrationWarning>
+    <html lang="es" className={`${montserrat.variable} ${poiretOne.variable} antialiased`} suppressHydrationWarning>
+      <body className="font-sans bg-background text-foreground" suppressHydrationWarning>
         {children}
         <GlobalWidgetsWrapper />
         <Toaster />

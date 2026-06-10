@@ -24,7 +24,7 @@ const config: Config = {
           foreground: 'var(--popover-foreground)'
         },
         primary: {
-          DEFAULT: '#ff6347', // Replaced var(--primary) with brand-tomate for consistency
+          DEFAULT: 'var(--primary)',
           foreground: 'var(--primary-foreground)'
         },
         secondary: {
@@ -47,20 +47,22 @@ const config: Config = {
         input: 'var(--input)',
         ring: 'var(--ring)',
         brand: {
-          tomate: '#ff6347', // Tomato brand color
-          black: '#09090b',  // Rich black
-          white: '#ffffff',
-          50: '#f0fdfa', // Keeping legacy brand tokens if needed, but primary is now brand-tomate
-          100: '#ccfbf1',
-          200: '#99f6e4',
-          300: '#5eead4',
-          400: '#2dd4bf',
-          500: '#14b8a6',
-          600: '#0d9488',
-          700: '#0f766e',
-          800: '#115e59',
-          900: '#134e4a',
-          950: '#042f2e',
+          carbon:  'var(--brand-carbon)',
+          'carbon-muted': 'var(--brand-carbon-muted)',
+          blue:    'var(--brand-blue)',
+          'blue-subtle': 'var(--brand-blue-subtle)',
+          'blue-border': 'var(--brand-blue-border)',
+          grey:    'var(--brand-grey)',
+          'grey-border': 'var(--brand-grey-border)',
+          white:   'var(--brand-white)',
+        },
+        signal: {
+          urgent:  'var(--signal-urgent)',
+          'urgent-subtle': 'var(--signal-urgent-subtle)',
+          warn:    'var(--signal-warn)',
+          'warn-subtle': 'var(--signal-warn-subtle)',
+          success: 'var(--signal-success)',
+          'success-subtle': 'var(--signal-success-subtle)',
         },
         sidebar: {
           DEFAULT: 'var(--sidebar)',
@@ -88,7 +90,9 @@ const config: Config = {
         full: '50%'
       },
       fontFamily: {
-        sans: ['var(--font-poppins)', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        sans:    ['var(--font-montserrat)', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        display: ['var(--font-poiret)', 'sans-serif'],
+        mono:    ['ui-monospace', 'SFMono-Regular', 'Consolas', 'monospace'],
       },
       boxShadow: {
         card: '0 8px 32px 0 rgba(31, 38, 135, 0.15)', // Glass shadow

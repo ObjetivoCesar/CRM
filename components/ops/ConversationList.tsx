@@ -70,13 +70,13 @@ function ConversationItem({ conv, selectedId, onSelect }: { conv: Conversation, 
             onClick={() => onSelect(conv.id)}
             className={`group relative flex items-center gap-3 rounded-xl border p-3 text-left transition-all duration-200 
                 ${isSelected
-                    ? "bg-blue-600/10 border-blue-600 shadow-sm shadow-blue-500/10 scale-[0.98]"
+                    ? "bg-[var(--brand-blue-subtle)] border-[var(--brand-blue)] shadow-sm"
                     : "bg-background hover:bg-muted/50 border-muted hover:border-muted-foreground/30"
                 }`}
         >
             <div className="relative">
-                <Avatar className={`h-10 w-10 border ${isSelected ? "border-blue-500" : "border-muted"}`}>
-                    <AvatarFallback className={isSelected ? "bg-blue-600 text-white" : "bg-muted"}>
+                <Avatar className={`h-10 w-10 border ${isSelected ? "border-[var(--brand-blue)]" : "border-muted"}`}>
+                    <AvatarFallback className={isSelected ? "bg-[var(--brand-carbon)] text-[var(--brand-white)]" : "bg-muted"}>
                         {conv.contactName?.substring(0, 2).toUpperCase() || '?'}
                     </AvatarFallback>
                 </Avatar>
@@ -89,7 +89,7 @@ function ConversationItem({ conv, selectedId, onSelect }: { conv: Conversation, 
 
             <div className="flex flex-1 flex-col overflow-hidden">
                 <div className="flex items-center justify-between">
-                    <span className={`text-xs font-bold truncate ${isSelected ? "text-blue-400" : "text-foreground"}`}>
+                    <span className={`text-xs font-bold truncate ${isSelected ? "text-[var(--brand-blue)]" : "text-foreground"}`}>
                         {conv.contactName}
                     </span>
                     {conv.lastActivityAt && !isNaN(new Date(conv.lastActivityAt).getTime()) && (

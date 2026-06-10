@@ -97,61 +97,57 @@ export function CommunicationsHub() {
 
     return (
         <div className="flex flex-col h-full w-full overflow-hidden">
-            <div className="flex-none flex items-center justify-between px-4 py-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                    Comunicaciones Unificadas
-                    <span className="text-xs font-normal text-muted-foreground px-2 py-0.5 bg-muted rounded-full">
-                        {conversations.length} chats
-                    </span>
-                </h2>
-                <div className="flex items-center gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-8 gap-2">
-                                <Filter className="h-4 w-4" />
-                                {channelFilter === 'all' ? 'Todos los canales' : channelFilter === 'whatsapp' ? 'WhatsApp' : 'Instagram'}
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setChannelFilter('all')}>
-                                Todos los canales
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setChannelFilter('whatsapp')}>
-                                Solo WhatsApp
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setChannelFilter('instagram')}>
-                                Solo Instagram
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    <div className="w-px h-6 bg-border mx-1" />
-                    <Button
-                        variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => {
-                            setViewMode('list');
-                            setShowKanbanChat(false);
-                        }}
-                    >
-                        <ListIcon className="h-4 w-4 mr-2" />
-                        Lista
+            {/* ── Toolbar: filters + view toggle only (title comes from layout header) ── */}
+        <div className="flex-none flex items-center justify-end gap-2 px-4 py-2 border-b bg-background">
+            <span className="text-xs text-muted-foreground mr-auto">
+                {conversations.length} conversaciones
+            </span>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 gap-2">
+                        <Filter className="h-4 w-4" />
+                        {channelFilter === 'all' ? 'Todos los canales' : channelFilter === 'whatsapp' ? 'WhatsApp' : 'Instagram'}
                     </Button>
-                    <Button
-                        variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => setViewMode('kanban')}
-                    >
-                        <KanbanSquare className="h-4 w-4 mr-2" />
-                        Kanban
-                    </Button>
-                </div>
-            </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setChannelFilter('all')}>
+                        Todos los canales
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setChannelFilter('whatsapp')}>
+                        Solo WhatsApp
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setChannelFilter('instagram')}>
+                        Solo Instagram
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+            <div className="w-px h-6 bg-border mx-1" />
+            <Button
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => {
+                    setViewMode('list');
+                    setShowKanbanChat(false);
+                }}
+            >
+                <ListIcon className="h-4 w-4 mr-2" />
+                Lista
+            </Button>
+            <Button
+                variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('kanban')}
+            >
+                <KanbanSquare className="h-4 w-4 mr-2" />
+                Kanban
+            </Button>
+        </div>
 
             <div className="flex-1 min-h-0 relative">
                 {viewMode === 'kanban' ? (
                     // Kanban View with Optional Side Chat
                     <div className="h-full flex relative">
-                        <div className={`transition-all duration-300 ${showKanbanChat ? 'flex-1' : 'w-full'}`}>
+                        <div className={`h-full transition-all duration-300 ${showKanbanChat ? 'flex-1' : 'w-full'}`}>
                         <KanbanBoard 
                             conversations={conversations.filter(c => channelFilter === 'all' || c.channelSource === channelFilter)}
                             onCardClick={(contactId) => {
@@ -167,7 +163,7 @@ export function CommunicationsHub() {
                             {/* Chat Header */}
                             <div className="flex items-center justify-between p-3 border-b bg-muted/30">
                                 <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white">
+                                    <div className="w-8 h-8 rounded-full bg-[var(--brand-carbon)] flex items-center justify-center text-xs font-bold text-[var(--brand-white)]">
                                         {(selectedConversation.contactName || 'UN').substring(0, 2).toUpperCase()}
                                     </div>
                                     <div>

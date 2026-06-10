@@ -12,6 +12,7 @@ import {
     closestCorners,
 } from '@dnd-kit/core';
 import { KanbanColumn } from './KanbanColumn';
+import type { KanbanColumnColor } from './KanbanColumn';
 import { KanbanCard } from './KanbanCard';
 import { Loader2 } from 'lucide-react';
 import {
@@ -38,7 +39,7 @@ interface Card {
 interface Column {
     id: string;
     title: string;
-    color: string;
+    color: KanbanColumnColor;
     cards: Card[];
 }
 
@@ -252,7 +253,10 @@ export function KanbanBoard({ conversations, onCardClick }: KanbanBoardProps) {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
         >
-            <div className="flex gap-4 h-full overflow-x-auto p-4 bg-gradient-to-br from-slate-50 to-slate-100">
+            {/* Outer: fills all vertical space given by CommunicationsHub, clips overflow */}
+            <div className="relative h-full overflow-hidden kanban-fade-right">
+              {/* Inner: horizontal scroll stays INSIDE this box — no page-level scrollbar */}
+              <div className="flex gap-4 h-full overflow-x-auto overflow-y-hidden no-scrollbar p-4 bg-[var(--brand-grey)]/30">
                 {columns.map(column => (
                     <KanbanColumn
                         key={column.id}
@@ -260,6 +264,7 @@ export function KanbanBoard({ conversations, onCardClick }: KanbanBoardProps) {
                         onCardClick={onCardClick}
                     />
                 ))}
+              </div>
             </div>
 
             <DragOverlay>

@@ -110,7 +110,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-muted/20">
+      <div className="flex h-screen w-full bg-muted/20 overflow-hidden">
         <Sidebar>
           <SidebarHeader>
             <div className="flex items-center space-x-3">
@@ -122,8 +122,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 className="object-contain rounded-lg"
               />
               <div>
-                <span className="text-xl font-bold text-sidebar-foreground">OBJETIVO</span>
-                <p className="text-xs text-sidebar-foreground/60">CRM Inteligente</p>
+                <span className="text-xl font-display tracking-[0.12em] text-sidebar-foreground">OBJETIVO</span>
+                <p className="text-xs text-sidebar-foreground/60 tracking-wider">CRM Inteligente</p>
               </div>
             </div>
           </SidebarHeader>
@@ -180,7 +180,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
             </div>
           </header>
-          <main className="flex-1 p-4 md:p-8 w-full max-w-full overflow-x-hidden">{children}</main>
+          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 w-full max-w-full">{children}</main>
         </div>
       </div>
     </SidebarProvider>
