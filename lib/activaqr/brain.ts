@@ -117,6 +117,7 @@ export interface FichaCliente {
     mensajes_ilogicos?: number;
     baja_freeze_hasta?: string;
     ultimo_mensaje_at?: string; // ISO timestamp — para timeout de 30 min
+    alerta_inactividad_enviada?: boolean;
   };
   ultimaInteraccion?: string; // ISO timestamp — para timeout de 30 min
   informador?: { contador: number; paso: number; producto_activo?: string };
