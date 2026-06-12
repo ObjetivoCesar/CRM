@@ -816,6 +816,8 @@ export const pendingMessagesQueue = pgTable('pending_messages_queue', {
   metadata: jsonb('metadata').default({}),
   receivedAt: timestamp('received_at').defaultNow().notNull(),
   claimedAt: timestamp('claimed_at'), // To prevent multiple workers from processing the same chat
+  failedAt: timestamp('failed_at'),   // Set when processing fails — used for dead-letter detection
+  retryCount: integer('retry_count').default(0).notNull(), // How many times has this message been retried
 });
 
 // ============================================

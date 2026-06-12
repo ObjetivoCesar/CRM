@@ -77,7 +77,10 @@ async function processQueue() {
             firstUpdate: sql<string>`MIN(received_at)`
         })
             .from(pendingMessagesQueue)
-            .where(sql`claimed_at IS NULL`) // ONLY UNCLAIMED
+            .where(or(
+                sql`claimed_at IS NULL`,
+                sql`claimed_at < NOW() - INTERVAL '5 minutes'` // Recover zombie chats
+            ))
             .groupBy(pendingMessagesQueue.chatId);
 
         const now = new Date();
@@ -119,7 +122,10 @@ async function processQueue() {
                 .set({ claimedAt: new Date() })
                 .where(and(
                     inArray(pendingMessagesQueue.chatId, chatsToClaim),
-                    sql`claimed_at IS NULL`
+                    or(
+                        sql`claimed_at IS NULL`,
+                        sql`claimed_at < NOW() - INTERVAL '5 minutes'`
+                    )
                 ))
                 .returning({ chatId: pendingMessagesQueue.chatId });
 
@@ -614,22 +620,25 @@ async function processQueue() {
                         }
 
                         // F. Clear ONLY processed IDs from the queue
-                        // ⚠️ This runs unconditionally to prevent zombie messages re-processing on failure
                         await db.delete(pendingMessagesQueue)
                             .where(inArray(pendingMessagesQueue.id, messageIds));
                         console.log(`🗑️ Cleared ${messageIds.length} messages from queue for ${chat.chatId}`);
 
                     } catch (e) {
                         console.error(`❌ Batch Error for ${chat.chatId}:`, e);
-                        // Even on error, try to clear the queue to avoid zombie messages
                         try {
                             if (messageIds && messageIds.length > 0) {
-                                await db.delete(pendingMessagesQueue)
+                                await db.update(pendingMessagesQueue)
+                                    .set({ 
+                                        failedAt: new Date(),
+                                        retryCount: sql`retry_count + 1`,
+                                        claimedAt: null // Liberar para que otro worker intente
+                                    })
                                     .where(inArray(pendingMessagesQueue.id, messageIds));
-                                console.log(`🧹 [Error Recovery] Cleared ${messageIds.length} zombie messages for ${chat.chatId}`);
+                                console.log(`🧹 [Error Recovery] Marked ${messageIds.length} messages as failed for retry ${chat.chatId}`);
                             }
                         } catch (cleanupErr) {
-                            console.error(`❌ Failed to clear zombie messages for ${chat.chatId}:`, cleanupErr);
+                            console.error(`❌ Failed to mark messages as failed for ${chat.chatId}:`, cleanupErr);
                         }
                     }
                 }));
