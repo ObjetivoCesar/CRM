@@ -1,8 +1,7 @@
-
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { contacts, donnaChatMessages, interactions, discoveryLeads } from '@/lib/db/schema';
-import { desc, eq, sql } from 'drizzle-orm';
+import { contacts, contactChannels } from '@/lib/db/schema';
+import { eq, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,125 +11,89 @@ export async function GET(request: Request) {
         const limit = parseInt(searchParams.get('limit') || '50');
         const search = searchParams.get('search') || '';
 
-        // 1. Fetch latest interactions across ALL platforms
-        const latestInteractions = await db.select()
-            .from(interactions)
-            .orderBy(desc(interactions.performedAt))
-            .limit(limit * 2);
+        // ─── STEP 1: Get latest message per chatId (perfect deduplication) ───
+        // donna_chat_messages.chat_id IS always the normalized phone/chatId.
+        // Using GROUP BY guarantees one row per unique conversation, no matter
+        // how many interactions exist for that phone.
+        const latestPerChat = await db.execute(sql`
+            SELECT
+                chat_id,
+                MAX(message_timestamp) AS last_activity_at,
+                (array_agg(content ORDER BY message_timestamp DESC))[1] AS last_message,
+                (array_agg(platform ORDER BY message_timestamp DESC))[1] AS platform
+            FROM donna_chat_messages
+            GROUP BY chat_id
+            ORDER BY last_activity_at DESC
+            LIMIT ${limit * 2}
+        `);
 
-        const chatsMap = new Map();
+        const rows = latestPerChat.rows as Array<{
+            chat_id: string;
+            last_activity_at: string;
+            last_message: string;
+            platform: string;
+        }>;
 
-        // 2. Process and Group
-        for (const inter of latestInteractions) {
-            const metadata = (inter.metadata as any) || {};
-            const phoneNumber = metadata.phoneNumber || (metadata.raw?.from) || '';
-            const telegramChatId = metadata.chatId || '';
-            const instagramId = metadata.senderId || '';
+        // ─── STEP 2: Enrich each chatId with contact data ───
+        const result = await Promise.all(rows.map(async (row) => {
+            const chatId = row.chat_id;
 
-            // Unique Key: Use platform identifier as primary grouping key to prevent duplicates
-            // when some interactions have contactId and others don't
-            const platformId = phoneNumber || telegramChatId || instagramId;
-            const chatKey = platformId || inter.contactId || inter.discoveryLeadId;
+            // Look up contact by their channel identifier
+            const [channelRow] = await db
+                .select({
+                    contactId: contacts.id,
+                    contactName: contacts.contactName,
+                    phone: contacts.phone,
+                    status: contacts.status,
+                    botMode: contacts.botMode,
+                    unreadCount: contacts.unreadCount,
+                    channelSource: contacts.channelSource,
+                })
+                .from(contacts)
+                .innerJoin(contactChannels, eq(contacts.id, contactChannels.contactId))
+                .where(eq(contactChannels.identifier, chatId))
+                .limit(1);
 
-            if (!chatKey) continue;
-
-            const existing = chatsMap.get(chatKey);
-
-            // If we already have this chat, we only want to check if we can "upgrade" its identity
-            // in case the newest interaction was missing the contactId but an older one has it.
-            if (existing) {
-                if (existing.status === 'unknown' && (inter.contactId || inter.discoveryLeadId)) {
-                    // We found an older interaction with a linked contact, let's upgrade the identity
-                    let updatedName = existing.contactName;
-                    let updatedType = existing.type;
-                    
-                    if (inter.contactId) {
-                        const [c] = await db.select().from(contacts).where(eq(contacts.id, inter.contactId)).limit(1);
-                        if (c) {
-                            updatedName = c.contactName || c.businessName || existing.phone;
-                            updatedType = 'contact';
-                        }
-                    } else if (inter.discoveryLeadId) {
-                        const [d] = await db.select().from(discoveryLeads).where(eq(discoveryLeads.id, inter.discoveryLeadId)).limit(1);
-                        if (d) {
-                            updatedName = d.nombreComercial || existing.phone;
-                            updatedType = 'discovery';
-                        }
-                    }
-
-                    chatsMap.set(chatKey, {
-                        ...existing,
-                        contactName: updatedName,
-                        status: updatedType,
-                        entityType: updatedType
-                    });
+            if (channelRow) {
+                const name = channelRow.contactName || channelRow.phone || chatId;
+                // Apply search filter
+                if (search && !name.toLowerCase().includes(search.toLowerCase()) && !chatId.includes(search)) {
+                    return null;
                 }
-                continue;
+                return {
+                    id: chatId,
+                    contactId: channelRow.contactId,
+                    contactName: name,
+                    phone: channelRow.phone || chatId,
+                    lastActivityAt: row.last_activity_at,
+                    lastMessage: row.last_message,
+                    channelSource: channelRow.channelSource || row.platform || 'whatsapp',
+                    unreadCount: channelRow.unreadCount || 0,
+                    status: channelRow.status || 'sin_contacto',
+                    botMode: channelRow.botMode || 'active',
+                    entityType: 'contact',
+                };
             }
 
-            // 3. Resolve Identity for NEW chat
-            let identity = {
-                name: 'Desconocido',
-                phone: platformId,
-                type: 'unknown',
-                channel: inter.type === 'whatsapp' ? 'whatsapp' : (inter.type === 'other' && metadata.platform === 'instagram' ? 'instagram' : 'telegram')
+            // Fallback: ghost contact (no linked record yet)
+            if (search && !chatId.includes(search)) return null;
+            return {
+                id: chatId,
+                contactId: null,
+                contactName: chatId,
+                phone: chatId,
+                lastActivityAt: row.last_activity_at,
+                lastMessage: row.last_message,
+                channelSource: row.platform || 'whatsapp',
+                unreadCount: 0,
+                status: 'sin_contacto',
+                botMode: 'active',
+                entityType: 'unknown',
             };
+        }));
 
-            if (inter.contactId) {
-                const [c] = await db.select().from(contacts).where(eq(contacts.id, inter.contactId)).limit(1);
-                if (c) {
-                    identity = {
-                        name: c.contactName || c.businessName || identity.phone,
-                        phone: c.phone || identity.phone,
-                        type: 'contact',
-                        commercialStatus: c.status,
-                        channel: c.channelSource || identity.channel,
-                        botMode: c.botMode || 'active',
-                        unreadCount: c.unreadCount || 0,
-                        contactId: c.id,  // ← UUID real del contacto
-                    } as any;
-                }
-            } else if (inter.discoveryLeadId) {
-                const [d] = await db.select().from(discoveryLeads).where(eq(discoveryLeads.id, inter.discoveryLeadId)).limit(1);
-                if (d) {
-                    identity = {
-                        name: d.nombreComercial || identity.phone,
-                        phone: d.telefonoPrincipal || identity.phone,
-                        type: 'discovery',
-                        commercialStatus: d.status,
-                        channel: 'whatsapp',
-                        botMode: d.botMode || 'active',
-                        unreadCount: 0,
-                        contactId: d.id,  // ← UUID real del lead
-                    } as any;
-                }
-            }
-
-            // 4. Populate Map
-            chatsMap.set(chatKey, {
-                id: chatKey,
-                contactId: (identity as any).contactId || inter.contactId || null, // UUID real del contacto/lead
-                contactName: identity.name,
-                phone: identity.phone,
-                lastActivityAt: inter.performedAt,
-                channelSource: identity.channel,
-                unreadCount: (identity as any).unreadCount || 0,
-                status: (identity as any).commercialStatus || 'sin_contacto',
-                entityType: identity.type,
-                botMode: (identity as any).botMode || 'active',
-                lastMessage: inter.content,
-                direction: inter.direction
-            });
-        }
-
-        const unified = Array.from(chatsMap.values());
-
-        const filtered = search ? unified.filter((c: any) =>
-            c.contactName.toLowerCase().includes(search.toLowerCase()) ||
-            c.phone.toLowerCase().includes(search.toLowerCase())
-        ) : unified;
-
-        return NextResponse.json(filtered.slice(0, limit));
+        const filtered = result.filter(Boolean).slice(0, limit);
+        return NextResponse.json(filtered);
 
     } catch (error: any) {
         console.error('Error fetching conversations:', error);
