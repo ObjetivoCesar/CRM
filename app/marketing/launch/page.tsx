@@ -167,7 +167,7 @@ export default function LaunchPadPage() {
             </div>
             <div className="w-full bg-muted rounded-full h-2.5">
               <div
-                className="h-2.5 rounded-full bg-[#1a2236] transition-all duration-500"
+                className="h-2.5 rounded-full bg-[var(--brand-carbon)] transition-all duration-500"
                 style={{ width: `${(passedChecks / totalChecks) * 100}%` }}
               />
             </div>
@@ -232,7 +232,7 @@ export default function LaunchPadPage() {
             {STEPS.map((step) => (
               <Card key={step.id} className="clean-card">
                 <CardContent className="p-4 flex items-center gap-4">
-                  <div className="w-8 h-8 rounded-full bg-[#1a2236] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[var(--brand-carbon)] text-[var(--brand-white)] flex items-center justify-center text-sm font-bold flex-shrink-0">
                     {step.id}
                   </div>
                   <div className="flex-1 min-w-0">

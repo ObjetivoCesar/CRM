@@ -810,7 +810,7 @@ async function ejecutarOnboarding(
     // Check si viene del anuncio
     const textoLower = texto.toLowerCase().trim();
     const respondeAfirmativo = /^(si|sip|yes|yep|claro|afirmativo|ya|ok|bueno|dale|exacto|sas|asi es)\s*$/.test(textoLower)
-      || textoLower === 'si' || textoLower === 'yes' || textoLower === 'sip' || textoLower.includes('del anuncio');
+      || textoLower === 'si' || textoLower === 'yes' || textoLower === 'sip' || textoLower.includes('del anuncio') || /facebook|fb|insta|instagram|tiktok|anuncio|publicidad/i.test(textoLower);
 
     if (respondeAfirmativo) {
        ficha.contacto_humano_solicitado = true;
@@ -935,6 +935,9 @@ export async function procesarMensajeActivaQR(
   if (!ficha.sesion) ficha.sesion = {};
   if (!ficha.informador) ficha.informador = { contador: 0, paso: 0 };
   if (!ficha.closer) ficha.closer = { contador: 0, paso: 0 };
+
+  // Limpiar bandera de inactividad ya que el cliente ha escrito
+  delete ficha.sesion.alerta_inactividad_enviada;
 
   // ─── COMANDO /reset ───
   const textoNormalizado = texto.toLowerCase().trim();

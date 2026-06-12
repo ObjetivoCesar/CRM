@@ -22,9 +22,10 @@ interface Message {
 interface ChatViewProps {
     contactId: string;
     contactName: string;
+    phoneNumber?: string;
 }
 
-export function ChatView({ contactId, contactName }: ChatViewProps) {
+export function ChatView({ contactId, contactName, phoneNumber }: ChatViewProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -299,6 +300,11 @@ export function ChatView({ contactId, contactName }: ChatViewProps) {
                         {isUnknownNumber && (
                             <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                                 Desconocido
+                            </span>
+                        )}
+                        {phoneNumber && contactName !== phoneNumber && (
+                            <span className="text-xs font-normal text-muted-foreground ml-2">
+                                {phoneNumber}
                             </span>
                         )}
                     </h3>

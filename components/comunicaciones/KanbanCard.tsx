@@ -14,6 +14,7 @@ interface KanbanCardProps {
         lastMessageTime: Date | string;
         channelSource: string;
         unreadCount: number;
+        phone?: string;
     };
     onClick: () => void;
 }
@@ -83,9 +84,16 @@ export function KanbanCard({ card, onClick }: KanbanCardProps) {
                     <div className="w-8 h-8 rounded-full bg-[var(--brand-carbon)] flex items-center justify-center text-xs font-bold text-[var(--brand-white)] shadow-sm flex-shrink-0">
                         {(card.contactName || 'UN').substring(0, 2).toUpperCase()}
                     </div>
-                    <span className="font-semibold text-sm truncate text-foreground group-hover:text-[var(--brand-blue)] transition-colors">
-                        {card.contactName}
-                    </span>
+                    <div className="flex flex-col flex-1 min-w-0">
+                        <span className="font-semibold text-sm truncate text-foreground group-hover:text-[var(--brand-blue)] transition-colors">
+                            {card.contactName}
+                        </span>
+                        {card.phone && card.contactName !== card.phone && (
+                            <span className="text-[10px] text-muted-foreground truncate">
+                                {card.phone}
+                            </span>
+                        )}
+                    </div>
                 </div>
                 {getPlatformBadge(card.channelSource)}
             </div>

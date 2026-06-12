@@ -108,9 +108,10 @@ export function OpsBoard() {
                 {/* Main Panel: Chat View */}
                 <ResizablePanel defaultSize={50} minSize={30}>
                     {selectedId && selectedConversation ? (
-                        <ChatView
-                            contactId={selectedId}
+                        <ChatView 
+                            contactId={selectedId} 
                             contactName={selectedConversation.contactName}
+                            phoneNumber={selectedConversation.phone}
                         />
                     ) : (
                         <div className="flex h-full items-center justify-center text-muted-foreground bg-muted/5">

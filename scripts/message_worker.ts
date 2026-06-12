@@ -653,3 +653,70 @@ async function processQueue() {
 
 console.log('👷 Message Worker started (High Concurrency Ready)...');
     processQueue();
+
+    // Inactivity Checker
+    async function checkIdleConversations() {
+        try {
+            const { conversationStates, contacts, contactChannels } = await import('../lib/db/schema');
+            const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000);
+            const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            
+            // Fetch states updated in the last 24h but not in the last 10 mins
+            const states = await db.select()
+                .from(conversationStates)
+                .where(and(
+                    sql`updated_at >= ${twentyFourHoursAgo}`,
+                    sql`updated_at <= ${tenMinsAgo}`
+                ));
+
+            for (const state of states) {
+                if (!state.data) continue;
+                const parsed = typeof state.data === 'string' ? JSON.parse(state.data as string) : state.data;
+                const ficha = parsed.ficha || parsed;
+
+                // Condition: the last message was at least 10 minutes ago, Ale is active, no alert sent yet
+                if (ficha.sesion?.ultimo_mensaje_at && !ficha.sesion?.alerta_inactividad_enviada) {
+                    const lastMsgTime = new Date(ficha.sesion.ultimo_mensaje_at);
+                    if (lastMsgTime <= tenMinsAgo) {
+                        // Check if botMode is still 'active' in contacts table
+                        const [contactRecord] = await db.select({ botMode: contacts.botMode })
+                            .from(contacts)
+                            .innerJoin(contactChannels, eq(contacts.id, contactChannels.contactId))
+                            .where(eq(contactChannels.identifier, state.key))
+                            .limit(1);
+                        
+                        if (contactRecord && contactRecord.botMode === 'active') {
+                            // Send WhatsApp notification to César
+                            const cleanPhone = state.key.replace(/\D/g, '');
+                            const msg = `🚨 *Alerta de Inactividad (Ale)*\n\nEl cliente *${ficha.nombre || state.key}* (Telf: ${state.key}) no ha respondido en más de 10 minutos.\n\n*Rubro:* ${ficha.rubro || 'Desconocido'}\n*Producto:* ${ficha.producto_interes || ficha.producto_detectado || 'Desconocido'}\n*Agente:* ${ficha.agente_activo || 'N/A'}\n\nLlamar directo: +${cleanPhone}\nO chatear: wa.me/${cleanPhone}`;
+                            
+                            try {
+                                const { whatsappService } = await import('../lib/whatsapp/WhatsAppService');
+                                await whatsappService.sendMessage('593963410409', msg);
+                                console.log(`🚨 Idle alert sent to César for ${state.key}`);
+                                
+                                // Mark as sent
+                                ficha.sesion.alerta_inactividad_enviada = true;
+                                await db.update(conversationStates)
+                                    .set({ data: JSON.stringify({ ficha }), updatedAt: new Date() })
+                                    .where(eq(conversationStates.key, state.key));
+                            } catch (e) {
+                                console.error(`❌ Failed to send idle alert for ${state.key}:`, e);
+                            }
+                        } else if (contactRecord && contactRecord.botMode !== 'active') {
+                            // If bot is paused, we don't alert, but we mark it to not check again
+                            ficha.sesion.alerta_inactividad_enviada = true;
+                            await db.update(conversationStates)
+                                .set({ data: JSON.stringify({ ficha }), updatedAt: new Date() })
+                                .where(eq(conversationStates.key, state.key));
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("❌ Error checking idle conversations:", error);
+        }
+    }
+
+    // Run idle check every minute
+    setInterval(checkIdleConversations, 60 * 1000);

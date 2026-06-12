@@ -167,7 +167,12 @@ export function CommunicationsHub() {
                                         {(selectedConversation.contactName || 'UN').substring(0, 2).toUpperCase()}
                                     </div>
                                     <div>
-                                        <h3 className="font-semibold text-sm">{selectedConversation.contactName}</h3>
+                                        <h3 className="font-semibold text-sm">
+                                            {selectedConversation.contactName}
+                                            {selectedConversation.phone && selectedConversation.contactName !== selectedConversation.phone && (
+                                                <span className="ml-2 text-xs font-normal text-muted-foreground">{selectedConversation.phone}</span>
+                                            )}
+                                        </h3>
                                         <p className="text-xs text-muted-foreground">Chat rápido desde Kanban</p>
                                     </div>
                                 </div>
@@ -186,6 +191,7 @@ export function CommunicationsHub() {
                                     key={`kanban-chat-${selectedId}`}
                                     contactId={selectedId}
                                     contactName={selectedConversation.contactName}
+                                    phoneNumber={selectedConversation.phone}
                                 />
                             </div>
                         </div>
@@ -223,6 +229,7 @@ export function CommunicationsHub() {
                                 key={`list-chat-${selectedId}`}
                                 contactId={selectedId}
                                 contactName={selectedConversation.contactName}
+                                phoneNumber={selectedConversation.phone}
                             />
                         ) : (
                             <div className="flex h-full items-center justify-center text-muted-foreground bg-muted/5">

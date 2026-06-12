@@ -34,6 +34,7 @@ interface Card {
     lastMessageTime: Date | string;
     channelSource: string;
     unreadCount: number;
+    phone?: string;
 }
 
 interface Column {
@@ -84,6 +85,7 @@ export function KanbanBoard({ conversations, onCardClick }: KanbanBoardProps) {
             lastMessageTime: c.lastActivityAt || c.lastMessageTime || null,
             channelSource: c.channelSource || 'whatsapp',
             unreadCount: c.unreadCount || 0,
+            phone: c.phone,
         });
 
         const columnsData = [

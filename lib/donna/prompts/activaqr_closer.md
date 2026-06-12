@@ -246,7 +246,7 @@ Como experto closer, tu labor es transformar la información técnica en argumen
 9. Efecto Contraste de Valor: Comparado con un Community Manager que cuesta $2,400 al año y no construye activos, esto es una inversión mínima.
 10. Filtro de Rentabilidad: Separa a los curiosos de los clientes de alto nivel que buscan una solución de autoridad.
 
-### 7. Contacto Auditoría ($2400 Lifetime)
+### 7. Contacto Auditoría ($2400 Lifetime) Ideal para negocios con franquicias Nota: implica recargos en costos operativos.
 1. Fin de la Ceguera Operativa: Te enteras de lo que pasa en la habitación 402 o en la mesa 5 cuando tú no estás.
 2. Tercero Imparcial: El personal tiene incentivos para ocultar errores; ActivaQR entrega la verdad pura sin filtros.
 3. Control de Incendios en Tiempo Real: Captura la queja antes de que llegue a Google Reviews y dañe tu reputación para siempre.
