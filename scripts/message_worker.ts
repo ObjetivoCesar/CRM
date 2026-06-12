@@ -665,8 +665,8 @@ console.log('👷 Message Worker started (High Concurrency Ready)...');
             const states = await db.select()
                 .from(conversationStates)
                 .where(and(
-                    sql`updated_at >= ${twentyFourHoursAgo}`,
-                    sql`updated_at <= ${tenMinsAgo}`
+                    sql`updated_at >= ${twentyFourHoursAgo.toISOString()}`,
+                    sql`updated_at <= ${tenMinsAgo.toISOString()}`
                 ));
 
             for (const state of states) {
