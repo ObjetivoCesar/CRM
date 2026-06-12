@@ -27,7 +27,7 @@ export async function GET(request: Request) {
             LIMIT ${limit * 2}
         `);
 
-        const rows = latestPerChat.rows as Array<{
+        const rows = latestPerChat as unknown as Array<{
             chat_id: string;
             last_activity_at: string;
             last_message: string;
