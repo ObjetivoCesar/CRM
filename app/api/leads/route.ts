@@ -106,15 +106,11 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // Helper to normalize empty strings to null
-    const n = (val: any) => (val === "" || val === undefined) ? null : val;
+    // Helper to normalize empty strings to null, but keep undefined as undefined
+    // so Drizzle ignores them during partial updates.
+    const n = (val: any) => (val === "") ? null : val;
 
-    // Map body fields to Drizzle schema keys (CamelCase)
-    // We only map fields that are provided to avoid overwriting existing data with nulls accidentally in future selective updates
-    // But for current form logic, we map the expected set.
     const drizzleBody: any = {
-      businessName: n(body.businessName),
-      contactName: n(body.contactName),
       phone: n(body.phone),
       email: n(body.email),
       address: n(body.address),
@@ -140,20 +136,20 @@ export async function POST(request: Request) {
 
       quantifiedProblem: n(body.quantifiedProblem),
       conservativeGoal: n(body.conservativeGoal),
-      yearsInBusiness: body.yearsInBusiness ? parseInt(body.yearsInBusiness) : null,
-      numberOfEmployees: body.numberOfEmployees ? parseInt(body.numberOfEmployees) : null,
-      numberOfBranches: body.numberOfBranches ? parseInt(body.numberOfBranches) : null,
-      currentClientsPerMonth: body.currentClientsPerMonth ? parseInt(body.currentClientsPerMonth) : null,
-      averageTicket: body.averageTicket ? parseInt(body.averageTicket) : null,
+      yearsInBusiness: body.yearsInBusiness ? parseInt(body.yearsInBusiness) : undefined,
+      numberOfEmployees: body.numberOfEmployees ? parseInt(body.numberOfEmployees) : undefined,
+      numberOfBranches: body.numberOfBranches ? parseInt(body.numberOfBranches) : undefined,
+      currentClientsPerMonth: body.currentClientsPerMonth ? parseInt(body.currentClientsPerMonth) : undefined,
+      averageTicket: body.averageTicket ? parseInt(body.averageTicket) : undefined,
 
       // Date handling
-      birthday: body.birthday ? new Date(body.birthday) : null,
-      anniversaryDate: body.anniversaryDate ? new Date(body.anniversaryDate) : null,
+      birthday: body.birthday ? new Date(body.birthday) : undefined,
+      anniversaryDate: body.anniversaryDate ? new Date(body.anniversaryDate) : undefined,
 
       knownCompetition: n(body.knownCompetition),
       highSeason: n(body.highSeason),
       criticalDates: n(body.criticalDates),
-      facebookFollowers: body.facebookFollowers ? parseInt(body.facebookFollowers) : null,
+      facebookFollowers: body.facebookFollowers ? parseInt(body.facebookFollowers) : undefined,
       otherAchievements: n(body.otherAchievements),
       specificRecognitions: n(body.specificRecognitions),
 
@@ -164,6 +160,16 @@ export async function POST(request: Request) {
       discoveryLeadId: n(body.discoveryLeadId),
       entityType: 'lead'
     };
+
+    if (body.businessName !== undefined) drizzleBody.businessName = n(body.businessName) || body.contactName || 'Desconocido';
+    if (body.contactName !== undefined) drizzleBody.contactName = n(body.contactName) || 'Desconocido';
+
+    // Strip undefined keys from drizzleBody so Drizzle ignores them
+    Object.keys(drizzleBody).forEach(key => {
+      if (drizzleBody[key] === undefined) {
+        delete drizzleBody[key];
+      }
+    });
 
     // 1. Deduplication & Identity Resolution
     let contactId = null;
@@ -238,6 +244,10 @@ export async function POST(request: Request) {
       }
     } else {
       // INSERT
+      // Fallback required fields for insert if not provided
+      if (!drizzleBody.businessName) drizzleBody.businessName = drizzleBody.contactName || body.phone || 'Desconocido';
+      if (!drizzleBody.contactName) drizzleBody.contactName = body.phone || 'Desconocido';
+
       const [inserted] = await db.insert(contacts)
         .values(drizzleBody)
         .returning();
