@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 export function CommunicationsHub() {
     const [conversations, setConversations] = useState<any[]>([]);
@@ -145,9 +146,8 @@ export function CommunicationsHub() {
 
             <div className="flex-1 min-h-0 relative">
                 {viewMode === 'kanban' ? (
-                    // Kanban View with Optional Side Chat
-                    <div className="h-full flex relative">
-                        <div className={`h-full transition-all duration-300 ${showKanbanChat ? 'flex-1' : 'w-full'}`}>
+                    // Kanban View
+                    <div className="h-full w-full">
                         <KanbanBoard 
                             conversations={conversations.filter(c => channelFilter === 'all' || c.channelSource === channelFilter)}
                             onCardClick={(contactId) => {
@@ -155,49 +155,41 @@ export function CommunicationsHub() {
                                 setShowKanbanChat(true);
                             }} 
                         />
-                    </div>
 
-                    {/* Side Chat Panel */}
-                    {showKanbanChat && selectedId && selectedConversation && (
-                        <div className="w-[500px] border-l bg-background flex flex-col shadow-2xl">
-                            {/* Chat Header */}
-                            <div className="flex items-center justify-between p-3 border-b bg-muted/30">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-full bg-[var(--brand-carbon)] flex items-center justify-center text-xs font-bold text-[var(--brand-white)]">
-                                        {(selectedConversation.contactName || 'UN').substring(0, 2).toUpperCase()}
+                        {/* Kanban Slide-Over Chat */}
+                        <Sheet open={showKanbanChat} onOpenChange={setShowKanbanChat}>
+                            <SheetContent side="right" className="w-[500px] sm:w-[500px] sm:max-w-none p-0 flex flex-col border-l shadow-2xl">
+                                <SheetHeader className="p-3 border-b bg-muted/30">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-full bg-[var(--brand-carbon)] flex items-center justify-center text-xs font-bold text-[var(--brand-white)]">
+                                            {(selectedConversation?.contactName || 'UN').substring(0, 2).toUpperCase()}
+                                        </div>
+                                        <div className="flex-1 text-left">
+                                            <SheetTitle className="text-sm font-semibold">
+                                                {selectedConversation?.contactName}
+                                                {selectedConversation?.phone && selectedConversation.contactName !== selectedConversation.phone && (
+                                                    <span className="ml-2 text-xs font-normal text-muted-foreground">{selectedConversation.phone}</span>
+                                                )}
+                                            </SheetTitle>
+                                            <p className="text-xs text-muted-foreground">Chat rápido desde Kanban</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 className="font-semibold text-sm">
-                                            {selectedConversation.contactName}
-                                            {selectedConversation.phone && selectedConversation.contactName !== selectedConversation.phone && (
-                                                <span className="ml-2 text-xs font-normal text-muted-foreground">{selectedConversation.phone}</span>
-                                            )}
-                                        </h3>
-                                        <p className="text-xs text-muted-foreground">Chat rápido desde Kanban</p>
-                                    </div>
+                                </SheetHeader>
+                                
+                                <div className="flex-1 overflow-hidden">
+                                    {selectedId && selectedConversation && (
+                                        <ChatView
+                                            key={`kanban-chat-${selectedId}`}
+                                            contactId={selectedId}
+                                            contactName={selectedConversation.contactName}
+                                            phoneNumber={selectedConversation.phone}
+                                        />
+                                    )}
                                 </div>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setShowKanbanChat(false)}
-                                >
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            </div>
-
-                            {/* Chat Content */}
-                            <div className="flex-1 overflow-hidden">
-                                <ChatView
-                                    key={`kanban-chat-${selectedId}`}
-                                    contactId={selectedId}
-                                    contactName={selectedConversation.contactName}
-                                    phoneNumber={selectedConversation.phone}
-                                />
-                            </div>
-                        </div>
-                    )}
-                </div>
-            ) : (
+                            </SheetContent>
+                        </Sheet>
+                    </div>
+                ) : (
                 // 3-Panel List View — no horizontal scroll, collapsible inbox
                 <div className="h-full flex overflow-hidden">
                     {/* Collapsible Left Panel: Inbox */}
