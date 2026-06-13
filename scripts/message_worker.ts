@@ -292,7 +292,6 @@ async function processQueue() {
                             console.log(`⏭️ [PERSISTENCE DISABLED] Skipping save for ${chat.chatId} (testing mode)`);
                         }
 
-                        // D. TRIGGER AI (Conditional)
                         let shouldSkipAI = botMode !== 'active';
                         let skipReason: string = botMode;
 
@@ -317,9 +316,6 @@ async function processQueue() {
                                 const lastOutboundTime = new Date(lastOutbound.performedAt).getTime();
                                 const firstMessageTime = chat.firstReceived.getTime();
 
-                                // A message counts as human intervention if:
-                                // 1. It happened after the user's first message in this batch.
-                                // 2. It is NOT from Donna (check metadata source OR content prefix fallback)
                                 const isDonnaSource = (lastOutbound.metadata as any)?.source === 'donna';
                                 const hasDonnaPrefix = lastOutbound.content?.startsWith('Donna:');
 
@@ -330,7 +326,64 @@ async function processQueue() {
                             }
                         }
 
-                        if (shouldSkipAI) {
+                        if (chat.chatId === '593963410409' || chat.chatId === '0963410409') {
+                            console.log(`👑 ADMIN MESSAGE DETECTED from ${chat.chatId}`);
+                            try {
+                                const { conversationStates } = await import('../lib/db/schema');
+                                const { desc, eq, ne, sql } = await import('drizzle-orm');
+                                
+                                const recentStates = await db.select({
+                                    key: conversationStates.key,
+                                    data: conversationStates.data,
+                                    updatedAt: conversationStates.updatedAt
+                                })
+                                .from(conversationStates)
+                                .where(ne(conversationStates.key, chat.chatId))
+                                .orderBy(desc(conversationStates.updatedAt))
+                                .limit(20);
+                                
+                                let summaryText = "Hola César, aquí tienes el resumen de las últimas conversaciones:\n\n";
+                                let count = 0;
+                                
+                                for (const st of recentStates) {
+                                    const parsed = typeof st.data === 'string' ? JSON.parse(st.data as string) : st.data;
+                                    const ficha = parsed.ficha || parsed;
+                                    
+                                    // Skip empty or uninteresting states
+                                    if (!ficha || (!ficha.nombre && !ficha.producto_interes && !ficha.producto_detectado && !ficha.rubro)) continue;
+                                    
+                                    const name = ficha.nombre || 'Desconocido';
+                                    const phone = st.key;
+                                    const status = ficha.agente_activo || 'N/A';
+                                    const product = ficha.producto_interes || ficha.producto_detectado || 'N/A';
+                                    const rubro = ficha.rubro || 'N/A';
+                                    
+                                    summaryText += `👤 *${name}* (${phone})\n`;
+                                    summaryText += `🔹 Rubro: ${rubro}\n`;
+                                    summaryText += `🔹 Producto: ${product}\n`;
+                                    summaryText += `🔹 Agente: ${status}\n`;
+                                    summaryText += `⏱️ Última act: ${new Date(st.updatedAt).toLocaleString('es-EC', { timeZone: 'America/Guayaquil' })}\n\n`;
+                                    
+                                    count++;
+                                    if (count >= 5) break; // limit to 5
+                                }
+                                
+                                if (count === 0) {
+                                    summaryText = "Hola César, por el momento no hay conversaciones recientes activas.";
+                                }
+                                
+                                // Send summary to César
+                                await whatsappService.sendMessage(chat.chatId, summaryText);
+                                
+                                // Clear queue
+                                await db.delete(pendingMessagesQueue).where(inArray(pendingMessagesQueue.id, messageIds));
+                                console.log(`🗑️ Cleared ${messageIds.length} messages from queue for ${chat.chatId} (ADMIN)`);
+                                
+                                return; // Skip normal AI processing
+                            } catch (adminErr) {
+                                console.error(`❌ Error processing admin command:`, adminErr);
+                            }
+                        } else if (shouldSkipAI) {
                             console.log(`🔕 skipping AI for ${chat.chatId} (Reason: ${skipReason})`);
                         } else {
                             // ─── ACTIVAQR BRAIN (Ale) ───
