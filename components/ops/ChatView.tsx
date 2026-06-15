@@ -71,21 +71,21 @@ export function ChatView({ contactId, contactName, phoneNumber }: ChatViewProps)
 
         fetchHistory();
 
-        // Fetch available channels
-        // Fetch available channels and bot mode
-        fetch(`/api/conversations/${contactId}/details?type=contact`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    setBotMode(data.data.botMode || 'active');
-                }
-            })
-            .catch(() => {
-                // Try discovery
-                fetch(`/api/conversations/${contactId}/details?type=discovery`)
-                    .then(res => res.json())
-                    .then(data => { if (data.success) setBotMode(data.data.botMode || 'active') });
-            });
+        // Fetch bot mode from the correct unified endpoint
+        const fetchBotMode = () => {
+            fetch(`/api/whatsapp/chats/${contactId}/details?type=contact`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) setBotMode(data.data.botMode || 'active');
+                })
+                .catch(() => {
+                    fetch(`/api/whatsapp/chats/${contactId}/details?type=discovery`)
+                        .then(res => res.json())
+                        .then(data => { if (data.success) setBotMode(data.data.botMode || 'active'); })
+                        .catch(() => {}); // ghost contact, keep default
+                });
+        };
+        fetchBotMode();
 
         fetch(`/api/conversations/${contactId}/channels`)
             .then(res => res.json())
@@ -101,9 +101,10 @@ export function ChatView({ contactId, contactName, phoneNumber }: ChatViewProps)
             })
             .catch(err => console.error("Failed to load channels", err));
 
-        // Polling every 5 seconds for real-time sync
+        // Polling every 5 seconds for real-time sync (history + botMode)
         const timer = setInterval(() => {
             fetchHistory(true);
+            fetchBotMode(); // Keep badge in sync with ContactDetailsPanel switch
         }, 5000);
 
         return () => clearInterval(timer);
