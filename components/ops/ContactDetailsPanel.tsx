@@ -30,10 +30,17 @@ import {
     Plus,
     FileText,
     Bot,
-    MessageSquareOff
+    MessageSquareOff,
+    Phone,
+    MessageSquare,
+    Clock,
+    Send,
+    Eye,
+    Check
 } from 'lucide-react';
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ContactDetailsPanelProps {
     contactId: string;
@@ -51,6 +58,13 @@ export function ContactDetailsPanel({ contactId, contactName }: ContactDetailsPa
     const [newTask, setNewTask] = useState({ title: '', dueDate: '', reminderAt: '' });
     const [newEvent, setNewEvent] = useState({ title: '', startTime: '' });
     const [taskLoading, setTaskLoading] = useState(false);
+
+    // Interactions / Notes State
+    const [interactionsList, setInteractionsList] = useState<any[]>([]);
+    const [loadingInteractions, setLoadingInteractions] = useState(false);
+    const [noteContent, setNoteContent] = useState('');
+    const [noteType, setNoteType] = useState('note');
+    const [submittingNote, setSubmittingNote] = useState(false);
 
     const handleCreateTask = async () => {
         if (!newTask.title) return;
@@ -83,6 +97,47 @@ export function ContactDetailsPanel({ contactId, contactName }: ContactDetailsPa
         }
     };
 
+    const handleCreateNote = async (textToSave?: string, customType?: string) => {
+        const content = textToSave || noteContent;
+        const type = customType || noteType;
+        if (!content.trim()) return;
+
+        setSubmittingNote(true);
+        try {
+            const isDiscovery = !details.phone && !!details.telefonoPrincipal;
+            const res = await fetch('/api/interactions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type,
+                    content,
+                    direction: type === 'call' || type === 'whatsapp' ? 'outbound' : undefined,
+                    contactId: isDiscovery ? undefined : contactId,
+                    discoveryLeadId: isDiscovery ? contactId : undefined,
+                    performedAt: new Date().toISOString()
+                })
+            });
+            if (res.ok) {
+                toast({ title: "Nota registrada", description: "Se añadió al historial de seguimiento." });
+                if (!textToSave) setNoteContent('');
+                // Refresh list
+                const param = isDiscovery ? `discoveryLeadId=${contactId}` : `contactId=${contactId}`;
+                const resInteractions = await fetch(`/api/interactions?${param}`);
+                if (resInteractions.ok) {
+                    const data = await resInteractions.json();
+                    setInteractionsList(data);
+                }
+            } else {
+                toast({ title: "Error", description: "No se pudo guardar la nota.", variant: "destructive" });
+            }
+        } catch (e) {
+            console.error("Error creating note:", e);
+            toast({ title: "Error de conexión", variant: "destructive" });
+        } finally {
+            setSubmittingNote(false);
+        }
+    };
+
     useEffect(() => {
         if (!contactId) return;
         fetchDetails();
@@ -103,6 +158,15 @@ export function ContactDetailsPanel({ contactId, contactName }: ContactDetailsPa
             if (data.success) {
                 setDetails(data.data);
                 setEditedFields({});
+                
+                // Fetch interactions
+                const isDiscovery = !data.data.phone && !!data.data.telefonoPrincipal;
+                const param = isDiscovery ? `discoveryLeadId=${contactId}` : `contactId=${contactId}`;
+                const resInteractions = await fetch(`/api/interactions?${param}`);
+                if (resInteractions.ok) {
+                    const dataInteractions = await resInteractions.json();
+                    setInteractionsList(dataInteractions);
+                }
             }
         } catch (error) {
             console.error("Error fetching details:", error);
@@ -339,6 +403,130 @@ export function ContactDetailsPanel({ contactId, contactName }: ContactDetailsPa
                                 Generar Cotización IA
                             </Button>
                         </div>
+                    </div>
+
+                    {/* 📝 Nota de Seguimiento Rápida */}
+                    <div className="space-y-4 pt-4 border-t">
+                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-2">
+                            <FileText size={12} className="text-blue-500" /> Nota de Seguimiento
+                        </h4>
+                        <div className="space-y-2">
+                            <div className="flex gap-2 items-center">
+                                <Select value={noteType} onValueChange={setNoteType}>
+                                    <SelectTrigger className="w-[110px] h-7 text-[10px] bg-muted/20 border-muted">
+                                        <SelectValue placeholder="Tipo" />
+                                    </SelectTrigger>
+                                    <SelectContent className="text-xs">
+                                        <SelectItem value="note">📝 Nota</SelectItem>
+                                        <SelectItem value="call">📞 Llamada</SelectItem>
+                                        <SelectItem value="whatsapp">💬 WhatsApp</SelectItem>
+                                        <SelectItem value="other">⚙️ Otro</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                <div className="flex-1 flex gap-1 flex-wrap justify-end">
+                                    <button
+                                        onClick={() => handleCreateNote("Me dejó en visto 👁️", "note")}
+                                        className="text-[9px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all font-semibold"
+                                    >
+                                        👁️ En visto
+                                    </button>
+                                    <button
+                                        onClick={() => handleCreateNote("Le llamé de mi teléfono personal 📞", "call")}
+                                        className="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20 hover:bg-blue-500/20 transition-all font-semibold"
+                                    >
+                                        📞 Llamada Cel
+                                    </button>
+                                    <button
+                                        onClick={() => handleCreateNote("Le envié demo del sistema 💻", "note")}
+                                        className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all font-semibold"
+                                    >
+                                        💻 Demo Enviado
+                                    </button>
+                                </div>
+                            </div>
+
+                            <Textarea
+                                placeholder="Escribe un comentario o usa los atajos..."
+                                className="bg-muted/30 border-muted text-xs min-h-[60px] resize-none focus-visible:ring-blue-500/30"
+                                value={noteContent}
+                                onChange={e => setNoteContent(e.target.value)}
+                            />
+
+                            <div className="flex justify-between items-center">
+                                <span className="text-[9px] text-muted-foreground italic">
+                                    Registra llamadas, acuerdos o estatus.
+                                </span>
+                                <Button
+                                    size="sm"
+                                    className="h-7 text-[10px] bg-blue-600 hover:bg-blue-700 gap-1"
+                                    onClick={() => handleCreateNote()}
+                                    disabled={submittingNote || !noteContent.trim()}
+                                >
+                                    {submittingNote ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
+                                    Guardar Nota
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 🕒 Historial de Interacciones / Timeline */}
+                    <div className="space-y-3 pt-4 border-t">
+                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-2">
+                            <Clock size={12} className="text-blue-500" /> Historial de Contacto
+                        </h4>
+                        
+                        {loadingInteractions ? (
+                            <div className="flex items-center justify-center py-4 opacity-50">
+                                <Loader2 size={12} className="animate-spin mr-1" />
+                                <span className="text-[10px]">Cargando historial...</span>
+                            </div>
+                        ) : interactionsList.length === 0 ? (
+                            <p className="text-[10px] text-muted-foreground italic py-2 text-center">
+                                Sin interacciones registradas aún.
+                            </p>
+                        ) : (
+                            <div className="space-y-3 max-h-[200px] overflow-y-auto pr-1">
+                                {interactionsList.map((inter: any) => {
+                                    let IconComponent = FileText;
+                                    let colorClass = "text-blue-500 bg-blue-500/10";
+                                    
+                                    if (inter.type === 'call') {
+                                        IconComponent = Phone;
+                                        colorClass = "text-amber-500 bg-amber-500/10";
+                                    } else if (inter.type === 'whatsapp') {
+                                        IconComponent = MessageSquare;
+                                        colorClass = "text-emerald-500 bg-emerald-500/10";
+                                    }
+
+                                    return (
+                                        <div key={inter.id} className="flex gap-2 bg-background/50 border p-2 rounded-lg text-xs hover:bg-background/80 transition-colors">
+                                            <div className={`p-1.5 rounded-lg h-7 w-7 flex items-center justify-center shrink-0 ${colorClass}`}>
+                                                <IconComponent size={12} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex justify-between items-center gap-2 mb-0.5">
+                                                    <span className="font-bold text-[10px] capitalize text-foreground/90">
+                                                        {inter.type === 'note' ? 'Nota' : inter.type === 'call' ? 'Llamada' : inter.type}
+                                                    </span>
+                                                    <span className="text-[8px] text-muted-foreground shrink-0">
+                                                        {inter.performedAt ? new Date(inter.performedAt).toLocaleDateString('es-EC', {
+                                                            day: 'numeric',
+                                                            month: 'short',
+                                                            hour: '2-digit',
+                                                            minute: '2-digit'
+                                                        }) : ''}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[11px] text-foreground/80 break-words whitespace-pre-line leading-normal">
+                                                    {inter.content}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-4 pt-4 border-t">
