@@ -56,18 +56,29 @@ export async function POST(
             }
         }
 
-        // Prepare pause promise
-        let pausePromise = Promise.resolve();
+        // --- PAUSA TEMPORAL 2 HORAS ---
+        // En lugar de pausar indefinidamente, se pausa 2h.
+        // El Worker leerá humanPausedUntil y auto-reactivará a Ale cuando expire.
+        const PAUSE_DURATION_MS = 2 * 60 * 60 * 1000; // 2 horas
+        const humanPausedUntil = new Date(Date.now() + PAUSE_DURATION_MS).toISOString();
+
+        // pausePromise tipado como Promise<any> para evitar el error de TypeScript
+        // con el tipo de retorno de Drizzle PgUpdateBase
+        let pausePromise: Promise<any> = Promise.resolve();
         if (targetContactId) {
-            pausePromise = db.update(contacts).set({ botMode: 'paused', updatedAt: new Date() }).where(eq(contacts.id, targetContactId));
+            pausePromise = db.update(contacts)
+                .set({ botMode: 'paused', updatedAt: new Date() } as any)
+                .where(eq(contacts.id, targetContactId));
         } else if (targetLeadId) {
-            pausePromise = db.update(discoveryLeads).set({ botMode: 'paused', updatedAt: new Date() }).where(eq(discoveryLeads.id, targetLeadId));
+            pausePromise = db.update(discoveryLeads)
+                .set({ botMode: 'paused', updatedAt: new Date() } as any)
+                .where(eq(discoveryLeads.id, targetLeadId));
         }
 
         // Run bot pause and message send in parallel
         const [result] = await Promise.all([
             messagingService.send(id, message, metadata),
-            pausePromise.catch(err => console.error('Failed to pause bot:', err))
+            pausePromise.catch((err: any) => console.error('Failed to pause bot:', err))
         ]);
 
         if (result.success) {
@@ -80,7 +91,10 @@ export async function POST(
                     content: message,
                     platform: metadata?.platform || 'whatsapp',
                     messageTimestamp: new Date(),
-                    metadata: { source: 'crm_human_agent' }
+                    metadata: {
+                        source: 'crm_human_agent',
+                        humanPausedUntil // Worker usa este valor para auto-reanudar Ale después de 2h
+                    }
                 });
                 console.log(`✅ Outbound message saved to donnaChatMessages for UI`);
             } catch (saveErr) {

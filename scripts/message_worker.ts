@@ -295,6 +295,61 @@ async function processQueue() {
                         let shouldSkipAI = botMode !== 'active';
                         let skipReason: string = botMode;
 
+                        // ─── AUTO-REANUDACIÓN TRAS PAUSA HUMANA (2 HORAS) ───
+                        // Si el bot está pausado por intervención humana, verificar si la pausa ya expiró.
+                        // La marca de expiración se guarda en el metadata del último mensaje humano (crm_human_agent).
+                        if (shouldSkipAI && botMode === 'paused') {
+                            try {
+                                const [lastHumanMsg] = await db.select()
+                                    .from(donnaChatMessages)
+                                    .where(
+                                        and(
+                                            eq(donnaChatMessages.chatId, chat.chatId),
+                                            eq(donnaChatMessages.role, 'assistant'),
+                                            sql`metadata->>'source' = 'crm_human_agent'`
+                                        )
+                                    )
+                                    .orderBy(desc(donnaChatMessages.messageTimestamp))
+                                    .limit(1);
+
+                                if (lastHumanMsg) {
+                                    const pausedUntilStr = (lastHumanMsg.metadata as any)?.humanPausedUntil;
+                                    if (pausedUntilStr) {
+                                        const pausedUntil = new Date(pausedUntilStr).getTime();
+                                        const nowMs = Date.now();
+                                        if (nowMs >= pausedUntil) {
+                                            // ✅ Pausa expirada — reactivar Ale
+                                            console.log(`⏰ [AUTO-RESUME] Pausa humana expiró para ${chat.chatId}. Reactivando Ale...`);
+                                            shouldSkipAI = false;
+                                            skipReason = 'auto_resumed';
+                                            // Reactivar en DB
+                                            if (finalContactId) {
+                                                await db.update(contacts)
+                                                    .set({ botMode: 'active' } as any)
+                                                    .where(eq(contacts.id, finalContactId))
+                                                    .catch((e: any) => console.warn('⚠️ No se pudo reactivar botMode en contacts:', e.message));
+                                            } else if (finalDiscoveryLeadId) {
+                                                const { discoveryLeads } = await import('../lib/db/schema');
+                                                await db.update(discoveryLeads)
+                                                    .set({ botMode: 'active' } as any)
+                                                    .where(eq(discoveryLeads.id, finalDiscoveryLeadId))
+                                                    .catch((e: any) => console.warn('⚠️ No se pudo reactivar botMode en leads:', e.message));
+                                            }
+                                        } else {
+                                            const minutesLeft = Math.round((pausedUntil - nowMs) / 60000);
+                                            console.log(`⏸️ [PAUSA HUMANA] ${chat.chatId}: Ale pausada por ${minutesLeft} min más (hasta ${new Date(pausedUntil).toLocaleTimeString('es-EC', { timeZone: 'America/Guayaquil' })})`);
+                                        }
+                                    }
+                                    // Si no tiene humanPausedUntil, es una pausa manual del switch → respetar
+                                } else {
+                                    // No hay mensaje humano registrado → pausa manual del switch, respetar
+                                    console.log(`⏸️ [PAUSA MANUAL] ${chat.chatId}: Pausa sin expiración (switch manual).`);
+                                }
+                            } catch (resumeErr: any) {
+                                console.warn(`⚠️ Error verificando auto-reanudación para ${chat.chatId}:`, resumeErr.message);
+                            }
+                        }
+
                         // Check for Human Intervention (Handover) if bot is active
                         if (!shouldSkipAI) {
                             const [lastOutbound] = await db.select()
@@ -325,6 +380,7 @@ async function processQueue() {
                                 }
                             }
                         }
+
 
                         if (chat.chatId === '593963410409' || chat.chatId === '0963410409') {
                             console.log(`👑 ADMIN MESSAGE DETECTED from ${chat.chatId}`);
