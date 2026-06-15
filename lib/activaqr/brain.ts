@@ -89,6 +89,7 @@ export interface FichaCliente {
   temperamento_confianza?: 'bajo' | 'medio' | 'alto';
   senales_temperamento?: string[];
   rubro?: string;
+  ciudad?: string;
   dolores?: string[];
   nivel_digital?: string;
   herramientas_actuales?: string[];
@@ -173,6 +174,7 @@ function checkSessionTimeout(ficha: FichaCliente, tel: string): FichaCliente {
   const perfil = {
     nombre: ficha.nombre,
     rubro: ficha.rubro,
+    ciudad: ficha.ciudad,
     temperamento: ficha.temperamento,
     temperamento_confianza: ficha.temperamento_confianza,
     senales_temperamento: ficha.senales_temperamento,
@@ -215,6 +217,7 @@ function checkSessionTimeout(ficha: FichaCliente, tel: string): FichaCliente {
   // ─── Restaurar perfil ───
   ficha.nombre = perfil.nombre;
   ficha.rubro = perfil.rubro;
+  ficha.ciudad = perfil.ciudad;
   ficha.temperamento = perfil.temperamento;
   ficha.temperamento_confianza = perfil.temperamento_confianza;
   ficha.senales_temperamento = perfil.senales_temperamento;
@@ -240,6 +243,7 @@ function checkSessionTimeout(ficha: FichaCliente, tel: string): FichaCliente {
     perfil_preservado: {
       nombre: perfil.nombre,
       rubro: perfil.rubro,
+      ciudad: perfil.ciudad,
       temperamento: perfil.temperamento,
       producto_interes: perfil.producto_interes,
       acepto_proteccion: perfil.acepto_proteccion,
@@ -747,139 +751,18 @@ async function ejecutarOnboarding(
 
   const paso = ficha.sesion.paso_onboarding;
   const tel = ficha.numero || 'unknown';
-  let nombreConocido = ficha.nombre || '';
-
-  // ─── EXTRACCIÓN DE NOMBRE (multi-patrón) ───
-  async function extraerNombre(texto: string): Promise<string | null> {
-    // Patrones explícitos
-    const patrones = [
-      /(?:me\s+llamo|mi\s+nombre\s+es)\s+(\S.*)/i,
-      /(?:soy|soy\s+el|soy\s+la)\s+(\S.*)/i,
-    ];
-    for (const patron of patrones) {
-      const match = texto.match(patron);
-      if (match) {
-        const palabras = match[1].split(/[\s,\.!?]+/);
-        const nombreParts: string[] = [];
-        for (const p of palabras) {
-          if (/^[A-ZÁÉÍÓÚÑ]/.test(p)) nombreParts.push(p.replace(/[!?.,;:]+$/, ''));
-          else break;
-        }
-        if (nombreParts.length > 0) {
-          const nombreExtraido = nombreParts.join(' ');
-          const BLOQUEADAS = /^(Hola|Buenas|Soy|Tengo|Quiero|Ok|Dale|Gracias|Acepto|Listo|Claro|Con|De|Te|Me|Mi|Un|Una)$/;
-          if (!BLOQUEADAS.test(nombreExtraido)) return nombreExtraido;
-        }
-      }
-    }
-
-    // Patrón "Con X" (ecuatoriano: "Con César", "Con Juan", "Aquí Carlos")
-    const conMatch = texto.match(/^(?:con|aquí|a\s+sus\s+órdenes|te\s+habla)\s+(\S+)/i);
-    if (conMatch) {
-      const posibleNombre = conMatch[1].replace(/[!?.,;:]+$/, '');
-      if (/^[A-ZÁÉÍÓÚÑ]/.test(posibleNombre) && posibleNombre.length >= 2) {
-        return posibleNombre.charAt(0).toUpperCase() + posibleNombre.slice(1).toLowerCase();
-      }
-    }
-
-    return null;
-  }
-
-  if (!nombreConocido) {
-    const nombreExtraido = await extraerNombre(texto);
-    if (nombreExtraido) {
-      ficha.nombre = nombreExtraido;
-      nombreConocido = nombreExtraido;
-      detectarTemperamentoTemprano(texto, ficha);
-      log('ONBOARDING', tel, `Nombre extraído: "${nombreExtraido}"`);
-    }
-  }
-
-  const nombreActualizado = ficha.nombre || '';
 
   // Paso 0: primer contacto
-  if (paso === 0 && !nombreActualizado) {
+  if (paso === 0) {
     ficha.sesion.paso_onboarding = 1;
     return {
-      respuesta: '¡Hola! Soy Ale, asistente virtual de ActivaQR. 😊 ¿Con quién tengo el gusto?\n\nAntes de seguir, te pregunto rápido: ¿vienes de alguno de nuestros anuncios? 😊',
+      respuesta: 'Vi que clickeaste en nuestro video 👀 Déjame mostrarte cómo quedaría esto en tu local. ¿Qué tipo de negocio tienes?',
       nuevaFicha: ficha
     };
   }
 
-  // Paso 1: ya preguntamos el nombre, esperando respuesta
+  // Paso 1: esperando rubro/negocio
   if (paso === 1) {
-    // Check si viene del anuncio
-    const textoLower = texto.toLowerCase().trim();
-    const respondeAfirmativo = /^(si|sip|yes|yep|claro|afirmativo|ya|ok|bueno|dale|exacto|sas|asi es)\s*$/.test(textoLower)
-      || textoLower === 'si' || textoLower === 'yes' || textoLower === 'sip' || textoLower.includes('del anuncio') || /facebook|fb|insta|instagram|tiktok|anuncio|publicidad/i.test(textoLower);
-
-    if (respondeAfirmativo) {
-       ficha.contacto_humano_solicitado = true;
-       ficha.motivo_transferencia = 'campanna_anuncios';
-       ficha.sesion.paso_onboarding = 3;
-       ficha.sesion.onboarding_completado = true;
-       
-       return {
-         respuesta: `¡Perfecto! Como este anuncio es para ayudarte a incrementar tus ventas con nuestro sistema de QR, te va a atender directamente César. 😊\n\n💡 *Añádenos a tus contactos* porque pronto estaremos compartiendo promociones y tips de ventas por nuestros estados de WhatsApp. ¡César te escribe en unos minutos!`,
-         nuevaFicha: ficha,
-         transferir: true,
-         motivoTransferencia: 'campanna_anuncios'
-       };
-    }
-
-    // Si ya tenemos nombre (de regex en el bloque superior), continuar directo
-    if (nombreActualizado) {
-      ficha.sesion.paso_onboarding = 2;
-      detectarTemperamentoTemprano(texto, ficha);
-      return {
-        respuesta: `¡${nombreActualizado}, un gusto enorme! 😊 Cuéntame, ¿en qué rubro o tipo de negocio estás? Así te explico lo que aplica para ti.`,
-        nuevaFicha: ficha
-      };
-    }
-
-    // 🧠 LLM PRIMERO: Extraer nombre con IA (no con regex determinista)
-    log('ONBOARDING', tel, 'Extrayendo nombre con LLM (IA primero)...');
-    try {
-      const aiClient = getAIClient('FAST');
-      const modelId = getModelId('FAST');
-      log('LLM-EXTRAE', tel, `Modelo: ${modelId} | Input: "${texto.substring(0, 60)}"`);
-      const resp = await aiClient.chat.completions.create({
-        model: modelId,
-        messages: [
-          { 
-            role: 'system', 
-            content: 'Eres un extractor de nombres propios. Tu tarea: del mensaje del usuario, identifica y extrae el primer nombre propio de persona (puede ser informal, apodo, o nombre completo). Responde SOLO con ese nombre con la primera letra en mayúscula. Si el mensaje no contiene ningún nombre de persona, responde exactamente: null' 
-          },
-          { role: 'user', content: texto }
-        ],
-        temperature: 0,
-        max_tokens: 15,
-      });
-      const nombreLLM = resp.choices[0]?.message?.content?.trim() || '';
-      log('LLM-EXTRAE', tel, `Respuesta del LLM: "${nombreLLM}"`);
-      if (nombreLLM && nombreLLM.toLowerCase() !== 'null' && nombreLLM.length > 1) {
-        ficha.nombre = nombreLLM.replace(/[.!?;:"',]+$/, '');
-        ficha.sesion.paso_onboarding = 2;
-        detectarTemperamentoTemprano(texto, ficha);
-        log('ONBOARDING', tel, `✅ Nombre extraído por IA: "${ficha.nombre}"`);
-        return {
-          respuesta: `¡${ficha.nombre}, un gusto enorme! 😊 Cuéntame, ¿en qué rubro o tipo de negocio estás? Así te explico lo que aplica para ti.`,
-          nuevaFicha: ficha
-        };
-      }
-    } catch (e: any) {
-      log('ONBOARDING', tel, `Error LLM extrayendo nombre: ${e.message}`);
-    }
-
-    // Solo si la IA falló completamente, pedir que repita
-    return {
-      respuesta: 'Perdón, no capté tu nombre. ¿Me lo repites? 😊',
-      nuevaFicha: ficha
-    };
-  }
-
-  // Paso 2: preguntamos rubro
-  if (paso === 2 && !ficha.rubro) {
     // Intentar extraer rubro con LLM
     try {
       const aiClient = getAIClient('FAST');
@@ -887,7 +770,7 @@ async function ejecutarOnboarding(
       const resp = await aiClient.chat.completions.create({
         model: modelId,
         messages: [
-          { role: 'system', content: 'Extrae la profesión, oficio o tipo de negocio de este mensaje. Responde 1-4 palabras, en minúsculas, sin puntuación. Si no se menciona, responde "null".' },
+          { role: 'system', content: 'Extrae la profesión, oficio o tipo de negocio de este mensaje. Responde 1-4 palabras, en minúsculas, sin puntuación. Si no se menciona, asume que la respuesta en sí es el rubro o extrae lo más relevante. Si es totalmente irrelevante, responde "null".' },
           { role: 'user', content: texto }
         ],
         temperature: 0,
@@ -897,13 +780,59 @@ async function ejecutarOnboarding(
       if (rubro && rubro !== 'null') {
         ficha.rubro = rubro;
         detectarTemperamentoTemprano(texto, ficha);
+      } else {
+        // Fallback: usar el texto como rubro si el LLM falla, para no bloquear el flujo
+        ficha.rubro = texto.substring(0, 30);
       }
-    } catch { /* ignorar */ }
+    } catch { 
+      ficha.rubro = texto.substring(0, 30);
+    }
+    
+    ficha.sesion.paso_onboarding = 2;
+    return {
+      respuesta: '¿Y en qué ciudad estás?',
+      nuevaFicha: ficha
+    };
   }
 
-  if (ficha.rubro) {
+  // Paso 2: esperando ciudad
+  if (paso === 2) {
+    // Extraer ciudad simple
+    try {
+      const aiClient = getAIClient('FAST');
+      const modelId = getModelId('FAST');
+      const resp = await aiClient.chat.completions.create({
+        model: modelId,
+        messages: [
+          { role: 'system', content: 'Extrae la ciudad de este mensaje. Responde solo con el nombre de la ciudad. Si no se menciona, asume que la respuesta en sí es la ciudad.' },
+          { role: 'user', content: texto }
+        ],
+        temperature: 0,
+        max_tokens: 15,
+      });
+      const ciudad = resp.choices[0]?.message?.content?.trim() || '';
+      if (ciudad && ciudad !== 'null') {
+        ficha.ciudad = ciudad;
+      } else {
+        ficha.ciudad = texto.substring(0, 30);
+      }
+    } catch {
+      ficha.ciudad = texto.substring(0, 30);
+    }
+
+    ficha.contacto_humano_solicitado = true;
+    ficha.motivo_transferencia = 'venta_directa_cesar';
     ficha.sesion.paso_onboarding = 3;
     ficha.sesion.onboarding_completado = true;
+    
+    const negocioFormat = ficha.rubro ? ficha.rubro.toLowerCase() : 'negocio';
+    
+    return {
+      respuesta: `Perfecto. César te llama en unos minutos para mostrarte cómo quedaría en tu ${negocioFormat}. Añádenos a contactos para que no pierdas la llamada 📲`,
+      nuevaFicha: ficha,
+      transferir: true,
+      motivoTransferencia: 'venta_directa_cesar'
+    };
   }
 
   return { respuesta: null as any, nuevaFicha: ficha };
