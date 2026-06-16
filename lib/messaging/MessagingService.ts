@@ -283,7 +283,7 @@ export class MessagingService {
             .filter((v, i, a) =>
                 a.findIndex(t =>
                     (t.id === v.id) ||
-                    (t.content === v.content && Math.abs(new Date(t.messageTimestamp).getTime() - new Date(v.messageTimestamp).getTime()) < 1000)
+                    (t.content?.trim() === v.content?.trim() && Math.abs(new Date(t.messageTimestamp).getTime() - new Date(v.messageTimestamp).getTime()) < 5000)
                 ) === i
             )
             .slice(-limit);
