@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Paperclip, Loader2, Mic, Image, FileIcon, Square, User, Bot, MessageSquareOff, Share2, Download } from 'lucide-react';
+import { Send, Paperclip, Loader2, Mic, Image, FileIcon, Square, User, Bot, MessageSquareOff, Share2, Download, CheckCheck, Pencil, X, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ClientLinkDialog } from './ClientLinkDialog';
@@ -33,7 +33,11 @@ export function ChatView({ contactId, contactName, phoneNumber }: ChatViewProps)
     const [isRecording, setIsRecording] = useState(false);
     const [availableChannels, setAvailableChannels] = useState<{ platform: string; identifier: string }[]>([]);
     const [selectedPlatform, setSelectedPlatform] = useState<string>('whatsapp');
-    const [botMode, setBotMode] = useState<'active' | 'paused' | 'disabled'>('active');
+    const [botMode, setBotMode] = useState<'active' | 'paused' | 'disabled' | 'co-pilot'>('active');
+    const [suggestion, setSuggestion] = useState<{ id: string; suggestedResponse: string } | null>(null);
+    const [correctionReason, setCorrectionReason] = useState<'context' | 'tone' | 'wrong_info' | null>(null);
+    const [isEditingDraft, setIsEditingDraft] = useState(false);
+    const [showEmojiBar, setShowEmojiBar] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const mediaRecorder = useRef<MediaRecorder | null>(null);
@@ -101,10 +105,22 @@ export function ChatView({ contactId, contactName, phoneNumber }: ChatViewProps)
             })
             .catch(err => console.error("Failed to load channels", err));
 
-        // Polling every 5 seconds for real-time sync (history + botMode)
+        // Polling every 5 seconds for real-time sync (history + botMode + co-pilot suggestion)
         const timer = setInterval(() => {
             fetchHistory(true);
             fetchBotMode(); // Keep badge in sync with ContactDetailsPanel switch
+
+            // Poll for co-pilot suggestions
+            fetch(`/api/conversations/${contactId}/suggestion`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.suggestion) {
+                        setSuggestion(data.suggestion);
+                    } else {
+                        setSuggestion(null);
+                    }
+                })
+                .catch(() => {});
         }, 5000);
 
         return () => clearInterval(timer);
@@ -314,13 +330,18 @@ export function ChatView({ contactId, contactName, phoneNumber }: ChatViewProps)
                     </span>
                 </div>
                 <div className="flex items-center gap-4">
-                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${botMode === 'active'
-                        ? 'bg-blue-500/10 border-blue-500/20 text-blue-600'
-                        : 'bg-slate-100 border-slate-200 text-slate-500'
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
+                        botMode === 'active'
+                            ? 'bg-blue-500/10 border-blue-500/20 text-blue-600'
+                            : botMode === 'co-pilot'
+                            ? 'bg-purple-500/10 border-purple-500/20 text-purple-600'
+                            : 'bg-slate-100 border-slate-200 text-slate-500'
                         }`}>
-                        {botMode === 'active' ? <Bot className="w-3.5 h-3.5" /> : <MessageSquareOff className="w-3.5 h-3.5" />}
+                        {botMode === 'active' && <Bot className="w-3.5 h-3.5" />}
+                        {botMode === 'co-pilot' && <Sparkles className="w-3.5 h-3.5" />}
+                        {(botMode === 'paused' || botMode === 'disabled') && <MessageSquareOff className="w-3.5 h-3.5" />}
                         <span className="text-[9px] font-bold uppercase tracking-wider">
-                            {botMode === 'active' ? 'Donna Activa' : 'Modo Manual'}
+                            {botMode === 'active' ? 'Donna Activa' : botMode === 'co-pilot' ? 'Co-Pilot' : 'Modo Manual'}
                         </span>
                     </div>
 
@@ -474,6 +495,131 @@ export function ChatView({ contactId, contactName, phoneNumber }: ChatViewProps)
                         </Button>
                     </div>
                 )}
+
+                {/* Co-Pilot Suggestion Box */}
+                {botMode === 'co-pilot' && suggestion && (
+                    <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 flex flex-col gap-2 animate-in fade-in-0 slide-in-from-bottom-2">
+                        <div className="flex items-start gap-2">
+                            <Sparkles className="w-4 h-4 text-purple-500 mt-0.5 shrink-0" />
+                            <div className="flex-1">
+                                <p className="text-[10px] font-bold text-purple-600 uppercase tracking-wider mb-1">Donna sugiere:</p>
+                                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{suggestion.suggestedResponse}</p>
+                            </div>
+                        </div>
+
+                        {/* Correction reason selector — only shown when editing */}
+                        {isEditingDraft && (
+                            <div className="flex gap-1.5 flex-wrap ml-6">
+                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider w-full">¿Por qué la corriges?</p>
+                                {([['context', 'Contexto especial'], ['tone', 'Tono'], ['wrong_info', 'Dato incorrecto']] as const).map(([val, label]) => (
+                                    <button
+                                        key={val}
+                                        onClick={() => setCorrectionReason(val)}
+                                        className={`text-[9px] font-bold px-2.5 py-1 rounded-full border transition-all ${
+                                            correctionReason === val
+                                                ? 'bg-purple-600 text-white border-purple-600'
+                                                : 'bg-white text-slate-500 border-slate-200 hover:border-purple-300'
+                                        }`}
+                                    >{label}</button>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2 ml-6">
+                            {/* APPROVE */}
+                            <button
+                                onClick={async () => {
+                                    await fetch(`/api/conversations/${contactId}/training-feedback`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            suggestionId: suggestion.id,
+                                            originalAiResponse: suggestion.suggestedResponse,
+                                            action: 'approved'
+                                        })
+                                    });
+                                    handleSend(suggestion.suggestedResponse);
+                                    setSuggestion(null);
+                                }}
+                                className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-full bg-green-500 hover:bg-green-600 text-white transition-all active:scale-95"
+                            >
+                                <CheckCheck className="w-3 h-3" /> Aprobar y Enviar
+                            </button>
+
+                            {/* EDIT */}
+                            <button
+                                onClick={() => {
+                                    if (!isEditingDraft) {
+                                        setInput(suggestion.suggestedResponse);
+                                        setIsEditingDraft(true);
+                                    } else {
+                                        // Confirm the edit and log it
+                                        fetch(`/api/conversations/${contactId}/training-feedback`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                suggestionId: suggestion.id,
+                                                originalAiResponse: suggestion.suggestedResponse,
+                                                action: 'edited',
+                                                humanCorrectedResponse: input,
+                                                correctionReason
+                                            })
+                                        });
+                                        setSuggestion(null);
+                                        setIsEditingDraft(false);
+                                        setCorrectionReason(null);
+                                        // handleSend() will fire from user pressing Enter or Send
+                                    }
+                                }}
+                                className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-full bg-blue-500 hover:bg-blue-600 text-white transition-all active:scale-95"
+                            >
+                                <Pencil className="w-3 h-3" /> {isEditingDraft ? 'Listo, enviar mi versión' : 'Editar'}
+                            </button>
+
+                            {/* DISCARD */}
+                            <button
+                                onClick={async () => {
+                                    await fetch(`/api/conversations/${contactId}/suggestion`, {
+                                        method: 'DELETE',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ suggestionId: suggestion.id, reason: 'discarded' })
+                                    });
+                                    setSuggestion(null);
+                                    setIsEditingDraft(false);
+                                    setCorrectionReason(null);
+                                }}
+                                className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1.5 rounded-full bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-500 border border-slate-200 hover:border-red-200 transition-all active:scale-95 ml-auto"
+                            >
+                                <X className="w-3 h-3" /> Descartar
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Emoji Quick-Send Bar */}
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={() => setShowEmojiBar(v => !v)}
+                        className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-all ${
+                            showEmojiBar ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-muted/50 border-slate-200 text-slate-400 hover:border-slate-300'
+                        }`}
+                        title="Emojis de reactivación"
+                    >😊</button>
+                    {showEmojiBar && (
+                        <div className="flex gap-1 animate-in fade-in-0 slide-in-from-left-2">
+                            {['👋', '🔥', '❤️', '😊', '👍', '💪', '🙌', '🎯', '💡', '✨'].map(emoji => (
+                                <button
+                                    key={emoji}
+                                    onClick={() => handleSend(emoji)}
+                                    disabled={sending}
+                                    className="text-lg hover:scale-125 active:scale-90 transition-transform duration-150 disabled:opacity-50 px-1"
+                                    title={`Enviar ${emoji}`}
+                                >{emoji}</button>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
                 <div className="flex items-center gap-3">
                     <input

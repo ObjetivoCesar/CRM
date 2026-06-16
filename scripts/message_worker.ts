@@ -45,7 +45,7 @@ setInterval(async () => {
 }, 9 * 60 * 1000); // every 9 minutes
 
 import { db } from '../lib/db';
-import { pendingMessagesQueue, conversationStates, donnaChatMessages } from '../lib/db/schema';
+import { pendingMessagesQueue, conversationStates, donnaChatMessages, messageSuggestions } from '../lib/db/schema';
 import { eq, sql, and, or, desc, inArray } from 'drizzle-orm';
 import { cortexRouter } from '../lib/donna/services/CortexRouterService';
 import { procesarMensajeActivaQR, FichaCliente } from '../lib/activaqr/brain';
@@ -252,6 +252,19 @@ async function processQueue() {
                                 botMode = discovery.botMode || 'active';
                             }
                         }
+                        // Expire any existing co-pilot drafts because the client just wrote again
+                        try {
+                            await db.update(messageSuggestions)
+                                .set({ status: 'expired', updatedAt: new Date() })
+                                .where(
+                                    and(
+                                        eq(messageSuggestions.chatId, chat.chatId),
+                                        eq(messageSuggestions.status, 'pending')
+                                    )
+                                );
+                        } catch (expireErr) {
+                            console.error(`❌ Error expiring old drafts:`, expireErr);
+                        }
 
                         // C. PERSISTENCE (Single Writer Pattern)
                         // Worker is the ONLY place that writes to donna_chat_messages
@@ -292,7 +305,7 @@ async function processQueue() {
                             console.log(`⏭️ [PERSISTENCE DISABLED] Skipping save for ${chat.chatId} (testing mode)`);
                         }
 
-                        let shouldSkipAI = botMode !== 'active';
+                        let shouldSkipAI = botMode !== 'active' && botMode !== 'co-pilot';
                         let skipReason: string = botMode;
 
                         // ─── AUTO-REANUDACIÓN TRAS PAUSA HUMANA (2 HORAS) ───
@@ -688,29 +701,47 @@ async function processQueue() {
                                 }
                             }
 
-                            // F. SEND & PERSIST ALE'S RESPONSE
+                            // F. SEND & PERSIST ALE'S RESPONSE OR SAVE DRAFT
                             if (resultado.respuesta) {
-                                try {
-                                    console.log(`🤖 Ale responde a ${chat.chatId}: "${resultado.respuesta.substring(0, 60)}..."`);
-                                    await whatsappService.sendMessage(chat.chatId, resultado.respuesta);
-                                } catch (sendErr) {
-                                    console.error(`❌ Error enviando respuesta WhatsApp:`, sendErr);
-                                }
-
-                                // Persist response in chat history
-                                if (!FORCE_TESTING_MODE && process.env.DISABLE_MESSAGE_PERSISTENCE !== 'true') {
+                                if (botMode === 'co-pilot') {
                                     try {
-                                        await db.insert(donnaChatMessages).values({
+                                        // Save as a draft for human review
+                                        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins expiry
+                                        
+                                        await db.insert(messageSuggestions).values({
                                             chatId: chat.chatId,
-                                            role: 'assistant',
-                                            content: resultado.respuesta,
-                                            platform: chatPlatform as any,
-                                            messageTimestamp: new Date(),
-                                            metadata: { source: 'activaqr_brain' }
+                                            suggestedResponse: resultado.respuesta,
+                                            contextSnapshot: { source: 'activaqr_brain' },
+                                            status: 'pending',
+                                            expiresAt
                                         });
-                                        console.log(`✅ Ale's response saved to chat history`);
-                                    } catch (persistErr) {
-                                        console.error(`❌ Error saving Ale's response:`, persistErr);
+                                        console.log(`💡 Co-Pilot: Draft suggestion saved for ${chat.chatId}`);
+                                    } catch (draftErr) {
+                                        console.error(`❌ Error saving Co-Pilot draft:`, draftErr);
+                                    }
+                                } else {
+                                    try {
+                                        console.log(`🤖 Ale responde a ${chat.chatId}: "${resultado.respuesta.substring(0, 60)}..."`);
+                                        await whatsappService.sendMessage(chat.chatId, resultado.respuesta);
+                                    } catch (sendErr) {
+                                        console.error(`❌ Error enviando respuesta WhatsApp:`, sendErr);
+                                    }
+
+                                    // Persist response in chat history
+                                    if (!FORCE_TESTING_MODE && process.env.DISABLE_MESSAGE_PERSISTENCE !== 'true') {
+                                        try {
+                                            await db.insert(donnaChatMessages).values({
+                                                chatId: chat.chatId,
+                                                role: 'assistant',
+                                                content: resultado.respuesta,
+                                                platform: chatPlatform as any,
+                                                messageTimestamp: new Date(),
+                                                metadata: { source: 'activaqr_brain' }
+                                            });
+                                            console.log(`✅ Ale's response saved to chat history`);
+                                        } catch (persistErr) {
+                                            console.error(`❌ Error saving Ale's response:`, persistErr);
+                                        }
                                     }
                                 }
                             }
