@@ -491,6 +491,12 @@ async function processQueue() {
                             const resultado = await procesarMensajeActivaQR(unifiedContent, fichaCliente, historialMsgs);
                             console.log(`✅ ActivaQR Brain procesado para ${chat.chatId} (transferir=${resultado.transferir})`);
 
+                            // Reset the reactivation flag since customer replied
+                            if (resultado.nuevaFicha) {
+                                if (!resultado.nuevaFicha.sesion) resultado.nuevaFicha.sesion = {};
+                                resultado.nuevaFicha.sesion.reactivacion_sticker_enviada = false;
+                            }
+
                             // E. PERSIST FICHA ACTUALIZADA
                             if (!FORCE_TESTING_MODE && process.env.DISABLE_MESSAGE_PERSISTENCE !== 'true') {
                                 try {
@@ -869,3 +875,192 @@ console.log('👷 Message Worker started (High Concurrency Ready)...');
 
     // Run idle check every minute
     setInterval(checkIdleConversations, 60 * 1000);
+
+    // Auto-Reactivation checker for seen contacts (run every 5 minutes)
+    async function checkReactivationConversations() {
+        try {
+            const { conversationStates, donnaChatMessages, contacts, contactChannels } = await import('../lib/db/schema');
+            const { eq, desc, and, sql } = await import('drizzle-orm');
+            
+            // Check Ecuador time (America/Guayaquil is UTC-5)
+            const ecuadorTime = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Guayaquil" }));
+            const localHour = ecuadorTime.getHours();
+            
+            // Limit to Ecuador office/active hours: 8:00 AM to 10:00 PM (22:00)
+            if (localHour < 8 || localHour >= 22) {
+                console.log(`⏳ [REACTIVATION] Outside sending window (Ecuador local time: ${localHour}:00). Skipping check.`);
+                return;
+            }
+
+            const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
+            const twentyThreeHoursAgo = new Date(Date.now() - 23 * 60 * 60 * 1000);
+            
+            // Fetch conversation states updated in the last 24h
+            const states = await db.select()
+                .from(conversationStates)
+                .where(and(
+                    sql`updated_at >= ${twentyThreeHoursAgo.toISOString()}`,
+                    sql`updated_at <= ${oneHourAgo.toISOString()}`
+                ));
+
+            for (const state of states) {
+                if (!state.data) continue;
+                const parsed = typeof state.data === 'string' ? JSON.parse(state.data as string) : state.data;
+                const ficha = parsed.ficha || parsed;
+
+                if (!ficha.sesion) ficha.sesion = {};
+                
+                // If already sent in this session, skip
+                if (ficha.sesion.reactivacion_sticker_enviada) {
+                    continue;
+                }
+
+                // Check botMode: only reactivate if active
+                const [contactRecord] = await db.select({ botMode: contacts.botMode })
+                    .from(contacts)
+                    .innerJoin(contactChannels, eq(contacts.id, contactChannels.contactId))
+                    .where(eq(contactChannels.identifier, state.key))
+                    .limit(1);
+                
+                if (!contactRecord || contactRecord.botMode !== 'active') {
+                    continue;
+                }
+
+                // Query the last message in the chat history
+                const [lastMsg] = await db.select()
+                    .from(donnaChatMessages)
+                    .where(eq(donnaChatMessages.chatId, state.key))
+                    .orderBy(desc(donnaChatMessages.messageTimestamp))
+                    .limit(1);
+
+                if (!lastMsg) continue;
+
+                // Reactivate ONLY if the last message was from the assistant (business)
+                if (lastMsg.role !== 'assistant') {
+                    continue;
+                }
+
+                const lastMsgTime = new Date(lastMsg.messageTimestamp);
+                const diffMs = Date.now() - lastMsgTime.getTime();
+                const diffHours = diffMs / (1000 * 60 * 60);
+
+                // Check if the time since our last message is between 1 and 23 hours
+                if (diffHours >= 1 && diffHours <= 23) {
+                    console.log(`🎯 [REACTIVATION] Target found: ${state.key} (Last msg: assistant, ${diffHours.toFixed(2)}h ago)`);
+                    
+                    // Determine greeting dynamically based on contact name
+                    const name = (ficha.nombre || '').trim();
+                    const isNameValid = name && name.toLowerCase() !== 'desconocido' && !/^\+?\d+$/.test(name);
+                    const greeting = isNameValid ? `¡Hola ${name}! 🎁` : `¡Hola! 🎁`;
+                    const bodyText = `${greeting} Para agradecer tu interés, queremos invitarte a nuestros sorteos mensuales de licencias y productos de **ActivaQR** que realizamos exclusivamente por nuestros Estados de WhatsApp.\n\nPara participar, solo guarda nuestro contacto presionando el botón de aquí abajo 👇 y dinos **'Listo'**.`;
+
+                    try {
+                        const { whatsappService } = await import('../lib/whatsapp/WhatsAppService');
+                        
+                        // 1. Send introductory message
+                        console.log(`✉️ Sending reactivation text to ${state.key}...`);
+                        await whatsappService.sendMessage(state.key, bodyText);
+
+                        // Save text message to history
+                        await db.insert(donnaChatMessages).values({
+                            chatId: state.key,
+                            role: 'assistant',
+                            content: bodyText,
+                            platform: 'whatsapp',
+                            messageTimestamp: new Date(),
+                            metadata: { source: 'auto_reactivation_text' }
+                        });
+
+                        // Wait 1.5 seconds
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+
+                        // 2. Send vCard contact card nativa
+                        console.log(`📇 Sending reactivation vCard to ${state.key}...`);
+                        const contactPayload = {
+                            messaging_product: "whatsapp",
+                            recipient_type: "individual",
+                            to: state.key,
+                            type: "contacts",
+                            contacts: [
+                                {
+                                    addresses: [
+                                        {
+                                            street: "Juan José Peña 1181 y Mercadillo",
+                                            city: "Loja",
+                                            country: "Ecuador",
+                                            type: "WORK"
+                                        }
+                                    ],
+                                    emails: [
+                                        {
+                                            email: "negocios@cesarreyesjaramillo.com",
+                                            type: "WORK"
+                                        }
+                                    ],
+                                    name: {
+                                        formatted_name: "César Reyes Jaramillo",
+                                        first_name: "César",
+                                        last_name: "Reyes Jaramillo"
+                                    },
+                                    org: {
+                                        company: "César Reyes Jaramillo",
+                                        title: "Ingeniero comercial"
+                                    },
+                                    phones: [
+                                        {
+                                            phone: "+593963410409",
+                                            type: "CELL",
+                                            wa_id: "593963410409"
+                                        }
+                                    ],
+                                    urls: [
+                                        {
+                                            url: "https://cesarreyesjaramillo.com",
+                                            type: "WORK"
+                                        }
+                                    ]
+                                }
+                            ]
+                        };
+
+                        const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
+                        const accessToken = process.env.META_WA_ACCESS_TOKEN;
+                        const axios = (await import('axios')).default;
+                        
+                        await axios.post(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, contactPayload, {
+                            headers: {
+                                'Authorization': `Bearer ${accessToken}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        // Save vCard representation to chat history
+                        await db.insert(donnaChatMessages).values({
+                            chatId: state.key,
+                            role: 'assistant',
+                            content: `[Tarjeta de contacto: César Reyes Jaramillo]`,
+                            platform: 'whatsapp',
+                            messageTimestamp: new Date(),
+                            metadata: { source: 'auto_reactivation_vcard' }
+                        });
+
+                        // Update state and save
+                        ficha.sesion.reactivacion_sticker_enviada = true;
+                        await db.update(conversationStates)
+                            .set({ data: JSON.stringify({ ficha }), updatedAt: new Date() })
+                            .where(eq(conversationStates.key, state.key));
+
+                        console.log(`✅ [REACTIVATION] Successfully sent text and vCard to ${state.key}`);
+
+                    } catch (err) {
+                        console.error(`❌ [REACTIVATION] Failed to reactivate ${state.key}:`, err);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("❌ Error checking reactivation conversations:", error);
+        }
+    }
+
+    // Run reactivation checker every 5 minutes
+    setInterval(checkReactivationConversations, 5 * 60 * 1000);
