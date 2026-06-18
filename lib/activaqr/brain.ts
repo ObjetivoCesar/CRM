@@ -736,14 +736,32 @@ async function ejecutarAgenteExperto(
   } catch (e: any) {
     console.error('[ActivaQR-Brain] Error en agente experto:', e.message);
 
-    // Fallback determinista
+    // Bomba 5 & 4: Fallback determinista e inteligente leyendo la ficha
+    if (categoria === 'fbads_lead' || ficha.fuente_origen === 'fbads') {
+      if (!ficha.rubro) {
+        return '¡Hola! 👋 Vi que te interesó nuestro video de ActivaQR. ¿Qué tipo de negocio tienes?';
+      }
+      if (!ficha.ciudad) {
+        return '¡Excelente! ¿Y en qué ciudad está tu negocio?';
+      }
+      return `¡Buenísimo! César ya sabe que tienes un negocio en ${ficha.ciudad}. Te reservo un espacio para armarte tu demo personalizado gratis hoy mismo. ¿Puedo pasarte con él? 😊`;
+    }
+
     if (categoria === 'saludo') {
       return '¡Hola! Soy Ale, de ActivaQR. 👋 ¿En qué puedo ayudarte hoy? ¿Te gustaría conocer nuestros planes o tienes alguna duda?';
     }
     if (categoria === 'close_general' || categoria === 'close_concreto') {
       return `${ficha.nombre ? ficha.nombre + ', ' : ''}claro, déjame contarte sobre nuestros planes. Tenemos desde $35/año con Contacto Digital hasta nuestra Tienda en Línea completa. ¿Qué tipo de negocio tienes para recomendarte el ideal?`;
     }
-    return 'Para ayudarte mejor, ¿me cuentas un poco más sobre qué necesitas? 😊';
+
+    // Bomba 4: Fallback inteligente genérico leyendo la ficha para evitar comodines absurdos
+    if (!ficha.rubro) {
+      return 'Para darte la información exacta, ¿de qué tipo es tu negocio? 😊';
+    }
+    if (!ficha.ciudad) {
+      return `¡Qué bien! ¿Y en qué ciudad se encuentra tu negocio para ver la cobertura?`;
+    }
+    return `¡Perfecto! Veo que tienes un negocio de ${ficha.rubro}. ¿Te gustaría que te reservemos un demo gratuito o prefieres ver los precios de los planes?`;
   }
 }
 
@@ -938,8 +956,52 @@ export async function procesarMensajeActivaQR(
     log('FBADS', tel, 'Lead de Ads detectado — saltando onboarding genérico');
     // Marcar onboarding como completado para que no vuelva a preguntar nombre/ciudad
     ficha.sesion.onboarding_completado = true;
+    
     // Derivar directamente al agente FBAds
     const respuestaFbads = await ejecutarAgenteExperto(texto, ficha, historial, 'fbads_lead', null);
+    
+    // Bomba 3: Si Ale logra calificar al cliente y hay aceptación del demo o intención de transferencia, se traslada.
+    // Detectamos si la IA incluyó el Brief de Traspaso (o palabras clave de transferencia)
+    // o si la propia ficha ya tiene rubro y ciudad y el cliente respondió positivamente al demo.
+    const respuestaLower = respuestaFbads.toLowerCase();
+    const quiereTransfer = 
+      respuestaLower.includes('🔔') || 
+      respuestaLower.includes('brief') || 
+      respuestaLower.includes('traspaso') ||
+      respuestaLower.includes('listo para demo') ||
+      (ficha.rubro && ficha.ciudad && (
+        /^(si|claro|bueno|ok|acept|dale|pasa|por supuesto)/i.test(texto.trim().toLowerCase()) ||
+        respuestaLower.includes('te paso') ||
+        respuestaLower.includes('te reserva')
+      ));
+
+    if (quiereTransfer) {
+      log('FBADS-TRANSFER', tel, 'Se gatilló la transferencia a César');
+      ficha.contacto_humano_solicitado = true;
+      
+      // Salvavidas (Bomba 1 & 3): Si la respuesta de la IA no contiene el Brief oficial con formato 🔔, lo generamos nosotros estructuradamente
+      let respuestaFinal = respuestaFbads;
+      if (!respuestaFbads.includes('🔔') && !respuestaFbads.includes('LEAD DE ADS')) {
+        const temperamentoLabel = ficha.temperamento ? `${ficha.temperamento} (${ficha.temperamento_confianza || 'medio'})` : 'Desconocido';
+        respuestaFinal = `${respuestaFbads}\n\n🔔 *LEAD DE ADS — LISTO PARA DEMO*\n\n` +
+          `👤 *${ficha.nombre || 'Interesado'}*\n` +
+          `🏪 *Negocio:* ${ficha.rubro || 'Por confirmar'}\n` +
+          `📍 *Ciudad:* ${ficha.ciudad || 'Por confirmar'}\n` +
+          `🧠 *Temperamento:* ${temperamentoLabel}\n` +
+          `💬 *Dolor:* ${ficha.dolores?.join(', ') || 'Optimizar pedidos/menú'}\n` +
+          `🌡️ *Temperatura:* caliente\n\n` +
+          `📌 *Script de entrada recomendado para César:*\n` +
+          `"Hola ${ficha.nombre || ''}, soy César — tienes tu negocio en ${ficha.ciudad || ''}, ¿verdad? Mándame una foto de tu carta/letrero — hoy mismo te reservo un espacio y te armo el demo gratis."`;
+      }
+
+      return {
+        respuesta: respuestaFinal,
+        nuevaFicha: ficha,
+        transferir: true,
+        motivoTransferencia: 'fbads_lead_calificado'
+      };
+    }
+
     return {
       respuesta: respuestaFbads,
       nuevaFicha: ficha,
