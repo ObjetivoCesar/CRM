@@ -184,9 +184,10 @@ async function processQueue() {
                                 console.error(`❌ Error sending audio limit message:`, sendErr);
                             }
                             // Persist the auto-response
-                            if (!FORCE_TESTING_MODE && process.env.DISABLE_MESSAGE_PERSISTENCE !== 'true') {
+                            if (process.env.DISABLE_MESSAGE_PERSISTENCE !== 'true') {
                                 try {
-                                    await db.insert(donnaChatMessages).values({
+                                    const { donnaChatMessages: localMessages } = await import('../lib/db/schema');
+                                    await db.insert(localMessages).values({
                                         chatId: chat.chatId,
                                         role: 'assistant',
                                         content: tooLongMsg,
@@ -468,6 +469,21 @@ async function processQueue() {
                                     fichaCliente = { ...fichaCliente, ...(parsed.ficha || parsed) };
                                     console.log(`📋 Ficha cargada para ${chat.chatId}`);
                                 }
+                                
+                                // Auto-propagate fuente_origen from database contact/discovery source
+                                if (contact?.contacts?.source === 'fbads' || (contact?.contacts?.source === 'whatsapp_inbound' && contact?.contacts?.source === 'fbads')) {
+                                    fichaCliente.fuente_origen = 'fbads';
+                                } else if (finalContactId) {
+                                    const [cRecord] = await db.select({ source: contacts.source }).from(contacts).where(eq(contacts.id, finalContactId)).limit(1);
+                                    if (cRecord?.source === 'fbads') {
+                                        fichaCliente.fuente_origen = 'fbads';
+                                    }
+                                } else if (finalDiscoveryLeadId) {
+                                    const [lRecord] = await db.select({ sistemaOrigen: discoveryLeads.sistemaOrigen }).from(discoveryLeads).where(eq(discoveryLeads.id, finalDiscoveryLeadId)).limit(1);
+                                    if (lRecord?.sistemaOrigen === 'fbads') {
+                                        fichaCliente.fuente_origen = 'fbads';
+                                    }
+                                }
                             } catch (e: any) {
                                 console.warn(`⚠️ No se pudo cargar ficha para ${chat.chatId}:`, e.message);
                             }
@@ -492,13 +508,13 @@ async function processQueue() {
                             console.log(`✅ ActivaQR Brain procesado para ${chat.chatId} (transferir=${resultado.transferir})`);
 
                             // Reset the reactivation flag since customer replied
-                            if (resultado.nuevaFicha) {
-                                if (!resultado.nuevaFicha.sesion) resultado.nuevaFicha.sesion = {};
-                                resultado.nuevaFicha.sesion.reactivacion_sticker_enviada = false;
-                            }
+                             if (resultado.nuevaFicha) {
+                                 if (!resultado.nuevaFicha.sesion) resultado.nuevaFicha.sesion = {};
+                                 (resultado.nuevaFicha.sesion as any).reactivacion_sticker_enviada = false;
+                             }
 
                             // E. PERSIST FICHA ACTUALIZADA
-                            if (!FORCE_TESTING_MODE && process.env.DISABLE_MESSAGE_PERSISTENCE !== 'true') {
+                            if (process.env.DISABLE_MESSAGE_PERSISTENCE !== 'true') {
                                 try {
                                     await db.insert(conversationStates).values({
                                         key: chat.chatId,
@@ -613,8 +629,8 @@ async function processQueue() {
                                         const currentStatus = currentContact.status;
                                         const validKanbanStatuses = ['sin_contacto', 'primer_contacto', 'segundo_contacto', 'tercer_contacto', 'lead'];
 
-                                        // Solo operamos en status que conocemos (no tocar si humano lo movió fuera del Kanban)
-                                        if (validKanbanStatuses.includes(currentStatus)) {
+                                         // Solo operamos en status que conocemos (no tocar si humano lo movió fuera del Kanban)
+                                         if (currentStatus && validKanbanStatuses.includes(currentStatus)) {
 
                                             // Regla 1: Pago recibido → convertir a cliente (completo)
                                             if (ficha.pago_recibido && currentContact.entityType !== 'client') {

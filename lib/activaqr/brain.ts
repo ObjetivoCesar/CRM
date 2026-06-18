@@ -134,6 +134,11 @@ export interface FichaCliente {
     tier_seleccionado?: string;
     objeciones_activas?: string[];
   };
+  // ── Trazabilidad de origen (Facebook Ads, orgánico, etc.) ──────────
+  fuente_origen?: 'fbads' | 'organico' | 'referido' | 'whatsapp_directo';
+  campana_ad?: string;   // Nombre o ID del anuncio que vio el lead
+  ad_interes?: string;   // Producto del anuncio: contacto_digital, business, etc.
+  fbads?: { contador: number; paso: number };
   [key: string]: any;
 }
 
@@ -684,10 +689,15 @@ async function ejecutarAgenteExperto(
     maxTokens = 600; // Closer necesita más tokens para pensamiento estratégico
   } else if (categoria === 'soporte') {
     skillArchivo = 'activaqr_soporte.md';
+  } else if (categoria === 'fbads_lead' || ficha.fuente_origen === 'fbads') {
+    // Lead de Facebook/Instagram Ads — agente de aterrizaje especializado
+    skillArchivo = 'activaqr_fbads.md';
+    maxTokens = 250; // Mensajes cortos y directos de aterrizaje
   } else if (categoria === 'humano') {
     // No necesita LLM, se responde directo
     return '¡Claro! Te conecto con un asesor de ActivaQR enseguida. César o un miembro de su equipo se pondrá en contacto contigo. 😊';
   }
+
 
   const systemPrompt = cargarSkillPrompt(skillArchivo, ficha, historial);
 
@@ -923,11 +933,25 @@ export async function procesarMensajeActivaQR(
   }
 
   // ─── SALUDO (sync, sin LLM) ───
+  // Si el lead viene de Facebook/Instagram Ads → saltar onboarding genérico
+  if (ficha.fuente_origen === 'fbads') {
+    log('FBADS', tel, 'Lead de Ads detectado — saltando onboarding genérico');
+    // Marcar onboarding como completado para que no vuelva a preguntar nombre/ciudad
+    ficha.sesion.onboarding_completado = true;
+    // Derivar directamente al agente FBAds
+    const respuestaFbads = await ejecutarAgenteExperto(texto, ficha, historial, 'fbads_lead', null);
+    return {
+      respuesta: respuestaFbads,
+      nuevaFicha: ficha,
+      transferir: false,
+    };
+  }
+
   if (detectarSaludo(texto) && !ficha.sesion.onboarding_completado) {
     log('SALUDO', tel, 'Saludo detectado, inicio onboarding');
     ficha.sesion.paso_onboarding = 1;
     return {
-      respuesta: '¡Hola! Soy Ale, asistente virtual de ActivaQR. 😊 ¿Con quién tengo el gusto?\\n\\nAntes de seguir, te pregunto rápido: ¿vienes de alguno de nuestros anuncios? 😊',
+      respuesta: '¡Hola! Soy Ale, asistente virtual de ActivaQR. 😊 ¿Con quién tengo el gusto?',
       nuevaFicha: ficha,
       transferir: false,
     };

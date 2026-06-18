@@ -259,14 +259,22 @@ export class MessagingService {
 
         // 5. Merge and Normalize
         const unified = [
-            ...outboundHistory.map(m => ({
-                id: m.id,
-                role: m.role,
-                content: m.content,
-                messageTimestamp: m.messageTimestamp,
-                platform: m.platform,
-                metadata: m.metadata
-            })),
+            ...outboundHistory.map(m => {
+                // If it was sent from the CRM by a human agent, represent it as 'cesar'
+                let resolvedRole = m.role as any;
+                const meta = m.metadata as any;
+                if (m.role === 'assistant' && meta?.source === 'crm_human_agent') {
+                    resolvedRole = 'cesar';
+                }
+                return {
+                    id: m.id,
+                    role: resolvedRole,
+                    content: m.content,
+                    messageTimestamp: m.messageTimestamp,
+                    platform: m.platform,
+                    metadata: m.metadata
+                };
+            }),
             ...inboundHistory.map(i => ({
                 id: i.id,
                 role: i.direction === 'inbound' ? 'user' : (['whatsapp', 'telegram', 'instagram'].includes(i.type) ? 'assistant' : 'system'),

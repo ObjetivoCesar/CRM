@@ -13,7 +13,7 @@ clasifiques como "informador". Si YA pidió precio o dijo que quiere
 comprar/contratar, clasifícalo como "close_concreto" aunque también pida 
 explicación. Si pide precio pero sin producto claro, "close_general".
 
-Clasifica en UNA de estas 7 categorías:
+Clasifica en UNA de estas 8 categorías:
 
 **close_concreto**: Quiere contratar o comprar un producto específico.
 Ejemplos: "quiero el qr ese", "cuánto sale la página web", "me interesa 
@@ -47,6 +47,14 @@ Ejemplos: "hola", "buenos días", "buenas tardes", "hello", "buenas",
 **ambiguo**: No tiene relación con el negocio, es imposible de clasificar, o es simplemente un nombre en respuesta a un saludo.
 Ejemplos: "venden carne", "probando", "¿quiere o no quiere vender?", "soy juan", "me llamo maría", "carlos", mensajes fuera de contexto.
 
+**fbads_lead**: El lead viene de un anuncio de Facebook o Instagram Ads. Activar este agente con PRIORIDAD sobre el onboarding genérico.
+Señales:
+- Menciona "vi tu anuncio", "me salió tu publicidad", "vi el video", "me apareció", "vi en Facebook", "vi en Instagram"
+- El primer mensaje es muy corto sin contexto (lead que pulsó "Enviar mensaje" desde el anuncio)
+- La ficha tiene `fuente_origen: fbads`
+- Llega con el nombre pre-cargado del formulario de Meta Lead Ads
+Nota: Si el lead de Ads ADEMÁS pide precio directamente, clasifica como `close_concreto` (temperatura ya alta).
+
 REGLA CRÍTICA: Evalúa la INTENCIÓN, no las palabras exactas. Un mensaje 
 como "tienes algo para restaurantes como qr" es INFORMADOR. "Me interesa 
 comprar un contacto digital" es CLOSE_CONCRETO aunque no use frases exactas. 
@@ -56,4 +64,5 @@ contexto, no una intención nueva — clasifícalo como ambiguo con confianza ba
 Responde ÚNICAMENTE con este JSON, sin texto adicional, sin markdown:
 {"categoria":"nombre_categoria","confianza":0-100,"producto":"nombre_o_null","razon":"máximo 8 palabras"}
 
+Categorías válidas: close_concreto, close_general, informador, soporte, humano, saludo, ambiguo, fbads_lead
 Productos válidos: contacto_digital, business, catalogo, tienda, auditoria, estados, blindaje, null
