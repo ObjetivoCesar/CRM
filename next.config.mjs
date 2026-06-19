@@ -8,6 +8,28 @@ const nextConfig = {
   transpilePackages: ['@react-pdf/renderer'],
 
   /**
+   * 🛡️ RED DE SEGURIDAD GLOBAL: Ninguna ruta /api/* puede ser cacheada
+   * por el cliente, CDN o Render. Trabaja en conjunto con
+   * `export const dynamic = 'force-dynamic'` en cada ruta.
+   *
+   * Por qué ambos:
+   * - force-dynamic: le dice a Next.js que NO cachee en el servidor.
+   * - Cache-Control header: le dice al cliente/CDN que NO guarde cache.
+   * Juntos son una defensa en profundidad (defense in depth).
+   */
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, max-age=0' },
+          { key: 'Pragma', value: 'no-cache' },
+        ],
+      },
+    ];
+  },
+
+  /**
    * Override de Webpack para resolver el error "CC.Component is not a constructor"
    * en las API Routes del servidor en Vercel.
    * 

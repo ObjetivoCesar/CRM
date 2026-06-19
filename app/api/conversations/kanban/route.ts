@@ -3,6 +3,9 @@ import { db } from '@/lib/db';
 import { contacts, donnaChatMessages, conversationStates } from '@/lib/db/schema';
 import { desc, eq, and, sql, gt } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: Request) {
     try {
         // Fetch all active conversations

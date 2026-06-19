@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sql } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
     try {
         // 1. Obtener el mensaje más reciente de CADA chat_id de forma única y eficiente

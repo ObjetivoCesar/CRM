@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { donnaChatMessages } from '@/lib/db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request, { params }: { params: { id: string } }) {
     try {
         const id = params.id;
