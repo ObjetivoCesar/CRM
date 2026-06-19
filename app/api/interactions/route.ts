@@ -1,60 +1,57 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { db } from '@/lib/db';
+import { interactions } from '@/lib/db/schema';
+import { eq, desc } from 'drizzle-orm';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(req: Request) {
-  const cookieStore = cookies()
   const { searchParams } = new URL(req.url);
   const contactId = searchParams.get('contactId');
   const discoveryLeadId = searchParams.get('discoveryLeadId');
   const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 50;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-      },
-    }
-  )
-
   try {
-    let query = supabase
-      .from('interactions')
-      .select('*')
-      .order('performed_at', { ascending: false })
-      .limit(limit);
-
+    // Build query with conditions
+    const conditions = [];
     if (contactId) {
-      query = query.eq('contact_id', contactId);
+      conditions.push(eq(interactions.contactId, contactId));
     }
     if (discoveryLeadId) {
-      query = query.eq('discovery_lead_id', discoveryLeadId);
+      conditions.push(eq(interactions.discoveryLeadId, discoveryLeadId));
     }
 
-    const { data: allInteractions, error } = await query;
+    let query = db.select()
+      .from(interactions)
+      .orderBy(desc(interactions.performedAt))
+      .limit(limit);
 
-    if (error) {
-      console.error('Error fetching interactions:', error);
-      return NextResponse.json({ error: 'Failed to fetch interactions' }, { status: 500 });
+    // Apply conditions if any
+    if (conditions.length === 1) {
+      query = query.where(conditions[0]) as typeof query;
+    } else if (conditions.length === 2) {
+      // Both filters: AND them
+      const { and } = await import('drizzle-orm');
+      query = query.where(and(conditions[0], conditions[1])) as typeof query;
     }
 
-    // Map back to camelCase for frontend consistency
-    const mapped = allInteractions.map((i: any) => ({
+    const allInteractions = await query;
+
+    // Map to camelCase for frontend consistency
+    // Drizzle already returns camelCase from our schema, so minimal mapping needed
+    const mapped = allInteractions.map((i) => ({
       id: i.id,
       type: i.type,
       direction: i.direction,
       content: i.content,
       outcome: i.outcome,
       duration: i.duration,
-      contactId: i.contact_id,
-      discoveryLeadId: i.discovery_lead_id,
-      performedAt: i.performed_at,
+      contactId: i.contactId,
+      discoveryLeadId: i.discoveryLeadId,
+      performedAt: i.performedAt,
       metadata: i.metadata,
-      createdAt: i.created_at
+      createdAt: i.createdAt
     }));
 
     return NextResponse.json(mapped);
@@ -65,50 +62,23 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const cookieStore = cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-      },
-    }
-  )
-
   try {
     const body = await req.json();
 
-    // Map camelCase to snake_case - Resilient Mapping
     const interactionData = {
-      type: body.type,
-      direction: body.direction,
+      type: body.type as any,
+      direction: body.direction as any,
       content: body.content,
       outcome: body.outcome,
       duration: body.duration,
-      contact_id: body.contactId || body.relatedClientId || null, // ✅ Compatibilidad total
-      discovery_lead_id: body.discoveryLeadId || body.relatedLeadId || null,
-      performed_at: body.performedAt ? new Date(body.performedAt).toISOString() : new Date().toISOString()
+      contactId: body.contactId || body.relatedClientId || null, // ✅ Compatibilidad total
+      discoveryLeadId: body.discoveryLeadId || body.relatedLeadId || null,
+      performedAt: body.performedAt ? new Date(body.performedAt) : new Date(),
     };
 
-
-    const { data: newInteraction, error } = await supabase
-      .from('interactions')
-      .insert([interactionData])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('CRITICAL DATABASE ERROR creating interaction:', JSON.stringify(error, null, 2));
-      return NextResponse.json({
-        error: 'Failed to create interaction',
-        details: error.message,
-        hint: error.hint,
-        code: error.code
-      }, { status: 500 });
-    }
+    const [newInteraction] = await db.insert(interactions)
+      .values(interactionData)
+      .returning();
 
     // Map back to camelCase for frontend consistency
     const mappedInteraction = {
@@ -118,10 +88,10 @@ export async function POST(req: Request) {
       content: newInteraction.content,
       outcome: newInteraction.outcome,
       duration: newInteraction.duration,
-      contactId: newInteraction.contact_id,
-      discoveryLeadId: newInteraction.discovery_lead_id,
-      performedAt: newInteraction.performed_at,
-      createdAt: newInteraction.created_at
+      contactId: newInteraction.contactId,
+      discoveryLeadId: newInteraction.discoveryLeadId,
+      performedAt: newInteraction.performedAt,
+      createdAt: newInteraction.createdAt
     };
 
     return NextResponse.json(mappedInteraction);

@@ -1,131 +1,116 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { db } from '@/lib/db';
+import { prospects } from '@/lib/db/schema';
+import { desc, ilike, or, count, sql } from 'drizzle-orm';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // GET /api/prospects
 // Supports pagination: ?page=1&limit=50&search=foo
 export async function GET(request: NextRequest) {
-    const cookieStore = cookies()
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                get(name: string) {
-                    return cookieStore.get(name)?.value
-                },
-            },
-        }
-    )
-
     try {
-        const { searchParams } = new URL(request.url)
-        const page = parseInt(searchParams.get('page') || '1')
-        const limit = parseInt(searchParams.get('limit') || '50')
-        const search = searchParams.get('search') || ''
-        const offset = (page - 1) * limit
+        const { searchParams } = new URL(request.url);
+        const page = parseInt(searchParams.get('page') || '1');
+        const limit = parseInt(searchParams.get('limit') || '50');
+        const search = searchParams.get('search') || '';
+        const offset = (page - 1) * limit;
 
-        let query = supabase
-            .from('prospects')
-            .select('*', { count: 'exact' })
+        // Count total (with optional search filter)
+        let totalCountQuery = db.select({ value: count() }).from(prospects);
+        if (search) {
+            totalCountQuery = totalCountQuery.where(
+                or(
+                    ilike(prospects.businessName, `%${search}%`),
+                    ilike(prospects.contactName, `%${search}%`),
+                    ilike(prospects.city, `%${search}%`)
+                )
+            ) as typeof totalCountQuery;
+        }
+        const [totalResult] = await totalCountQuery;
+
+        // Fetch paginated data
+        let dataQuery = db.select().from(prospects)
+            .orderBy(desc(prospects.createdAt))
+            .limit(limit)
+            .offset(offset);
 
         if (search) {
-            query = query.or(`business_name.ilike.%${search}%,contact_name.ilike.%${search}%,city.ilike.%${search}%`)
+            dataQuery = dataQuery.where(
+                or(
+                    ilike(prospects.businessName, `%${search}%`),
+                    ilike(prospects.contactName, `%${search}%`),
+                    ilike(prospects.city, `%${search}%`)
+                )
+            ) as typeof dataQuery;
         }
 
-        const { data: allProspects, count, error } = await query
-            .order('created_at', { ascending: false })
-            .range(offset, offset + limit - 1)
+        const allProspects = await dataQuery;
 
-        if (error) {
-            console.error('Failed to fetch prospects:', error)
-            return NextResponse.json({ error: 'Failed to fetch prospects' }, { status: 500 })
-        }
-
-        const mappedProspects = allProspects?.map(p => ({
+        const mappedProspects = allProspects.map(p => ({
             id: p.id,
-            businessName: p.business_name,
-            contactName: p.contact_name,
+            businessName: p.businessName,
+            contactName: p.contactName,
             phone: p.phone,
             email: p.email,
             city: p.city,
-            businessType: p.business_type,
-            outreachStatus: p.outreach_status,
-            whatsappStatus: p.whatsapp_status,
+            businessType: p.businessType,
+            outreachStatus: p.outreachStatus,
+            whatsappStatus: p.whatsappStatus,
             notes: p.notes,
-            createdAt: p.created_at,
-        })) || []
+            createdAt: p.createdAt,
+        }));
 
         return NextResponse.json({
             data: mappedProspects,
             metadata: {
                 page,
                 limit,
-                totalCount: count || 0,
-                totalPages: Math.ceil((count || 0) / limit)
+                totalCount: totalResult?.value || 0,
+                totalPages: Math.ceil((totalResult?.value || 0) / limit)
             }
-        })
+        });
     } catch (error) {
-        console.error('Failed to fetch prospects:', error)
+        console.error('Failed to fetch prospects:', error);
         return NextResponse.json(
             { error: 'Failed to fetch prospects' },
             { status: 500 }
-        )
+        );
     }
 }
 
 export async function POST(req: Request) {
-    const cookieStore = cookies()
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                get(name: string) {
-                    return cookieStore.get(name)?.value
-                },
-            },
-        }
-    )
-
     try {
         const body = await req.json();
 
         const newProspectData = {
-            business_name: body.businessName,
-            contact_name: body.contactName,
+            businessName: body.businessName || 'Desconocido',
+            contactName: body.contactName || 'Desconocido',
             phone: body.phone,
             email: body.email,
             city: body.city,
-            business_type: body.businessType,
-            source: 'manual',
-            outreach_status: 'new', // Default
-            whatsapp_status: 'pending' // Default
+            businessType: body.businessType,
+            source: 'manual' as const,
+            outreachStatus: 'new' as const,
+            whatsappStatus: 'pending' as const,
         };
 
-        const { data: newProspect, error } = await supabase
-            .from('prospects')
-            .insert([newProspectData])
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Error creating prospect:', error);
-            return NextResponse.json({ error: 'Failed to create prospect: ' + error.message }, { status: 500 });
-        }
+        const [newProspect] = await db.insert(prospects)
+            .values(newProspectData)
+            .returning();
 
         const mappedProspect = {
             id: newProspect.id,
-            businessName: newProspect.business_name,
-            contactName: newProspect.contact_name,
+            businessName: newProspect.businessName,
+            contactName: newProspect.contactName,
             phone: newProspect.phone,
             email: newProspect.email,
             city: newProspect.city,
-            businessType: newProspect.business_type,
-            outreachStatus: newProspect.outreach_status,
-            whatsappStatus: newProspect.whatsapp_status,
+            businessType: newProspect.businessType,
+            outreachStatus: newProspect.outreachStatus,
+            whatsappStatus: newProspect.whatsappStatus,
             notes: newProspect.notes,
-            createdAt: newProspect.created_at,
+            createdAt: newProspect.createdAt,
         };
 
         return NextResponse.json(mappedProspect);

@@ -1,38 +1,32 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { db } from '@/lib/db';
+import { transactions, personalLiabilities } from '@/lib/db/schema';
 
-export async function GET(req: Request) {
-    const cookieStore = cookies()
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                get(name: string) {
-                    return cookieStore.get(name)?.value
-                },
-            },
-        }
-    )
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
+export async function GET() {
     try {
         const now = new Date();
         const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-        const { data: transactions, error } = await supabase
-            .from('transactions')
-            .select('amount, type, status, date, payment_method, sub_type');
+        // Fetch all transactions and liabilities in parallel
+        const [allTransactions, liabilities] = await Promise.all([
+            db.select({
+                amount: transactions.amount,
+                type: transactions.type,
+                status: transactions.status,
+                date: transactions.date,
+                paymentMethod: transactions.paymentMethod,
+                subType: transactions.subType,
+            }).from(transactions),
 
-        const { data: liabilities, error: liabError } = await supabase
-            .from('personal_liabilities')
-            .select('monthly_payment, status');
-
-        if (error || liabError) {
-            console.error('Error fetching data for metrics:', error || liabError);
-            return NextResponse.json({ cashFlow: 0, accountsReceivable: 0, accountsPayable: 0, balance: 0 });
-        }
+            db.select({
+                monthlyPayment: personalLiabilities.monthlyPayment,
+                status: personalLiabilities.status,
+            }).from(personalLiabilities),
+        ]);
 
         let monthlyIncome = 0;
         let monthlyExpense = 0;
@@ -40,18 +34,17 @@ export async function GET(req: Request) {
         let accountsPayable = 0;
         let totalIncome = 0;
         let totalExpense = 0;
-        let liquidBalance = 0;
 
         let businessFixedCosts = 0;
         let businessVariableCosts = 0;
         let totalSalesCurrentMonth = 0;
 
-        transactions?.forEach(t => {
+        allTransactions.forEach(t => {
             const tDate = new Date(t.date);
             const isCurrentMonth = tDate >= firstDayOfMonth && tDate <= lastDayOfMonth;
             const isPaid = t.status === 'PAID';
             const isPendingOrOverdue = t.status === 'PENDING' || t.status === 'OVERDUE';
-            const isLiquid = t.payment_method !== 'CANJE';
+            const isLiquid = t.paymentMethod !== 'CANJE';
 
             // Cash Flow (Monthly - Real Money Only)
             if (isCurrentMonth && isPaid && isLiquid) {
@@ -66,8 +59,8 @@ export async function GET(req: Request) {
 
             // Cost Tracking for Break-even
             if (isCurrentMonth && t.type === 'EXPENSE') {
-                if (t.sub_type === 'BUSINESS_FIXED') businessFixedCosts += t.amount;
-                if (t.sub_type === 'BUSINESS_VARIABLE') businessVariableCosts += t.amount;
+                if (t.subType === 'BUSINESS_FIXED') businessFixedCosts += t.amount;
+                if (t.subType === 'BUSINESS_VARIABLE') businessVariableCosts += t.amount;
             }
 
             // Accounts Receivable (Income Pending)
@@ -89,8 +82,8 @@ export async function GET(req: Request) {
 
         // Calculate Personal Burden
         let totalMonthlyPersonalBurden = 0;
-        liabilities?.forEach(l => {
-            totalMonthlyPersonalBurden += l.monthly_payment;
+        liabilities.forEach(l => {
+            totalMonthlyPersonalBurden += l.monthlyPayment;
         });
 
         const cashFlow = monthlyIncome - monthlyExpense;
@@ -103,17 +96,14 @@ export async function GET(req: Request) {
         const breakEvenPoint = margin > 0 ? totalFixedObligations / margin : totalFixedObligations;
 
         // Proactive Indicators (Mission Control)
-        // Health Status logic
-        // Total expected cash in 30 days = Balance + AR
-        // Total commitments = AP + Personal Burden
         const expectedCash = balance + accountsReceivable;
         const totalCommitments = accountsPayable + totalMonthlyPersonalBurden;
 
         let healthStatus: 'HEALTHY' | 'WARNING' | 'CRITICAL' = 'HEALTHY';
         if (expectedCash < totalCommitments) {
-            healthStatus = 'CRITICAL'; // Doesn't cover this month's obligations
+            healthStatus = 'CRITICAL';
         } else if (expectedCash < totalCommitments * 1.5) {
-            healthStatus = 'WARNING'; // Tight runway
+            healthStatus = 'WARNING';
         }
 
         return NextResponse.json({

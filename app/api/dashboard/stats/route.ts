@@ -1,91 +1,63 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { db } from '@/lib/db';
+import { contacts, transactions, financialGoals, tasks, discoveryLeads } from '@/lib/db/schema';
+import { eq, and, gte, lte, sql, desc, count } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET() {
-    const cookieStore = cookies()
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                get(name: string) {
-                    return cookieStore.get(name)?.value
-                },
-            },
-        }
-    )
-
     try {
         const now = new Date();
-        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-        const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-        // 1. Pipeline Health (Funnel) - Fetch count by status
-        // Since Supabase doesn't support GROUP BY easily in client without RPC, we fetch status column
-        const { data: leadsData, error: leadsError } = await supabase
-            .from('contacts')
-            .select('status')
-            .eq('entity_type', 'lead');
-
-        if (leadsError) throw leadsError;
+        // 1. Pipeline Health (Funnel) - Leads by status
+        const leadsData = await db.select({ status: contacts.status })
+            .from(contacts)
+            .where(eq(contacts.entityType, 'lead'));
 
         // 2. Financial Metrics (Current Month)
-        const { data: transactionsData, error: transactionsError } = await supabase
-            .from('transactions')
-            .select('amount, type, date')
-            .gte('date', firstDayOfMonth)
-            .lte('date', lastDayOfMonth);
-
-        if (transactionsError) throw transactionsError;
+        const transactionsData = await db.select({
+            amount: transactions.amount,
+            type: transactions.type,
+            date: transactions.date,
+        })
+            .from(transactions)
+            .where(and(
+                gte(transactions.date, firstDayOfMonth),
+                lte(transactions.date, lastDayOfMonth)
+            ));
 
         // 3. Goal
-        const { data: goalData, error: goalError } = await supabase
-            .from('financial_goals')
-            .select('revenue_target')
-            .eq('month', now.getMonth() + 1)
-            .eq('year', now.getFullYear())
-            .single();
-
-        // Ignore goal error if it's just "not found" (PGRST116)
-        if (goalError && goalError.code !== 'PGRST116') throw goalError;
+        const [goalData] = await db.select({ revenueTarget: financialGoals.revenueTarget })
+            .from(financialGoals)
+            .where(and(
+                eq(financialGoals.month, now.getMonth() + 1),
+                eq(financialGoals.year, now.getFullYear())
+            ))
+            .limit(1);
 
         // 4. Action Center (Urgent Tasks)
-        // Fetch pending tasks and sort in JS for better control over "Priority" text enum
-        const { data: tasksData, error: tasksError } = await supabase
-            .from('tasks')
-            .select('*')
-            .eq('status', 'todo')
-            .limit(20); // Fetch a few to sort
-
-        if (tasksError) throw tasksError;
+        const tasksData = await db.select()
+            .from(tasks)
+            .where(eq(tasks.status, 'todo'))
+            .limit(20);
 
         // 5. Client Breakdown by Industry
-        const { data: clientTypes, error: clientTypesError } = await supabase
-            .from('contacts')
-            .select('business_type')
-            .eq('entity_type', 'client');
-
-        if (clientTypesError) throw clientTypesError;
+        const clientTypes = await db.select({ businessType: contacts.businessType })
+            .from(contacts)
+            .where(eq(contacts.entityType, 'client'));
 
         // 6. Client Count
-        const { count: clientsCount, error: clientsError } = await supabase
-            .from('contacts')
-            .select('*', { count: 'exact', head: true })
-            .eq('entity_type', 'client');
-
-        if (clientsError) throw clientsError;
+        const [clientCountResult] = await db.select({ value: count() })
+            .from(contacts)
+            .where(eq(contacts.entityType, 'client'));
 
         // 7. Discovery Queue Count
-        const { count: queueCount, error: queueError } = await supabase
-            .from('discovery_leads')
-            .select('*', { count: 'exact', head: true })
-            .eq('columna2', 'en_cola');
-
-        if (queueError) throw queueError;
+        const [queueCountResult] = await db.select({ value: count() })
+            .from(discoveryLeads)
+            .where(eq(discoveryLeads.columna2, 'en_cola'));
 
         // --- Processing Data ---
 
@@ -97,15 +69,15 @@ export async function GET() {
             converted: 0
         };
 
-        (leadsData || []).forEach((row: any) => {
+        (leadsData || []).forEach((row) => {
             pipeline.total++;
-            if (['primer_contacto', 'segundo_contacto', 'tercer_contacto', 'cotizado'].includes(row.status)) {
+            if (['primer_contacto', 'segundo_contacto', 'tercer_contacto', 'cotizado'].includes(row.status || '')) {
                 pipeline.contacted++;
             }
-            if (['cotizado'].includes(row.status)) {
+            if (['cotizado'].includes(row.status || '')) {
                 pipeline.interested++;
             }
-            if (['convertido'].includes(row.status)) {
+            if (['convertido'].includes(row.status || '')) {
                 pipeline.converted++;
             }
         });
@@ -114,15 +86,15 @@ export async function GET() {
         let currentIncome = 0;
         let currentExpenses = 0;
 
-        (transactionsData || []).forEach((t: any) => {
+        (transactionsData || []).forEach((t) => {
             if (t.type === 'INCOME') currentIncome += t.amount || 0;
             if (t.type === 'EXPENSE') currentExpenses += t.amount || 0;
         });
 
-        const monthlyGoal = goalData?.revenue_target || 5000;
+        const monthlyGoal = goalData?.revenueTarget || 5000;
 
         // Tasks Sorting (High > Medium > Low)
-        const priorityScore = (p: string) => {
+        const priorityScore = (p: string | null) => {
             if (p === 'high') return 3;
             if (p === 'medium') return 2;
             return 1;
@@ -133,14 +105,14 @@ export async function GET() {
                 const pDiff = priorityScore(b.priority) - priorityScore(a.priority);
                 if (pDiff !== 0) return pDiff;
                 // If same priority, closest due date first
-                return new Date(a.due_date || 0).getTime() - new Date(b.due_date || 0).getTime();
+                return new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime();
             })
             .slice(0, 5);
 
         // Client Breakdown logic
         const breakdownMap: Record<string, number> = {};
-        (clientTypes || []).forEach((c: any) => {
-            const type = c.business_type || 'Otros';
+        (clientTypes || []).forEach((c) => {
+            const type = c.businessType || 'Otros';
             breakdownMap[type] = (breakdownMap[type] || 0) + 1;
         });
 
@@ -158,8 +130,8 @@ export async function GET() {
                 progress: monthlyGoal > 0 ? Math.min((currentIncome / monthlyGoal) * 100, 100) : 0
             },
             tasks: urgentTasks,
-            clientsvTwo: clientsCount || 0,
-            discoveryQueue: queueCount || 0,
+            clientsvTwo: clientCountResult?.value || 0,
+            discoveryQueue: queueCountResult?.value || 0,
             clientBreakdown,
             lastUpdated: new Date().toISOString()
         });

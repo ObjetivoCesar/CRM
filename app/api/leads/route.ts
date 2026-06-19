@@ -1,89 +1,68 @@
 import { NextResponse } from "next/server";
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { db } from '@/lib/db';
 import { contacts, contactChannels } from '@/lib/db/schema';
-import { eq, or, and } from 'drizzle-orm';
+import { eq, or, and, desc } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET() {
-  const cookieStore = cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-      },
-    }
-  )
-
   try {
-    const { data: allLeads, error } = await supabase
-      .from('contacts')
-      .select('*')
-      .eq('entity_type', 'lead')
-      .order('created_at', { ascending: false });
+    const allLeads = await db.select()
+      .from(contacts)
+      .where(eq(contacts.entityType, 'lead'))
+      .orderBy(desc(contacts.createdAt));
 
-    if (error) {
-      console.error("Error fetching leads:", error);
-      return NextResponse.json({ error: "Failed to fetch leads" }, { status: 500 });
-    }
-
-    // Map snake_case to camelCase for frontend
-    const mappedLeads = allLeads?.map(lead => ({
+    // Map to camelCase for frontend (Drizzle already returns camelCase from schema)
+    const mappedLeads = allLeads.map(lead => ({
       id: lead.id,
-      businessName: lead.business_name,
-      contactName: lead.contact_name,
+      businessName: lead.businessName,
+      contactName: lead.contactName,
       phone: lead.phone,
       email: lead.email,
       address: lead.address,
       city: lead.city,
-      connectionType: lead.connection_type,
-      businessActivity: lead.business_activity,
-      interestedProduct: lead.interested_product,
-      verbalAgreements: lead.verbal_agreements,
+      connectionType: lead.connectionType,
+      businessActivity: lead.businessActivity,
+      interestedProduct: lead.interestedProduct,
+      verbalAgreements: lead.verbalAgreements,
       pains: lead.pains,
       goals: lead.goals,
       objections: lead.objections,
-      quantifiedProblem: lead.quantified_problem,
-      conservativeGoal: lead.conservative_goal,
-      personalityType: lead.personality_type,
-      communicationStyle: lead.communication_style,
-      keyPhrases: lead.key_phrases,
+      quantifiedProblem: lead.quantifiedProblem,
+      conservativeGoal: lead.conservativeGoal,
+      personalityType: lead.personalityType,
+      communicationStyle: lead.communicationStyle,
+      keyPhrases: lead.keyPhrases,
       strengths: lead.strengths,
       weaknesses: lead.weaknesses,
       opportunities: lead.opportunities,
       threats: lead.threats,
 
-      relationshipType: lead.relationship_type,
-      yearsInBusiness: lead.years_in_business,
-      numberOfEmployees: lead.number_of_employees,
-      numberOfBranches: lead.number_of_branches,
-      currentClientsPerMonth: lead.current_clients_per_month,
-      averageTicket: lead.average_ticket,
+      relationshipType: lead.relationshipType,
+      yearsInBusiness: lead.yearsInBusiness,
+      numberOfEmployees: lead.numberOfEmployees,
+      numberOfBranches: lead.numberOfBranches,
+      currentClientsPerMonth: lead.currentClientsPerMonth,
+      averageTicket: lead.averageTicket,
       birthday: lead.birthday,
-      anniversaryDate: lead.anniversary_date,
-      knownCompetition: lead.known_competition,
-      highSeason: lead.high_season,
-      criticalDates: lead.critical_dates,
-      facebookFollowers: lead.facebook_followers,
-      otherAchievements: lead.other_achievements,
-      specificRecognitions: lead.specific_recognitions,
+      anniversaryDate: lead.anniversaryDate,
+      knownCompetition: lead.knownCompetition,
+      highSeason: lead.highSeason,
+      criticalDates: lead.criticalDates,
+      facebookFollowers: lead.facebookFollowers,
+      otherAchievements: lead.otherAchievements,
+      specificRecognitions: lead.specificRecognitions,
 
       status: lead.status,
       phase: lead.phase,
-      createdAt: lead.created_at,
+      createdAt: lead.createdAt,
       source: lead.source,
       notes: lead.notes,
       investigacion: lead.investigacion,
-      researchData: lead.research_data,
+      researchData: lead.researchData,
       quotation: lead.quotation
-    })) || [];
+    }));
 
     return NextResponse.json(mappedLeads, { status: 200 });
   } catch (error) {
@@ -92,22 +71,12 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
-  const cookieStore = cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-      },
-    }
-  )
 
+
+export async function POST(request: Request) {
   try {
     const body = await request.json();
+
 
     // Helper to normalize empty strings to null, but keep undefined as undefined
     // so Drizzle ignores them during partial updates.
