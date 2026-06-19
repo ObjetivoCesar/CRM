@@ -28,7 +28,7 @@ export function CommunicationsHub() {
 
     const fetchConversations = (showLoading = false) => {
         if (showLoading) setLoading(true);
-        fetch('/api/conversations?limit=50')
+        fetch('/api/conversations?limit=200')
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data)) {
