@@ -116,6 +116,12 @@ export default function ChatCenterPage() {
     const [isSavingDetails, setIsSavingDetails] = useState(false);
     const [editedFields, setEditedFields] = useState<any>({});
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    // 🔒 Ref para acceder siempre al selectedChat ACTUAL dentro de setInterval
+    // sin que sufra el problema de stale closure.
+    const selectedChatRef = useRef<any>(null);
+    useEffect(() => {
+        selectedChatRef.current = selectedChat;
+    }, [selectedChat]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
@@ -129,16 +135,17 @@ export default function ChatCenterPage() {
 
     const fetchChats = async () => {
         try {
-            const res = await fetch('/api/whatsapp/chats');
+            // cache: 'no-store' evita que el browser cachee la respuesta GET
+            const res = await fetch('/api/whatsapp/chats', { cache: 'no-store' });
             const data = await res.json();
             if (data.success) {
                 setChats(data.chats);
-                // Si hay un chat seleccionado, actualizar suss metadatos básicos por si cambiaron (unread, etc)
-                if (selectedChat) {
-                    const updatedSelected = data.chats.find((c: any) => c.id === selectedChat.id);
+                // Actualizar el chat seleccionado si cambió
+                const currentSelected = selectedChatRef.current;
+                if (currentSelected) {
+                    const updatedSelected = data.chats.find((c: any) => c.id === currentSelected.id);
                     if (updatedSelected) {
-                        // Mantener los detalles completos si ya los tenemos
-                        setSelectedChat({ ...selectedChat, ...updatedSelected });
+                        setSelectedChat((prev: any) => ({ ...prev, ...updatedSelected }));
                     }
                 }
             }
@@ -152,7 +159,8 @@ export default function ChatCenterPage() {
     const fetchMessages = async (chatId: string, quiet = false) => {
         if (!quiet) setIsFetchingMessages(true);
         try {
-            const res = await fetch(`/api/whatsapp/chats/${chatId}`);
+            // cache: 'no-store' garantiza datos frescos del servidor siempre
+            const res = await fetch(`/api/whatsapp/chats/${chatId}`, { cache: 'no-store' });
             const data = await res.json();
             if (data.success) {
                 // Solo actualizar si hay cambios para evitar parpadeos innecesarios
@@ -246,28 +254,34 @@ export default function ChatCenterPage() {
         }
     };
 
+    // 🔄 Polling de LISTA DE CHATS — se monta una vez y NO se recrea
+    // Usa selectedChatRef para leer el chat actual sin stale closure
     useEffect(() => {
         fetchChats();
-        // Check Meta Status on mount
         getMetaStatus().then(res => {
             if (res.success) setIsMetaConfigured(res.isConfigured);
         });
 
-        // Intervalo para la lista de chats: 10 segundos (Prevención de saltos de ventana)
-        const chatListInterval = setInterval(fetchChats, 10000);
+        // Polling cada 8 segundos (reducido de 10 para ser más reactivo)
+        const chatListInterval = setInterval(fetchChats, 8000);
+        return () => clearInterval(chatListInterval);
+    }, []); // Sin dependencias: el interval vive toda la sesión
 
-        // Intervalo para los mensajes del chat activo
+    // 🔄 Polling de MENSAJES DEL CHAT ACTIVO — se re-crea al cambiar de chat
+    useEffect(() => {
+        if (!selectedChat?.id) return;
+        // Fetch inmediato al abrir el chat
+        fetchMessages(selectedChat.id, true);
+        // Luego polling cada 5 segundos
         const messageInterval = setInterval(() => {
-            if (selectedChat?.id) {
-                fetchMessages(selectedChat.id, true); // true = quiet mode (no parpadeo)
+            const current = selectedChatRef.current;
+            if (current?.id) {
+                fetchMessages(current.id, true);
             }
         }, 5000);
+        return () => clearInterval(messageInterval);
+    }, [selectedChat?.id]); // Se recrea solo cuando cambia el chat seleccionado
 
-        return () => {
-            clearInterval(chatListInterval);
-            clearInterval(messageInterval);
-        };
-    }, [selectedChat?.id]); // Refrescar intervalo si cambia el chat seleccionado
 
     const handleChatClick = (chat: any) => {
         console.log('📱 Chat seleccionado:', chat.id, chat.contactName, chat.entityType);

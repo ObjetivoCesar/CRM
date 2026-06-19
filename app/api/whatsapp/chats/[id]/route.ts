@@ -4,6 +4,7 @@ import { donnaChatMessages } from '@/lib/db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
     try {
@@ -28,7 +29,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
             status: 'sent' // Asumimos que todos los mensajes fueron enviados
         }));
 
-        return NextResponse.json({ success: true, messages: formattedMessages.reverse() });
+        return NextResponse.json({ success: true, messages: formattedMessages.reverse() }, {
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+                'Pragma': 'no-cache',
+            }
+        });
     } catch (error: any) {
         console.error('Error fetching campaign chat history:', error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });

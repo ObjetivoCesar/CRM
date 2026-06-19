@@ -3,6 +3,17 @@ import { db } from '@/lib/db';
 import { sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+// Helper: respuesta con headers explícitos de no-caché (defensa en profundidad)
+function noCacheJson(data: any) {
+    return NextResponse.json(data, {
+        headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+        }
+    });
+}
 
 export async function GET() {
     try {
@@ -105,13 +116,14 @@ export async function GET() {
             new Date(b.time).getTime() - new Date(a.time).getTime()
         );
 
-        return NextResponse.json({
+        return noCacheJson({
             success: true,
             chats: sortedChats
         });
 
     } catch (error: any) {
         console.error('Error fetching campaign chats:', error);
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        return noCacheJson({ success: false, error: error.message });
+
     }
 }
