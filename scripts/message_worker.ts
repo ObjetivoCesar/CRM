@@ -8,32 +8,93 @@ if (fs.existsSync('.env.local')) {
 } else {
     console.log('🌐 No .env.local found, assuming production environment variables');
 }
+
 import http from 'http';
+import { db } from '../lib/db';
+import { pendingMessagesQueue, conversationStates, donnaChatMessages, messageSuggestions } from '../lib/db/schema';
+import { eq, sql, and, or, desc, inArray } from 'drizzle-orm';
+import { cortexRouter } from '../lib/donna/services/CortexRouterService';
+import { procesarMensajeActivaQR, FichaCliente } from '../lib/activaqr/brain';
+import { transcriptionService } from '../lib/ai/TranscriptionService';
+import { whatsappService } from '../lib/whatsapp/WhatsAppService';
+import { telegramService } from '../lib/telegram/TelegramService';
+
+// --- Worker State & Metrics ---
+let lastBatchProcessedAt: Date | null = null;
+const workerStartedAt = new Date();
+let totalBatchesProcessed = 0;
+let totalMessagesProcessed = 0;
+let isProcessing = false;
+let isShuttingDown = false;
+let lastQueueDeepAlertAt = 0;
+let lastWatchdogAlertAt = 0;
 
 const port = Number(process.env.PORT) || 10000;
-const server = http.createServer((req, res) => {
-    // Respond 200 OK to EVERYTHING on this port to keep Render happy
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Worker Active');
+const server = http.createServer(async (req, res) => {
+    // Expose granular health metrics under /health, /api/health or / to satisfy Render
+    if (req.url === '/health' || req.url === '/api/health' || req.url === '/') {
+        try {
+            const [stats] = await db.select({
+                total: sql<number>`count(*)::int`,
+                zombies: sql<number>`count(case when ${pendingMessagesQueue.retryCount} >= 5 or (${pendingMessagesQueue.claimedAt} is not null and ${pendingMessagesQueue.claimedAt} < now() - interval '5 minutes') then 1 end)::int`
+            }).from(pendingMessagesQueue);
+
+            const responsePayload = {
+                status: isShuttingDown ? 'shutting_down' : 'healthy',
+                uptimeSeconds: Math.round((Date.now() - workerStartedAt.getTime()) / 1000),
+                lastBatchProcessedAt: lastBatchProcessedAt ? lastBatchProcessedAt.toISOString() : null,
+                totalBatchesProcessed,
+                totalMessagesProcessed,
+                queue: {
+                    totalPending: stats?.total || 0,
+                    zombies: stats?.zombies || 0
+                }
+            };
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(responsePayload, null, 2));
+        } catch (dbErr: any) {
+            console.error('❌ Health check DB query failed:', dbErr);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                status: 'error',
+                message: 'Database query failed',
+                error: dbErr.message,
+                uptimeSeconds: Math.round((Date.now() - workerStartedAt.getTime()) / 1000),
+                lastBatchProcessedAt: lastBatchProcessedAt ? lastBatchProcessedAt.toISOString() : null
+            }, null, 2));
+        }
+    } else {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found');
+    }
 });
 
 server.listen(port, '0.0.0.0', () => {
     console.log(`🌍 Health Check Server running on port ${port}`);
 });
 
-// 🛡️ SIGTERM HANDLER: Log the shutdown signal so we can diagnose it in Render
-process.on('SIGTERM', () => {
-    console.warn('⚠️ SIGTERM received! Worker is being shut down by Render. Check Render logs and ensure the health check URL is correctly configured.');
+// 🛡️ GRACEFUL SHUTDOWN HANDLER
+async function handleShutdown(signal: string) {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    console.warn(`⚠️ ${signal} received! Worker is shutting down. Waiting for active batch to finish...`);
+    
+    let checkIntervals = 0;
+    while (isProcessing && checkIntervals < 30) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        checkIntervals++;
+        console.log(`⏳ Waiting for active batch... (${checkIntervals}/30s)`);
+    }
+    
+    console.warn('👋 Active batch finished or timeout reached. Exiting process.');
     process.exit(0);
-});
-process.on('SIGINT', () => {
-    console.warn('⚠️ SIGINT received! Worker stopping.');
-    process.exit(0);
-});
+}
+
+process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+process.on('SIGINT', () => handleShutdown('SIGINT'));
 
 // 🔔 KEEP-ALIVE: Ping ourselves externally every 9 min to prevent Render Free Tier idle shutdown
-// We MUST ping the external URL (or a configured RENDER_EXTERNAL_URL) so that Render's ingress router sees the traffic.
-// Localhost pings do NOT reset the 15-minute idle timer.
 setInterval(async () => {
     try {
         const renderUrl = process.env.RENDER_EXTERNAL_URL || 'https://crm-nbul.onrender.com';
@@ -42,15 +103,8 @@ setInterval(async () => {
     } catch (e: any) {
         console.warn(`🏓 External Keep-alive ping failed: ${e.message}`);
     }
-}, 9 * 60 * 1000); // every 9 minutes
+}, 9 * 60 * 1000);
 
-import { db } from '../lib/db';
-import { pendingMessagesQueue, conversationStates, donnaChatMessages, messageSuggestions } from '../lib/db/schema';
-import { eq, sql, and, or, desc, inArray } from 'drizzle-orm';
-import { cortexRouter } from '../lib/donna/services/CortexRouterService';
-import { procesarMensajeActivaQR, FichaCliente } from '../lib/activaqr/brain';
-import { transcriptionService } from '../lib/ai/TranscriptionService';
-import { whatsappService } from '../lib/whatsapp/WhatsAppService';
 
 const ACCUMULATION_WINDOW_MS = 25000; // 25 seconds
 const POLL_INTERVAL_MS = 5000; // 5 seconds
@@ -77,9 +131,12 @@ async function processQueue() {
             firstUpdate: sql<string>`MIN(received_at)`
         })
             .from(pendingMessagesQueue)
-            .where(or(
-                sql`claimed_at IS NULL`,
-                sql`claimed_at < NOW() - INTERVAL '5 minutes'` // Recover zombie chats
+            .where(and(
+                sql`retry_count < 5`, // 🛡️ Dead-letter filter: skip permanently failed messages
+                or(
+                    sql`claimed_at IS NULL`,
+                    sql`claimed_at < NOW() - INTERVAL '5 minutes'` // Recover zombie chats
+                )
             ))
             .groupBy(pendingMessagesQueue.chatId);
 
@@ -136,13 +193,18 @@ async function processQueue() {
                 console.log(`⏭️ All chats were already claimed by another worker.`);
             } else {
                 console.log(`🚀 Processing batch for ${chatsToProcess.length} claimed chats in parallel...`);
+                isProcessing = true; // 🛡️ Signal: active batch running (for graceful shutdown)
+                try {
                 await Promise.all(chatsToProcess.map(async (chat) => {
                     let messageIds: string[] = [];
                     try {
-                        // A. Fetch all message IDs for this chat
+                        // A. Fetch all message IDs for this chat (exclude dead-letters)
                         const messages = await db.select()
                             .from(pendingMessagesQueue)
-                            .where(eq(pendingMessagesQueue.chatId, chat.chatId))
+                            .where(and(
+                                eq(pendingMessagesQueue.chatId, chat.chatId),
+                                sql`retry_count < 5`
+                            ))
                             .orderBy(pendingMessagesQueue.receivedAt);
 
                         if (messages.length === 0) return;
@@ -790,20 +852,41 @@ async function processQueue() {
                         console.error(`❌ Batch Error for ${chat.chatId}:`, e);
                         try {
                             if (messageIds && messageIds.length > 0) {
-                                await db.update(pendingMessagesQueue)
+                                // Increment retry count and release claim
+                                const updatedRows = await db.update(pendingMessagesQueue)
                                     .set({ 
                                         failedAt: new Date(),
                                         retryCount: sql`retry_count + 1`,
                                         claimedAt: null // Liberar para que otro worker intente
                                     })
-                                    .where(inArray(pendingMessagesQueue.id, messageIds));
+                                    .where(inArray(pendingMessagesQueue.id, messageIds))
+                                    .returning({ id: pendingMessagesQueue.id, retryCount: pendingMessagesQueue.retryCount });
                                 console.log(`🧹 [Error Recovery] Marked ${messageIds.length} messages as failed for retry ${chat.chatId}`);
+
+                                // 🚨 DEAD-LETTER ALERT: Notify César if any message just hit retry threshold
+                                const deadLetters = updatedRows.filter(r => (r.retryCount ?? 0) >= 5);
+                                if (deadLetters.length > 0) {
+                                    console.error(`💀 [DEAD-LETTER] ${deadLetters.length} messages for ${chat.chatId} have reached max retries!`);
+                                    try {
+                                        await telegramService.sendMessage(
+                                            `💀 *Dead-Letter Alert*\n\nChat: \`${chat.chatId}\`\nMensajes atascados: ${deadLetters.length}\nIDs: ${deadLetters.map(r => r.id).join(', ')}\n\nEstos mensajes NO se reintentarán más. Revisar en /api/admin/queue-health`
+                                        );
+                                    } catch (tgErr: any) {
+                                        console.warn(`⚠️ Could not send dead-letter Telegram alert:`, tgErr.message);
+                                    }
+                                }
                             }
                         } catch (cleanupErr) {
                             console.error(`❌ Failed to mark messages as failed for ${chat.chatId}:`, cleanupErr);
                         }
                     }
                 }));
+                } finally {
+                    isProcessing = false; // 🛡️ Signal: batch complete
+                    lastBatchProcessedAt = new Date();
+                    totalBatchesProcessed++;
+                    totalMessagesProcessed += chatsToProcess.length;
+                }
             }
         }
 
@@ -1080,3 +1163,61 @@ console.log('👷 Message Worker started (High Concurrency Ready)...');
 
     // Run reactivation checker every 5 minutes
     setInterval(checkReactivationConversations, 5 * 60 * 1000);
+
+    // ─── 🔭 WATCHDOG: Queue depth & worker inactivity alerts ───
+    // Fires every 60s. Sends Telegram alerts (with 30-min cooldown) if:
+    //   • Queue has > 20 pending messages (possible blockage)
+    //   • Worker hasn't processed a batch in > 15 minutes (possible crash loop)
+    const WATCHDOG_QUEUE_THRESHOLD = 20;
+    const WATCHDOG_INACTIVITY_MS = 15 * 60 * 1000; // 15 minutes
+    const WATCHDOG_COOLDOWN_MS = 30 * 60 * 1000;   // 30 minutes between same alert type
+
+    setInterval(async () => {
+        if (isShuttingDown) return;
+        try {
+            const now = Date.now();
+
+            // --- Alert 1: Queue too deep ---
+            const [queueStats] = await db.select({
+                total: sql<number>`count(*)::int`,
+                deadLetters: sql<number>`count(case when retry_count >= 5 then 1 end)::int`
+            }).from(pendingMessagesQueue);
+
+            const queueSize = queueStats?.total || 0;
+
+            if (queueSize > WATCHDOG_QUEUE_THRESHOLD) {
+                if (now - lastQueueDeepAlertAt > WATCHDOG_COOLDOWN_MS) {
+                    lastQueueDeepAlertAt = now;
+                    console.warn(`🔭 [WATCHDOG] Queue depth alert: ${queueSize} pending messages`);
+                    try {
+                        await telegramService.sendMessage(
+                            `🔭 *Watchdog — Cola Profunda*\n\nHay *${queueSize} mensajes* acumulados en la queue (umbral: ${WATCHDOG_QUEUE_THRESHOLD}).\nDead-letters: ${queueStats?.deadLetters || 0}\n\nPosible bloqueo en el worker. Revisar /health`
+                        );
+                    } catch (tgErr: any) {
+                        console.warn(`⚠️ Watchdog queue-depth alert failed:`, tgErr.message);
+                    }
+                }
+            }
+
+            // --- Alert 2: Worker inactivity ---
+            if (lastBatchProcessedAt !== null) {
+                const msSinceLastBatch = now - lastBatchProcessedAt.getTime();
+                if (msSinceLastBatch > WATCHDOG_INACTIVITY_MS) {
+                    if (now - lastWatchdogAlertAt > WATCHDOG_COOLDOWN_MS) {
+                        lastWatchdogAlertAt = now;
+                        const minutesAgo = Math.round(msSinceLastBatch / 60000);
+                        console.warn(`🔭 [WATCHDOG] Worker inactivity alert: last batch was ${minutesAgo}m ago`);
+                        try {
+                            await telegramService.sendMessage(
+                                `🔭 *Watchdog — Worker Inactivo*\n\nEl worker no ha procesado ningún batch en *${minutesAgo} minutos*.\nUptime: ${Math.round((now - workerStartedAt.getTime()) / 60000)}m\nTotal batches: ${totalBatchesProcessed}\n\nPosible crash loop o bloqueo. Revisar logs en Render.`
+                            );
+                        } catch (tgErr: any) {
+                            console.warn(`⚠️ Watchdog inactivity alert failed:`, tgErr.message);
+                        }
+                    }
+                }
+            }
+        } catch (watchdogErr: any) {
+            console.error(`❌ [WATCHDOG] Error in watchdog check:`, watchdogErr.message);
+        }
+    }, 60 * 1000); // Run every 60 seconds
