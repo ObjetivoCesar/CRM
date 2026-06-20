@@ -970,9 +970,7 @@ export async function procesarMensajeActivaQR(
       respuestaLower.includes('traspaso') ||
       respuestaLower.includes('listo para demo') ||
       (ficha.rubro && ficha.ciudad && (
-        /^(si|claro|bueno|ok|acept|dale|pasa|por supuesto)/i.test(texto.trim().toLowerCase()) ||
-        respuestaLower.includes('te paso') ||
-        respuestaLower.includes('te reserva')
+        /^(si|claro|bueno|ok|acept|dale|pasa|por supuesto)/i.test(texto.trim().toLowerCase())
       ));
 
     if (quiereTransfer) {
