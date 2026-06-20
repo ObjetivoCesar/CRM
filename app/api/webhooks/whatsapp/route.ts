@@ -72,6 +72,26 @@ export async function POST(req: Request) {
                 content = `[Mensaje de tipo ${message.type}]`;
             }
 
+            // Capture Facebook Ads Context
+            let isFbAd = !!message.referral;
+            let adMetadata: { campaign?: string; adName?: string } = {};
+
+            if (message.referral) {
+                const adHeadline = message.referral.headline || 'Anuncio';
+                const adBody = message.referral.body ? ` - ${message.referral.body}` : '';
+                content = `[🔔 El cliente viene de Facebook Ads: "${adHeadline}"${adBody}]\n${content}`;
+                console.log(`🎯 Facebook Ad Referral Detected: ${adHeadline}`);
+                adMetadata.campaign = adHeadline;
+                adMetadata.adName = message.referral.body || '';
+            } else if (content.includes('source=fbads')) {
+                isFbAd = true;
+                const campaignMatch = content.match(/campaign=([^&\s]+)/);
+                const adMatch = content.match(/ad_name=([^&\s]+)/);
+                adMetadata.campaign = campaignMatch ? decodeURIComponent(campaignMatch[1]) : 'fbads';
+                adMetadata.adName = adMatch ? decodeURIComponent(adMatch[1]) : '';
+                console.log(`🎯 Facebook Ad Link Param Detected. Campaign: ${adMetadata.campaign}, Ad: ${adMetadata.adName}`);
+            }
+
             console.log(`📩 [WEBHOOK_PARSE] From ${from}: ${content}`);
 
             // 2. Identify Sender (Omnichannel Identity Resolution)
@@ -140,7 +160,7 @@ export async function POST(req: Request) {
                                     contactName: 'Nuevo Contacto (WhatsApp)',
                                     phone: from,
                                     status: 'sin_contacto', // Kanban initial stage
-                                    source: 'whatsapp_inbound',
+                                    source: isFbAd ? 'fbads' : 'whatsapp_inbound',
                                     entityType: 'lead',
                                     createdAt: new Date(),
                                     updatedAt: new Date(),
@@ -167,12 +187,16 @@ export async function POST(req: Request) {
                 // 2.5 UPDATE ACTIVITY & UNREAD STATUS
                 // This ensures the contact moves to the top and shows a badge
                 if (contactId) {
+                    const updateData: any = {
+                        lastActivityAt: new Date(),
+                        unreadCount: sql`${contacts.unreadCount} + 1`,
+                        updatedAt: new Date()
+                    };
+                    if (isFbAd) {
+                        updateData.source = 'fbads';
+                    }
                     await db.update(contacts)
-                        .set({
-                            lastActivityAt: new Date(),
-                            unreadCount: sql`${contacts.unreadCount} + 1`,
-                            updatedAt: new Date()
-                        } as any)
+                        .set(updateData)
                         .where(eq(contacts.id, contactId));
                 }
 
@@ -185,7 +209,10 @@ export async function POST(req: Request) {
                         chatId: from,
                         content: content,
                         platform: 'whatsapp',
-                        metadata: mediaData ? { mediaId: mediaData.id, type: message.type } : {},
+                        metadata: {
+                            ...(mediaData ? { mediaId: mediaData.id, type: message.type } : {}),
+                            ...(isFbAd ? { isFbAd: true, adMetadata } : {})
+                        },
                         receivedAt: new Date()
                     });
 

@@ -546,6 +546,15 @@ async function processQueue() {
                                         fichaCliente.fuente_origen = 'fbads';
                                     }
                                 }
+
+                                // Auto-propagate from active batch message metadata (Facebook Ads Click-to-Chat parameters)
+                                const adMsg = messages.find(m => (m.metadata as any)?.isFbAd);
+                                if (adMsg) {
+                                    const meta = adMsg.metadata as any;
+                                    fichaCliente.fuente_origen = 'fbads';
+                                    fichaCliente.campana_ad = meta.adMetadata?.campaign || fichaCliente.campana_ad || 'fbads';
+                                    fichaCliente.ad_interes = meta.adMetadata?.adName || fichaCliente.ad_interes || '';
+                                }
                             } catch (e: any) {
                                 console.warn(`⚠️ No se pudo cargar ficha para ${chat.chatId}:`, e.message);
                             }
