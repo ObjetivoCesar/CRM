@@ -18,6 +18,7 @@ import { procesarMensajeActivaQR, FichaCliente } from '../lib/activaqr/brain';
 import { transcriptionService } from '../lib/ai/TranscriptionService';
 import { whatsappService } from '../lib/whatsapp/WhatsAppService';
 import { telegramService } from '../lib/telegram/TelegramService';
+import { messagingService } from '../lib/messaging/MessagingService';
 
 // --- Worker State & Metrics ---
 let lastBatchProcessedAt: Date | null = null;
@@ -210,6 +211,26 @@ async function processQueue() {
                         if (messages.length === 0) return;
                         messageIds = messages.map(m => m.id);
 
+                        const rawPlatform = messages[0]?.platform || 'whatsapp';
+                        const interactionTypeMap: Record<string, 'whatsapp' | 'telegram' | 'instagram' | 'instagram_comment' | 'facebook' | 'facebook_comment'> = {
+                            whatsapp: 'whatsapp',
+                            telegram: 'telegram',
+                            instagram: 'instagram',
+                            instagram_comment: 'instagram_comment',
+                            facebook: 'facebook',
+                            facebook_comment: 'facebook_comment',
+                        };
+                        const chatPlatformMap: Record<string, 'whatsapp' | 'telegram' | 'instagram' | 'facebook'> = {
+                            whatsapp: 'whatsapp',
+                            telegram: 'telegram',
+                            instagram: 'instagram',
+                            instagram_comment: 'instagram',
+                            facebook: 'facebook',
+                            facebook_comment: 'facebook',
+                        };
+                        const platform = interactionTypeMap[rawPlatform] || 'whatsapp';
+                        const chatPlatform = chatPlatformMap[rawPlatform] || 'whatsapp';
+
                         // --- TRANSCRIPTION LOGIC ---
                         let audioTooLong = false;
                         const processedMessages = await Promise.all(messages.map(async (m) => {
@@ -241,7 +262,7 @@ async function processQueue() {
                             const tooLongMsg = transcriptionService.getTooLongMessage();
                             console.log(`⏰ [WORKER] Audio too long for ${chat.chatId}. Sending auto-response...`);
                             try {
-                                await whatsappService.sendMessage(chat.chatId, tooLongMsg);
+                                await messagingService.send(chat.chatId, tooLongMsg, { platform: chatPlatform });
                             } catch (sendErr) {
                                 console.error(`❌ Error sending audio limit message:`, sendErr);
                             }
@@ -253,7 +274,7 @@ async function processQueue() {
                                         chatId: chat.chatId,
                                         role: 'assistant',
                                         content: tooLongMsg,
-                                        platform: 'whatsapp',
+                                        platform: chatPlatform as any,
                                         messageTimestamp: new Date(),
                                         metadata: { source: 'system_audio_limit' }
                                     });
@@ -269,29 +290,6 @@ async function processQueue() {
                         }
 
                         const unifiedContent = processedMessages.map(m => m.content).join('\n');
-                        const rawPlatform = messages[0]?.platform || 'whatsapp';
-                        
-                        // Define valid types for interactions and chat history
-                        const interactionTypeMap: Record<string, 'whatsapp' | 'telegram' | 'instagram' | 'instagram_comment' | 'facebook' | 'facebook_comment'> = {
-                            whatsapp: 'whatsapp',
-                            telegram: 'telegram',
-                            instagram: 'instagram',
-                            instagram_comment: 'instagram_comment',
-                            facebook: 'facebook',
-                            facebook_comment: 'facebook_comment',
-                        };
-
-                        const chatPlatformMap: Record<string, 'whatsapp' | 'telegram' | 'instagram' | 'facebook'> = {
-                            whatsapp: 'whatsapp',
-                            telegram: 'telegram',
-                            instagram: 'instagram',
-                            instagram_comment: 'instagram',
-                            facebook: 'facebook',
-                            facebook_comment: 'facebook',
-                        };
-
-                        const platform = interactionTypeMap[rawPlatform] || 'whatsapp';
-                        const chatPlatform = chatPlatformMap[rawPlatform] || 'whatsapp';
 
                         // B. Identify Contact for Persistence
                         const { contacts, contactChannels, discoveryLeads, interactions, donnaChatMessages } = await import('../lib/db/schema');
@@ -831,7 +829,7 @@ async function processQueue() {
 
                                         if (clientMessage) {
                                             console.log(`🤖 Ale responde a ${chat.chatId}: "${clientMessage.substring(0, 60)}..."`);
-                                            await whatsappService.sendMessage(chat.chatId, clientMessage);
+                                            await messagingService.send(chat.chatId, clientMessage, { platform: chatPlatform });
                                         }
 
                                         if (briefMessage) {
