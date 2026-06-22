@@ -814,27 +814,54 @@ async function processQueue() {
                                     }
                                 } else {
                                     try {
-                                        console.log(`🤖 Ale responde a ${chat.chatId}: "${resultado.respuesta.substring(0, 60)}..."`);
-                                        await whatsappService.sendMessage(chat.chatId, resultado.respuesta);
+                                        let clientMessage = resultado.respuesta;
+                                        let briefMessage = '';
+
+                                        const delimIndex = resultado.respuesta.indexOf('🔔');
+                                        if (delimIndex !== -1) {
+                                            clientMessage = resultado.respuesta.substring(0, delimIndex).trim();
+                                            briefMessage = resultado.respuesta.substring(delimIndex).trim();
+                                        } else {
+                                            const fallbackIndex = resultado.respuesta.indexOf('*LEAD DE ADS');
+                                            if (fallbackIndex !== -1) {
+                                                clientMessage = resultado.respuesta.substring(0, fallbackIndex).trim();
+                                                briefMessage = resultado.respuesta.substring(fallbackIndex).trim();
+                                            }
+                                        }
+
+                                        if (clientMessage) {
+                                            console.log(`🤖 Ale responde a ${chat.chatId}: "${clientMessage.substring(0, 60)}..."`);
+                                            await whatsappService.sendMessage(chat.chatId, clientMessage);
+                                        }
+
+                                        if (briefMessage) {
+                                            const cleanPhone = chat.chatId.replace(/\D/g, '');
+                                            const enrichedBrief = `${briefMessage}\n\n📱 *Contacto:* +${cleanPhone}\n🔗 *Chat:* wa.me/${cleanPhone}`;
+                                            
+                                            // Send directly to César's WhatsApp (593963410409)
+                                            console.log(`✉️ Enviando brief a César para ${chat.chatId}...`);
+                                            await whatsappService.sendMessage('593963410409', enrichedBrief);
+                                        }
+
+                                        // Persist response in chat history
+                                        if (!FORCE_TESTING_MODE && process.env.DISABLE_MESSAGE_PERSISTENCE !== 'true') {
+                                            try {
+                                                const messageToSave = clientMessage || resultado.respuesta;
+                                                await db.insert(donnaChatMessages).values({
+                                                    chatId: chat.chatId,
+                                                    role: 'assistant',
+                                                    content: messageToSave,
+                                                    platform: chatPlatform as any,
+                                                    messageTimestamp: new Date(),
+                                                    metadata: { source: 'activaqr_brain' }
+                                                });
+                                                console.log(`✅ Ale's response saved to chat history`);
+                                            } catch (persistErr) {
+                                                console.error(`❌ Error saving Ale's response:`, persistErr);
+                                            }
+                                        }
                                     } catch (sendErr) {
                                         console.error(`❌ Error enviando respuesta WhatsApp:`, sendErr);
-                                    }
-
-                                    // Persist response in chat history
-                                    if (!FORCE_TESTING_MODE && process.env.DISABLE_MESSAGE_PERSISTENCE !== 'true') {
-                                        try {
-                                            await db.insert(donnaChatMessages).values({
-                                                chatId: chat.chatId,
-                                                role: 'assistant',
-                                                content: resultado.respuesta,
-                                                platform: chatPlatform as any,
-                                                messageTimestamp: new Date(),
-                                                metadata: { source: 'activaqr_brain' }
-                                            });
-                                            console.log(`✅ Ale's response saved to chat history`);
-                                        } catch (persistErr) {
-                                            console.error(`❌ Error saving Ale's response:`, persistErr);
-                                        }
                                     }
                                 }
                             }
