@@ -200,6 +200,56 @@ export async function POST(req: Request) {
                         .where(eq(contacts.id, contactId));
                 }
 
+                // 3.5. INTERCEPT SPECIAL QR CODES (e.g. VCard)
+                if (content.toLowerCase().includes('#activa-vcf')) {
+                    console.log(`📇 [QR_VCARD] Intercepted VCard request from ${from}`);
+                    
+                    try {
+                        // Log the incoming message interaction in DB so it's visible in the CRM
+                        await db.insert(interactions).values({
+                            contactId: contactId,
+                            discoveryLeadId: discoveryLeadId,
+                            type: 'whatsapp',
+                            content: content,
+                            direction: 'inbound',
+                            performedAt: new Date(),
+                            createdAt: new Date(),
+                            metadata: { source: 'qr_vcard_trigger' }
+                        });
+
+                        // Send Greeting
+                        await whatsappService.sendMessage(from, '¡Gracias por escribirnos! Aquí tienes el contacto de César Reyes 👇');
+                        
+                        // Send VCard (Native Meta API Contacts)
+                        const vcardMedia: any = {
+                            type: 'contacts',
+                            contacts: [{
+                                name: {
+                                    formatted_name: "César Reyes",
+                                    first_name: "César",
+                                    last_name: "Reyes"
+                                },
+                                phones: [{
+                                    phone: "+593963410409",
+                                    type: "WORK"
+                                }],
+                                org: {
+                                    company: "Grupo Empresarial Reyes"
+                                }
+                            }]
+                        };
+                        await whatsappService.sendMessage(from, '', { source: 'qr_vcard_auto' }, vcardMedia);
+                        
+                        // Send Instructions
+                        await whatsappService.sendMessage(from, 'Para guardar el contacto:\n1. Toca la tarjeta de arriba.\n2. Selecciona "Guardar" o "Añadir a contactos".\n\n¡Listo! Así nos aseguramos de estar conectados. 🤝');
+                    } catch (sendErr: any) {
+                        console.error('❌ Error sending QR VCard response:', sendErr.message);
+                    }
+                    
+                    // Return 200 OK to Meta to avoid endless retries even if sending failed internally
+                    return NextResponse.json({ status: 'vcard_intercepted' });
+                }
+
                 // 4. QUEUE FOR ACCUMULATION (Debouncing)
                 // We no longer save interactions or chat messages here.
                 // The Message Worker will aggregate them every 25s and save a single entry.
