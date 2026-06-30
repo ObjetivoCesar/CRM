@@ -16,12 +16,16 @@ Cuando el sistema detecta el código `#ACTIVA-VCF`, ejecuta secuencialmente:
 1. **Mensaje de Saludo**:
    > "¡Gracias por escribirnos! Aquí tienes el contacto de César Reyes 👇"
 
-2. **Envío de vCard (Nativo Meta API)**:
-   Se envía un payload nativo de tipo `contacts` usando `WhatsAppService`.
-   Esto renderiza la "tarjetita" de WhatsApp, no un archivo adjunto que deba descargarse.
+2. **Envío de vCard (Estrategia Dual Meta + Evolution API)**:
+   Debido a problemas de MIME con la API oficial de Meta, se envía un archivo físico `.vcf` usando una de dos estrategias:
+   *   **Meta Cloud API (Primaria)**: Descarga el archivo desde una URL estática de Vercel configurada explícitamente con headers `Content-Type: text/vcard`.
+   *   **Evolution API (Fallback)**: Si Meta rechaza el archivo silenciosamente, se usa Evolution API (`sendMedia`) para enviarlo en `Base64` garantizando la entrega.
 
-3. **Mensaje Instructivo**:
-   > "Para guardar el contacto: \n1. Toca la tarjeta de arriba.\n2. Selecciona 'Guardar' o 'Añadir a contactos'.\n\n¡Listo! Así nos aseguramos de estar conectados. 🤝"
+3. **Demora (20 Segundos)**:
+   Se introduce un delay intencional asíncrono para dar tiempo a Meta a procesar y entregar el archivo VCF, y simular tiempo de escritura, asegurando el orden cronológico en el chat del usuario.
+
+4. **Mensaje Instructivo**:
+   > "Para guardar el contacto: \n1. Toca la tarjeta de arriba.\n2. Selecciona 'Guardar' o 'Añadir a contactos'.\n\n¡Perfecto! Ya quedaste registrado en mi agenda también. 📱\nMientras guardas mi contacto, échale un ojo a mi Estado de WhatsApp — tengo algo interesante que quiero mostrarte. 👀"
 
 ---
 

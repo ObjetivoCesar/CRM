@@ -5,6 +5,7 @@ import { sql, eq, and } from 'drizzle-orm';
 import { cortexRouter } from '@/lib/donna/services/CortexRouterService';
 import { whatsappService } from '@/lib/whatsapp/WhatsAppService';
 import { getGoogleContactsService } from '@/lib/google/ContactsService';
+import { waitUntil } from '@vercel/functions';
 
 export const dynamic = 'force-dynamic';
 
@@ -307,8 +308,16 @@ export async function POST(req: Request) {
                             console.warn(`⚠️ [GoogleContacts] El servicio no pudo inicializarse (verificar variables de entorno en Render)`);
                         }
                         
-                        // Send Instructions (El Circo de Ventas)
-                        await whatsappService.sendMessage(from, 'Para guardar el contacto:\n1. Toca la tarjeta de arriba.\n2. Selecciona "Guardar" o "Añadir a contactos".\n\n¡Perfecto! Ya quedaste registrado en mi agenda también. 📱\nMientras guardas mi contacto, échale un ojo a mi Estado de WhatsApp — tengo algo interesante que quiero mostrarte. 👀');
+                        // Send Instructions (El Circo de Ventas) - Retraso de 20s para simular escritura y asegurar orden
+                        waitUntil(
+                            new Promise(resolve => setTimeout(resolve, 20000)).then(async () => {
+                                try {
+                                    await whatsappService.sendMessage(from, 'Para guardar el contacto:\n1. Toca la tarjeta de arriba.\n2. Selecciona "Guardar" o "Añadir a contactos".\n\n¡Perfecto! Ya quedaste registrado en mi agenda también. 📱\nMientras guardas mi contacto, échale un ojo a mi Estado de WhatsApp — tengo algo interesante que quiero mostrarte. 👀');
+                                } catch (e) {
+                                    console.error('❌ Error sending delayed instruction message:', e);
+                                }
+                            })
+                        );
                     } catch (sendErr: any) {
                         console.error('❌ Error sending QR VCard response:', sendErr.message);
                     }
