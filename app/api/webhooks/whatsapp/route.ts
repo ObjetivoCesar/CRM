@@ -230,7 +230,15 @@ export async function POST(req: Request) {
                         await whatsappService.sendMessage(from, '', { source: 'qr_vcard_auto' }, vcardMedia);
                         // Background: Guardar al cliente en Google Contacts automáticamente
                         const googleContacts = getGoogleContactsService();
-                        const contactName = value?.contacts?.[0]?.profile?.name || `WhatsApp ${from.slice(-4)}`;
+                        let contactName = value?.contacts?.[0]?.profile?.name || `WhatsApp ${from.slice(-4)}`;
+                        
+                        // Intentar extraer el nombre del mensaje si el usuario lo completó (ej: "Nombre: Juan Pérez" o "nombre es: Juan")
+                        const nameRegex = /(?:nombre\s*es|nombre|name\s*is|name)\s*:\s*([^\n\r#]+)/i;
+                        const match = content.match(nameRegex);
+                        if (match && match[1].trim()) {
+                            contactName = match[1].trim();
+                        }
+                        
                         console.log(`👤 [GoogleContacts] Intentando registrar contacto: ${contactName} (${from})`);
                         if (googleContacts) {
                             googleContacts.createContact(from, contactName)
