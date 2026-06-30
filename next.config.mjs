@@ -26,6 +26,15 @@ const nextConfig = {
           { key: 'Pragma', value: 'no-cache' },
         ],
       },
+      // Serve VCF with correct MIME type so Meta Cloud API can fetch & deliver it as a contact card
+      {
+        source: '/cesar-reyes-jaramillo.vcf',
+        headers: [
+          { key: 'Content-Type', value: 'text/vcard; charset=utf-8' },
+          { key: 'Content-Disposition', value: 'attachment; filename="Cesar_Reyes.vcf"' },
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+        ],
+      },
     ];
   },
 

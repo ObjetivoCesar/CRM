@@ -228,8 +228,8 @@ export async function POST(req: Request) {
                         try {
                             const vcardMedia: any = {
                                 type: 'document',
-                                // Use dedicated endpoint that returns Content-Type: text/vcard
-                                url: 'https://crm-nbul.onrender.com/api/vcard/cesar',
+                                // Static file now served with Content-Type: text/vcard via next.config.mjs headers
+                                url: 'https://crm-nbul.onrender.com/cesar-reyes-jaramillo.vcf',
                                 filename: 'Cesar_Reyes.vcf'
                             };
                             const vcardResult = await whatsappService.sendMessage(from, '', { source: 'qr_vcard_auto' }, vcardMedia);
