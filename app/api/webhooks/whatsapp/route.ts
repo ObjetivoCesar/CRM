@@ -221,23 +221,11 @@ export async function POST(req: Request) {
                         // Send Greeting
                         await whatsappService.sendMessage(from, '¡Gracias por escribirnos! Aquí tienes el contacto de César Reyes 👇');
                         
-                        // Send VCard (Native Meta API Contacts)
+                        // Send VCard (Full .vcf as document to preserve photo and rich metadata)
                         const vcardMedia: any = {
-                            type: 'contacts',
-                            contacts: [{
-                                name: {
-                                    formatted_name: "César Reyes",
-                                    first_name: "César",
-                                    last_name: "Reyes"
-                                },
-                                phones: [{
-                                    phone: "+593963410409",
-                                    type: "WORK"
-                                }],
-                                org: {
-                                    company: "Grupo Empresarial Reyes"
-                                }
-                            }]
+                            type: 'document',
+                            url: 'https://crm-nbul.onrender.com/cesar-reyes-jaramillo.vcf',
+                            filename: 'Cesar_Reyes.vcf'
                         };
                         await whatsappService.sendMessage(from, '', { source: 'qr_vcard_auto' }, vcardMedia);
                         // Background: Guardar al cliente en Google Contacts automáticamente
