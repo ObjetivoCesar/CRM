@@ -1,7 +1,5 @@
 import { google } from 'googleapis';
 
-const CONTACTS_SCOPE = 'https://www.googleapis.com/auth/contacts';
-
 export class GoogleContactsService {
     private people;
 
@@ -40,7 +38,6 @@ export class GoogleContactsService {
                     phoneNumbers: [{
                         value: `+${cleanPhone}`,
                         type: 'mobile',
-                        canonicalForm: `+${cleanPhone}`,
                     }],
                     biographies: [{
                         value: `Contacto capturado automáticamente por ActivaQR el ${new Date().toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit', year: 'numeric' })}`,
