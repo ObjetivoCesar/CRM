@@ -221,13 +221,69 @@ export async function POST(req: Request) {
                         // Send Greeting
                         await whatsappService.sendMessage(from, '¡Gracias por escribirnos! Aquí tienes el contacto de César Reyes 👇');
                         
-                        // Send VCard (Full .vcf as document to preserve photo and rich metadata)
-                        const vcardMedia: any = {
-                            type: 'document',
-                            url: 'https://crm-nbul.onrender.com/cesar-reyes-jaramillo.vcf',
-                            filename: 'Cesar_Reyes.vcf'
-                        };
-                        await whatsappService.sendMessage(from, '', { source: 'qr_vcard_auto' }, vcardMedia);
+                        // ── VCard Delivery Strategy ──────────────────────────────────────
+                        // Strategy 1: Meta Cloud API with proper MIME endpoint
+                        // Strategy 2: Evolution API fallback with base64 (if Meta silently drops it)
+                        let vcardSent = false;
+                        try {
+                            const vcardMedia: any = {
+                                type: 'document',
+                                // Use dedicated endpoint that returns Content-Type: text/vcard
+                                url: 'https://crm-nbul.onrender.com/api/vcard/cesar',
+                                filename: 'Cesar_Reyes.vcf'
+                            };
+                            const vcardResult = await whatsappService.sendMessage(from, '', { source: 'qr_vcard_auto' }, vcardMedia);
+                            if (vcardResult?.success !== false) {
+                                vcardSent = true;
+                                console.log('✅ [VCard] Enviado via Meta API');
+                            }
+                        } catch (metaErr: any) {
+                            console.warn('⚠️ [VCard] Meta API falló, intentando Evolution API...', metaErr.message);
+                        }
+
+                        // Evolution API fallback — sends base64 so no MIME issues
+                        if (!vcardSent) {
+                            try {
+                                const evoUrl = process.env.WHATSAPP_API_URL;
+                                const evoKey = process.env.WHATSAPP_API_KEY;
+                                const evoInstance = process.env.WHATSAPP_INSTANCE_NAME;
+
+                                if (evoUrl && evoKey && evoInstance) {
+                                    const fs = await import('fs');
+                                    const path = await import('path');
+                                    const vcfPath = path.join(process.cwd(), 'public', 'cesar-reyes-jaramillo.vcf');
+                                    const vcfBase64 = fs.readFileSync(vcfPath).toString('base64');
+
+                                    const evoPayload = {
+                                        number: from,
+                                        mediatype: 'document',
+                                        mimetype: 'text/vcard',
+                                        media: vcfBase64,
+                                        fileName: 'Cesar_Reyes.vcf',
+                                        caption: '📇 Contacto completo de César Reyes'
+                                    };
+
+                                    const evoRes = await fetch(`${evoUrl}/message/sendMedia/${evoInstance}`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                                        body: JSON.stringify(evoPayload)
+                                    });
+
+                                    if (evoRes.ok) {
+                                        console.log('✅ [VCard] Enviado via Evolution API (fallback)');
+                                    } else {
+                                        const evoErr = await evoRes.json();
+                                        console.error('❌ [VCard] Evolution API también falló:', evoErr);
+                                    }
+                                } else {
+                                    console.warn('⚠️ [VCard] Evolution API no configurada en env vars');
+                                }
+                            } catch (evoErr: any) {
+                                console.error('❌ [VCard] Error en fallback Evolution:', evoErr.message);
+                            }
+                        }
+                        // ────────────────────────────────────────────────────────────────
+
                         // Background: Guardar al cliente en Google Contacts automáticamente
                         const googleContacts = getGoogleContactsService();
                         let contactName = value?.contacts?.[0]?.profile?.name || `WhatsApp ${from.slice(-4)}`;
