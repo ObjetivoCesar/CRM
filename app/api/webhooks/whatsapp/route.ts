@@ -244,36 +244,39 @@ export async function POST(req: Request) {
                         // Evolution API fallback — sends base64 so no MIME issues
                         if (!vcardSent) {
                             try {
-                                // Hardcoded fallback for fast delivery (Last bullet)
-                                const evoUrl = 'http://129.153.116.213:8080';
-                                const evoKey = '42a447c1-3d74-4b52-9571-042c174f7621';
-                                const evoInstance = 'Automatizotunegocio';
+                                const evoUrl = process.env.WHATSAPP_API_URL;
+                                const evoKey = process.env.WHATSAPP_API_KEY;
+                                const evoInstance = process.env.WHATSAPP_INSTANCE_NAME;
 
-                                const fs = await import('fs');
-                                const path = await import('path');
-                                const vcfPath = path.join(process.cwd(), 'public', 'cesar-reyes-jaramillo.vcf');
-                                const vcfBase64 = fs.readFileSync(vcfPath).toString('base64');
+                                if (evoUrl && evoKey && evoInstance) {
+                                    const fs = await import('fs');
+                                    const path = await import('path');
+                                    const vcfPath = path.join(process.cwd(), 'public', 'cesar-reyes-jaramillo.vcf');
+                                    const vcfBase64 = fs.readFileSync(vcfPath).toString('base64');
 
-                                const evoPayload = {
-                                    number: from,
-                                    mediatype: 'document',
-                                    mimetype: 'text/vcard',
-                                    media: vcfBase64,
-                                    fileName: 'Cesar_Reyes.vcf',
-                                    caption: '📇 Contacto de César Reyes'
-                                };
+                                    const evoPayload = {
+                                        number: from,
+                                        mediatype: 'document',
+                                        mimetype: 'text/vcard',
+                                        media: vcfBase64,
+                                        fileName: 'Cesar_Reyes.vcf',
+                                        caption: '📇 Contacto de César Reyes'
+                                    };
 
-                                const evoRes = await fetch(`${evoUrl}/message/sendMedia/${evoInstance}`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-                                    body: JSON.stringify(evoPayload)
-                                });
+                                    const evoRes = await fetch(`${evoUrl}/message/sendMedia/${evoInstance}`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                                        body: JSON.stringify(evoPayload)
+                                    });
 
-                                if (evoRes.ok) {
-                                    console.log('✅ [VCard] Enviado via Evolution API (fallback hardcoded)');
+                                    if (evoRes.ok) {
+                                        console.log('✅ [VCard] Enviado via Evolution API (fallback)');
+                                    } else {
+                                        const evoErr = await evoRes.json();
+                                        console.error('❌ [VCard] Evolution API también falló:', evoErr);
+                                    }
                                 } else {
-                                    const evoErr = await evoRes.json();
-                                    console.error('❌ [VCard] Evolution API también falló:', evoErr);
+                                    console.warn('⚠️ [VCard] Fallback Evolution API no ejecutado: Faltan variables de entorno en Render (WHATSAPP_API_URL, WHATSAPP_API_KEY, WHATSAPP_INSTANCE_NAME)');
                                 }
                             } catch (evoErr: any) {
                                 console.error('❌ [VCard] Error en fallback Evolution:', evoErr.message);
