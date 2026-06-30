@@ -4,6 +4,7 @@ import { interactions, contacts, discoveryLeads, whatsappLogs, contactChannels, 
 import { sql, eq, and } from 'drizzle-orm';
 import { cortexRouter } from '@/lib/donna/services/CortexRouterService';
 import { whatsappService } from '@/lib/whatsapp/WhatsAppService';
+import { getGoogleContactsService } from '@/lib/google/ContactsService';
 
 export const dynamic = 'force-dynamic';
 
@@ -239,9 +240,14 @@ export async function POST(req: Request) {
                             }]
                         };
                         await whatsappService.sendMessage(from, '', { source: 'qr_vcard_auto' }, vcardMedia);
+                        // Background: Guardar al cliente en Google Contacts automáticamente
+                        const googleContacts = getGoogleContactsService();
+                        if (googleContacts) {
+                            googleContacts.createContact(from, message.profile?.name || `WhatsApp ${from.slice(-4)}`).catch(e => console.error(e));
+                        }
                         
-                        // Send Instructions
-                        await whatsappService.sendMessage(from, 'Para guardar el contacto:\n1. Toca la tarjeta de arriba.\n2. Selecciona "Guardar" o "Añadir a contactos".\n\n¡Listo! Así nos aseguramos de estar conectados. 🤝');
+                        // Send Instructions (El Circo de Ventas)
+                        await whatsappService.sendMessage(from, 'Para guardar el contacto:\n1. Toca la tarjeta de arriba.\n2. Selecciona "Guardar" o "Añadir a contactos".\n\n¡Perfecto! Ya quedaste registrado en mi agenda también. 📱\nMientras guardas mi contacto, échale un ojo a mi Estado de WhatsApp — tengo algo interesante que quiero mostrarte. 👀');
                     } catch (sendErr: any) {
                         console.error('❌ Error sending QR VCard response:', sendErr.message);
                     }
