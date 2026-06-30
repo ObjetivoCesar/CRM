@@ -230,8 +230,17 @@ export async function POST(req: Request) {
                         await whatsappService.sendMessage(from, '', { source: 'qr_vcard_auto' }, vcardMedia);
                         // Background: Guardar al cliente en Google Contacts automáticamente
                         const googleContacts = getGoogleContactsService();
+                        const contactName = value?.contacts?.[0]?.profile?.name || `WhatsApp ${from.slice(-4)}`;
+                        console.log(`👤 [GoogleContacts] Intentando registrar contacto: ${contactName} (${from})`);
                         if (googleContacts) {
-                            googleContacts.createContact(from, message.profile?.name || `WhatsApp ${from.slice(-4)}`).catch(e => console.error(e));
+                            googleContacts.createContact(from, contactName)
+                                .then(res => {
+                                    if (res) console.log(`✅ [GoogleContacts] Sincronización exitosa: ${res}`);
+                                    else console.warn(`⚠️ [GoogleContacts] La sincronización retornó vacío (posible error silencioso)`);
+                                })
+                                .catch(e => console.error(`❌ [GoogleContacts] Error asíncrono al guardar contacto:`, e));
+                        } else {
+                            console.warn(`⚠️ [GoogleContacts] El servicio no pudo inicializarse (verificar variables de entorno en Render)`);
                         }
                         
                         // Send Instructions (El Circo de Ventas)
