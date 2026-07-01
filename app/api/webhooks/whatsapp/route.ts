@@ -307,6 +307,14 @@ export async function POST(req: Request) {
                             }
                         }
                         // ────────────────────────────────────────────────────────────────
+                        
+                        // Enviar instrucciones de guardado de contacto inmediatamente
+                        const instructionsText = 'Para guardar el contacto:\n1. Toca la tarjeta de arriba.\n2. Selecciona "Guardar" o "Añadir a contactos".\n\n¡Perfecto! Ya quedaste registrado en mi agenda también. 📱\nMientras guardas mi contacto, échale un ojo a mi Estado de WhatsApp — tengo algo interesante que quiero mostrarte. 👀';
+                        try {
+                            await whatsappService.sendMessage(from, instructionsText, { source: 'qr_vcard_instructions' });
+                        } catch (instErr) {
+                            console.error('❌ Error enviando instrucciones inmediatamente:', instErr);
+                        }
 
                         // Background: Guardar al cliente en Google Contacts automáticamente
                         const googleContacts = getGoogleContactsService();
@@ -331,24 +339,24 @@ export async function POST(req: Request) {
                             console.warn(`⚠️ [GoogleContacts] El servicio no pudo inicializarse (verificar variables de entorno en Render)`);
                         }
                         
-                        // Send Instructions (El Circo de Ventas) - Retraso de 20s para simular escritura y asegurar orden
+                        // Send Video (El Circo de Ventas) - Retraso de 20s
                         waitUntil(
                             new Promise(resolve => setTimeout(resolve, 20000)).then(async () => {
                                 try {
-                                    const instructionsText = 'Para guardar el contacto:\n1. Toca la tarjeta de arriba.\n2. Selecciona "Guardar" o "Añadir a contactos".\n\n¡Perfecto! Ya quedaste registrado en mi agenda también. 📱\nMientras guardas mi contacto, échale un ojo a mi Estado de WhatsApp — tengo algo interesante que quiero mostrarte. 👀';
+                                    const videoCaption = 'Por esto necesitas contratar ya tu contacto digital 👆';
                                     let videoSent = false;
                                     
                                     try {
-                                        const videoRes = await whatsappService.sendMessage(from, '', { source: 'qr_vcard_instructions' }, {
+                                        const videoRes = await whatsappService.sendMessage(from, '', { source: 'qr_vcard_video' }, {
                                             type: 'video',
                                             url: 'https://cesarweb.b-cdn.net/activaqr/Contacto%20Digital.mp4',
-                                            caption: instructionsText
+                                            caption: videoCaption
                                         });
                                         if (videoRes?.success !== false) {
                                             videoSent = true;
                                         }
                                     } catch (metaErr) {
-                                        console.warn('⚠️ [VCard Video] Meta falló, intentando Evolution API...');
+                                        console.warn('⚠️ [VCard Video] Meta falló para video, intentando Evolution API...');
                                     }
 
                                     if (!videoSent) {
@@ -362,7 +370,7 @@ export async function POST(req: Request) {
                                                 mediatype: 'video',
                                                 mimetype: 'video/mp4',
                                                 media: 'https://cesarweb.b-cdn.net/activaqr/Contacto%20Digital.mp4',
-                                                caption: instructionsText
+                                                caption: videoCaption
                                             };
                                             await fetch(`${evoUrl}/message/sendMedia/${evoInstance}`, {
                                                 method: 'POST',
@@ -375,7 +383,7 @@ export async function POST(req: Request) {
                                         console.log('✅ [VCard Video] Enviado via Meta API');
                                     }
                                 } catch (e) {
-                                    console.error('❌ Error sending delayed instruction message:', e);
+                                    console.error('❌ Error sending delayed video message:', e);
                                 }
                             })
                         );
