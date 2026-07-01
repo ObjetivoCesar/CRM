@@ -219,6 +219,29 @@ export async function POST(req: Request) {
                             metadata: { source: 'qr_vcard_trigger' }
                         });
 
+                        // Pausa de IA por 1 hora (Networking Humano)
+                        try {
+                            if (contactId) {
+                                await db.update(contacts).set({ botMode: 'paused' as any }).where(eq(contacts.id, contactId));
+                            }
+                            
+                            const pauseUntil = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+                            await db.insert(donnaChatMessages).values({
+                                chatId: from,
+                                role: 'assistant',
+                                content: '[Sistema] IA pausada por 1 hora por entrega de VCard (Networking)',
+                                platform: 'whatsapp',
+                                messageTimestamp: new Date(),
+                                metadata: { 
+                                    source: 'crm_human_agent', 
+                                    humanPausedUntil: pauseUntil.toISOString() 
+                                }
+                            });
+                            console.log(`⏸️ [QR_VCARD] IA pausada automáticamente por 1 hora para ${from}`);
+                        } catch (pauseErr) {
+                            console.error('❌ Error pausando IA para VCard:', pauseErr);
+                        }
+
                         // Send Greeting
                         await whatsappService.sendMessage(from, '¡Gracias por escribirnos! Aquí tienes el contacto de César Reyes 👇');
                         
