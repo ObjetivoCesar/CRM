@@ -24,7 +24,8 @@ async function main() {
         .limit(20);
 
         result.forEach(r => {
-            console.log(`[${new Date(r.performedAt).toISOString()}] ${r.direction === 'inbound' ? '⬅️' : '➡️'} (${r.contactPhone || r.contactId}): ${r.content.substring(0, 100).replace(/\n/g, ' ')}`);
+            const safeContent = r.content ? r.content.substring(0, 100).replace(/\n/g, ' ') : '';
+            console.log(`[${new Date(r.performedAt).toISOString()}] ${r.direction === 'inbound' ? '⬅️' : '➡️'} (${r.contactPhone || r.contactId}): ${safeContent}`);
         });
         
     } catch (e) {
