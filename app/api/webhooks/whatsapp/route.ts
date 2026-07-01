@@ -335,7 +335,45 @@ export async function POST(req: Request) {
                         waitUntil(
                             new Promise(resolve => setTimeout(resolve, 20000)).then(async () => {
                                 try {
-                                    await whatsappService.sendMessage(from, 'Para guardar el contacto:\n1. Toca la tarjeta de arriba.\n2. Selecciona "Guardar" o "Añadir a contactos".\n\n¡Perfecto! Ya quedaste registrado en mi agenda también. 📱\nMientras guardas mi contacto, échale un ojo a mi Estado de WhatsApp — tengo algo interesante que quiero mostrarte. 👀');
+                                    const instructionsText = 'Para guardar el contacto:\n1. Toca la tarjeta de arriba.\n2. Selecciona "Guardar" o "Añadir a contactos".\n\n¡Perfecto! Ya quedaste registrado en mi agenda también. 📱\nMientras guardas mi contacto, échale un ojo a mi Estado de WhatsApp — tengo algo interesante que quiero mostrarte. 👀';
+                                    let videoSent = false;
+                                    
+                                    try {
+                                        const videoRes = await whatsappService.sendMessage(from, '', { source: 'qr_vcard_instructions' }, {
+                                            type: 'video',
+                                            url: 'https://cesarweb.b-cdn.net/activaqr/Contacto%20Digital.mp4',
+                                            caption: instructionsText
+                                        });
+                                        if (videoRes?.success !== false) {
+                                            videoSent = true;
+                                        }
+                                    } catch (metaErr) {
+                                        console.warn('⚠️ [VCard Video] Meta falló, intentando Evolution API...');
+                                    }
+
+                                    if (!videoSent) {
+                                        const evoUrl = process.env.WHATSAPP_API_URL;
+                                        const evoKey = process.env.WHATSAPP_API_KEY;
+                                        const evoInstance = process.env.WHATSAPP_INSTANCE_NAME;
+
+                                        if (evoUrl && evoKey && evoInstance) {
+                                            const evoPayload = {
+                                                number: from,
+                                                mediatype: 'video',
+                                                mimetype: 'video/mp4',
+                                                media: 'https://cesarweb.b-cdn.net/activaqr/Contacto%20Digital.mp4',
+                                                caption: instructionsText
+                                            };
+                                            await fetch(`${evoUrl}/message/sendMedia/${evoInstance}`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                                                body: JSON.stringify(evoPayload)
+                                            });
+                                            console.log('✅ [VCard Video] Enviado via Evolution API');
+                                        }
+                                    } else {
+                                        console.log('✅ [VCard Video] Enviado via Meta API');
+                                    }
                                 } catch (e) {
                                     console.error('❌ Error sending delayed instruction message:', e);
                                 }
