@@ -946,3 +946,19 @@ export const aiTrainingLogs = pgTable('ai_training_logs', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// ============================================
+// WEBHOOK IDEMPOTENCY (Anti-duplicate processing)
+// Prevents Meta retries from causing duplicate vCard sends, messages, etc.
+// Table already exists in DB via migration 016_create_webhooks_idempotency.sql
+// ============================================
+export const webhookEventsProcessed = pgTable('webhook_events_processed', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  provider: text('provider').notNull(), // 'whatsapp', 'telegram', 'instagram'
+  externalId: text('external_id').notNull(), // The message.id from Meta
+  processedAt: timestamp('processed_at').defaultNow(),
+}, (t) => ({
+  unq: unique().on(t.provider, t.externalId),
+  externalIdx: index('idx_webhook_events_ext').on(t.provider, t.externalId),
+}));
+
+

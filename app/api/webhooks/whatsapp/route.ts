@@ -203,167 +203,266 @@ export async function POST(req: Request) {
                 }
 
                 // 3.4. INTERCEPT DYNAMIC QR CODES (Contacto:slug)
+                // ─────────────────────────────────────────────────────────────────
+                // ARQUITECTURA DE RESILIENCIA:
+                // 1. IDEMPOTENCIA: Usamos message.id para marcar eventos ya procesados.
+                //    Si Meta reintenta el mismo webhook, lo ignoramos sin duplicar el envío.
+                // 2. waitUntil: Respondemos 200 a Meta en <100ms. Todo el trabajo pesado
+                //    (API call, DB, envío WA) ocurre en background. Esto evita que Meta
+                //    active sus reintentos automáticos por timeout (5s).
+                // 3. ERROR AMIGABLE: Si el slug no existe (404) o hay error, el usuario
+                //    recibe un mensaje explicativo en lugar de silencio.
+                // ─────────────────────────────────────────────────────────────────
                 if (content.trim().toLowerCase().startsWith('contacto:')) {
                     const slug = content.split(':')[1]?.trim();
-                    console.log(`📇 [QR_VCARD_DYNAMIC] Intercepted dynamic VCard request for slug: ${slug} from ${from}`);
-                    
-                    if (slug) {
+                    const messageId = message.id; // ID único de Meta por mensaje
+                    console.log(`📇 [QR_VCARD_DYNAMIC] Slug: ${slug} | MsgID: ${messageId} | From: ${from}`);
+
+                    if (slug && messageId) {
+                        // IDEMPOTENCIA: ¿Ya procesamos este mensaje exacto?
+                        // Esto protege contra los reintentos de Meta (el mismo webhook puede llegar 3-5 veces)
+                        const { webhookEventsProcessed } = await import('@/lib/db/schema');
+                        const [alreadyProcessed] = await db.select()
+                            .from(webhookEventsProcessed)
+                            .where(and(
+                                eq(webhookEventsProcessed.provider, 'whatsapp'),
+                                eq(webhookEventsProcessed.externalId, messageId)
+                            ))
+                            .limit(1);
+
+                        if (alreadyProcessed) {
+                            console.log(`⚠️ [QR_VCARD_DYNAMIC] Duplicate detected (Meta retry). Skipping. MsgID: ${messageId}`);
+                            return NextResponse.json({ status: 'dynamic_vcard_duplicate_ignored' });
+                        }
+
+                        // Marcar como procesado AHORA (antes de hacer el trabajo)
+                        // Esto previene race conditions si dos reintentos llegan al mismo tiempo
                         try {
-                            // 1. Consultar datos en la API de ActivaQR
-                            const response = await fetch(`https://activaqr.com/api/external/vcard?slug=${slug}`, {
-                                method: 'GET',
-                                headers: {
-                                    'x-api-key': 'activaqr-ext-m3ta-b0t-2026-s3cur3',
-                                    'Content-Type': 'application/json'
-                                }
+                            await db.insert(webhookEventsProcessed).values({
+                                provider: 'whatsapp',
+                                externalId: messageId,
                             });
-                            
-                            if (response.ok) {
+                        } catch (idempotencyErr) {
+                            // Si falla el insert por constraint UNIQUE, otro proceso ya lo tomó
+                            console.log(`⚠️ [QR_VCARD_DYNAMIC] Race condition caught. Another instance is handling MsgID: ${messageId}`);
+                            return NextResponse.json({ status: 'dynamic_vcard_race_condition_ignored' });
+                        }
+
+                        // Capturamos los valores que necesitamos en el closure ANTES de waitUntil
+                        const capturedFrom = from;
+                        const capturedSlug = slug;
+                        const capturedContactId = contactId;
+                        const capturedDiscoveryLeadId = discoveryLeadId;
+                        const capturedProfileName = value?.contacts?.[0]?.profile?.name || `WhatsApp ${from.slice(-4)}`;
+
+                        // waitUntil: Vercel mantiene la función viva después de responder a Meta.
+                        // El usuario recibe el vCard aunque Meta ya cerró la conexión.
+                        //
+                        // ── AUDIT TRAIL GARANTIZADO ──────────────────────────────────────────
+                        // Usamos try/finally para que el registro en `interactions` se ejecute
+                        // SIEMPRE, sin importar si ActivaQR devuelve 404, si el envío falla,
+                        // o si hay un error de red inesperado. Esto es la base del sistema de
+                        // métricas para los clientes y el log de depuración.
+                        //
+                        // Campos que se registran siempre:
+                        //   status        → 'success' | 'api_error_404' | 'api_error_500' |
+                        //                   'send_failed' | 'invalid_response' | 'exception'
+                        //   delivery_method → 'meta_api' | 'evolution_api' | 'none'
+                        //   error_detail  → el error exacto si hubo falla
+                        //   client        → datos del cliente de ActivaQR (si se obtuvieron)
+                        // ─────────────────────────────────────────────────────────────────────
+                        waitUntil((async () => {
+                            // Variables de auditoría — se van llenando conforme avanza el flujo
+                            let scanStatus: 'success' | 'api_error_404' | 'api_error_500' | 'send_failed' | 'invalid_response' | 'exception' = 'exception';
+                            let deliveryMethod: 'meta_api' | 'evolution_api' | 'none' = 'none';
+                            let errorDetail: string | null = null;
+                            let clientData: any = null;
+                            let vcardSent = false;
+
+                            try {
+                                // ── 1. CONSULTAR ACTIVAQR ──────────────────────────────────────
+                                const response = await fetch(`https://activaqr.com/api/external/vcard?slug=${capturedSlug}`, {
+                                    method: 'GET',
+                                    headers: { 'x-api-key': 'activaqr-ext-m3ta-b0t-2026-s3cur3' }
+                                });
+
+                                if (!response.ok) {
+                                    const httpStatus = response.status;
+                                    scanStatus = httpStatus === 404 ? 'api_error_404' : 'api_error_500';
+                                    errorDetail = `ActivaQR API returned HTTP ${httpStatus}`;
+                                    console.error(`❌ [QR_VCARD_DYNAMIC] ${errorDetail} | slug: ${capturedSlug}`);
+                                    // Feedback al usuario aunque el QR no esté disponible aún
+                                    await whatsappService.sendMessage(capturedFrom,
+                                        httpStatus === 404
+                                            ? 'Lo sentimos, este contacto digital aún no está disponible. Por favor inténtalo en unos minutos. 🙏'
+                                            : 'Hubo un problema técnico al obtener el contacto. Por favor inténtalo de nuevo. 🙏'
+                                    ).catch(() => {});
+                                    return; // finally sigue ejecutándose → log siempre se graba
+                                }
+
                                 const data = await response.json();
-                                if (data.success && data.vcf_url) {
-                                    // Log the incoming message interaction in DB so it's visible in the CRM
-                                    await db.insert(interactions).values({
-                                        contactId: contactId,
-                                        discoveryLeadId: discoveryLeadId,
-                                        type: 'whatsapp',
-                                        content: content,
-                                        direction: 'inbound',
-                                        performedAt: new Date(),
-                                        createdAt: new Date(),
-                                        metadata: { 
-                                            source: 'qr_vcard_scan',
-                                            slug: slug,
-                                            client: data.client
-                                        }
-                                    });
+                                if (!data.success || !data.vcf_url) {
+                                    scanStatus = 'invalid_response';
+                                    errorDetail = 'ActivaQR response missing success=true or vcf_url';
+                                    console.error(`❌ [QR_VCARD_DYNAMIC] ${errorDetail} | slug: ${capturedSlug}`);
+                                    return;
+                                }
 
-                                    // Pausa de IA por 1 hora (Networking Humano) e inclusión de metadatos de ActivaQR
+                                clientData = data.client; // guardamos para el log
+
+                                // ── 2. ENRIQUECER CONTACTO EN CRM ─────────────────────────────
+                                if (capturedContactId) {
                                     try {
-                                        if (contactId) {
-                                            const existingContact = await db.select().from(contacts).where(eq(contacts.id, contactId)).limit(1);
-                                            let research = (existingContact[0]?.researchData as any) || {};
-                                            if (typeof research !== 'object') research = {};
-                                            
-                                            research.activaqr = {
-                                                slug: data.client.slug,
-                                                clientName: data.client.nombre,
-                                                clientEmpresa: data.client.empresa,
-                                                clientWhatsapp: data.client.whatsapp,
-                                                scannedAt: new Date().toISOString()
-                                            };
-
-                                            await db.update(contacts).set({ 
-                                                botMode: 'paused' as any,
-                                                source: 'activaqr_vcard',
-                                                researchData: research
-                                            }).where(eq(contacts.id, contactId));
-                                        }
-                                        
-                                        const pauseUntil = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
-                                        await db.insert(donnaChatMessages).values({
-                                            chatId: from,
-                                            role: 'assistant',
-                                            content: `[Sistema] IA pausada por 1 hora por escaneo de QR de ${data.client.nombre} (Networking)`,
-                                            platform: 'whatsapp',
-                                            messageTimestamp: new Date(),
-                                            metadata: { 
-                                                source: 'crm_human_agent', 
-                                                humanPausedUntil: pauseUntil.toISOString() 
-                                            }
-                                        });
-                                        console.log(`⏸️ [QR_VCARD_DYNAMIC] IA pausada automáticamente por 1 hora para ${from}`);
-                                    } catch (pauseErr) {
-                                        console.error('❌ Error pausando IA para VCard Dinámico:', pauseErr);
-                                    }
-
-                                    // Enviar archivo .vcf
-                                    let vcardSent = false;
-                                    const captionText = `Aquí tienes el contacto de *${data.client.nombre}* (${data.client.profesion || 'Profesional'}).`;
-                                    
-                                    try {
-                                        const vcardMedia: any = {
-                                            type: 'document',
-                                            url: data.vcf_url,
-                                            filename: `${data.client.nombre.replace(/\s+/g, '_')}.vcf`,
-                                            caption: captionText
+                                        const [existingContact] = await db.select().from(contacts).where(eq(contacts.id, capturedContactId)).limit(1);
+                                        let research = (existingContact?.researchData as any) || {};
+                                        if (typeof research !== 'object') research = {};
+                                        research.activaqr = {
+                                            slug: data.client.slug,
+                                            clientName: data.client.nombre,
+                                            clientEmpresa: data.client.empresa,
+                                            clientWhatsapp: data.client.whatsapp,
+                                            scannedAt: new Date().toISOString()
                                         };
-                                        const vcardResult = await whatsappService.sendMessage(from, '', { source: 'qr_vcard_dynamic_auto' }, vcardMedia);
-                                        if (vcardResult?.success !== false) {
-                                            vcardSent = true;
-                                            console.log('✅ [Dynamic VCard] Enviado via Meta API');
-                                        }
-                                    } catch (metaErr: any) {
-                                        console.warn('⚠️ [Dynamic VCard] Meta API falló, intentando Evolution API...', metaErr.message);
+                                        await db.update(contacts).set({
+                                            botMode: 'paused' as any,
+                                            source: 'activaqr_vcard',
+                                            researchData: research
+                                        }).where(eq(contacts.id, capturedContactId));
+                                    } catch (enrichErr: any) {
+                                        // No es fatal — el envío puede continuar igual
+                                        console.error('⚠️ [QR_VCARD_DYNAMIC] Error enriqueciendo contacto (no fatal):', enrichErr.message);
                                     }
+                                }
 
-                                    // Evolution API fallback
-                                    if (!vcardSent) {
+                                // Pausa de IA 1h (non-critical)
+                                await db.insert(donnaChatMessages).values({
+                                    chatId: capturedFrom,
+                                    role: 'assistant',
+                                    content: `[Sistema] IA pausada 1h — QR de ${data.client.nombre} (Networking)`,
+                                    platform: 'whatsapp',
+                                    messageTimestamp: new Date(),
+                                    metadata: { source: 'crm_human_agent', humanPausedUntil: new Date(Date.now() + 3600000).toISOString() }
+                                }).catch(() => {});
+
+                                // ── 3. ENVIAR EL .vcf ─────────────────────────────────────────
+                                const captionText = `Aquí tienes el contacto de *${data.client.nombre}* (${data.client.profesion || 'Profesional'}).`;
+
+                                // Estrategia A: Meta Cloud API (primaria — URL directa)
+                                try {
+                                    const vcardResult = await whatsappService.sendMessage(capturedFrom, '', { source: 'qr_vcard_dynamic_auto' }, {
+                                        type: 'document',
+                                        url: data.vcf_url,
+                                        filename: `${data.client.nombre.replace(/\s+/g, '_')}.vcf`,
+                                        caption: captionText
+                                    });
+                                    if (vcardResult?.success !== false) {
+                                        vcardSent = true;
+                                        deliveryMethod = 'meta_api';
+                                        console.log(`✅ [QR_VCARD_DYNAMIC] vCard enviado via Meta API | ${capturedFrom}`);
+                                    }
+                                } catch (metaErr: any) {
+                                    console.warn(`⚠️ [QR_VCARD_DYNAMIC] Meta API falló, activando Evolution fallback: ${metaErr.message}`);
+                                }
+
+                                // Estrategia B: Evolution API (fallback — Base64)
+                                if (!vcardSent) {
+                                    const evoUrl = process.env.WHATSAPP_API_URL;
+                                    const evoKey = process.env.WHATSAPP_API_KEY;
+                                    const evoInstance = process.env.WHATSAPP_INSTANCE_NAME;
+                                    if (evoUrl && evoKey && evoInstance) {
                                         try {
-                                            const evoUrl = process.env.WHATSAPP_API_URL;
-                                            const evoKey = process.env.WHATSAPP_API_KEY;
-                                            const evoInstance = process.env.WHATSAPP_INSTANCE_NAME;
-
-                                            if (evoUrl && evoKey && evoInstance) {
-                                                const vcfResponse = await fetch(data.vcf_url);
-                                                if (vcfResponse.ok) {
-                                                    const arrayBuffer = await vcfResponse.arrayBuffer();
-                                                    const vcfBase64 = Buffer.from(arrayBuffer).toString('base64');
-                                                    const evoPayload = {
-                                                        number: from,
-                                                        mediatype: 'document',
-                                                        mimetype: 'text/vcard',
-                                                        media: vcfBase64,
-                                                        fileName: `${data.client.nombre.replace(/\s+/g, '_')}.vcf`,
-                                                        caption: captionText
-                                                    };
-
-                                                    const evoRes = await fetch(`${evoUrl}/message/sendMedia/${evoInstance}`, {
-                                                        method: 'POST',
-                                                        headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-                                                        body: JSON.stringify(evoPayload)
-                                                    });
-
-                                                    if (evoRes.ok) {
-                                                        console.log('✅ [Dynamic VCard] Enviado via Evolution API (fallback)');
-                                                        vcardSent = true;
-                                                    } else {
-                                                        const evoErr = await evoRes.json();
-                                                        console.error('❌ [Dynamic VCard] Evolution API también falló:', evoErr);
-                                                    }
+                                            const vcfResponse = await fetch(data.vcf_url);
+                                            if (vcfResponse.ok) {
+                                                const vcfBase64 = Buffer.from(await vcfResponse.arrayBuffer()).toString('base64');
+                                                const evoRes = await fetch(`${evoUrl}/message/sendMedia/${evoInstance}`, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                                                    body: JSON.stringify({
+                                                        number: capturedFrom, mediatype: 'document', mimetype: 'text/vcard',
+                                                        media: vcfBase64, fileName: `${data.client.nombre.replace(/\s+/g, '_')}.vcf`, caption: captionText
+                                                    })
+                                                });
+                                                if (evoRes.ok) {
+                                                    vcardSent = true;
+                                                    deliveryMethod = 'evolution_api';
+                                                    console.log(`✅ [QR_VCARD_DYNAMIC] vCard enviado via Evolution (fallback) | ${capturedFrom}`);
+                                                } else {
+                                                    const evoErrBody = await evoRes.json().catch(() => ({}));
+                                                    console.error('❌ [QR_VCARD_DYNAMIC] Evolution también falló:', evoErrBody);
                                                 }
                                             }
                                         } catch (evoErr: any) {
-                                            console.error('❌ [Dynamic VCard] Error en fallback Evolution:', evoErr.message);
+                                            console.error('❌ [QR_VCARD_DYNAMIC] Exception en Evolution fallback:', evoErr.message);
                                         }
                                     }
-
-                                    // Enviar instrucciones de guardado de contacto inmediatamente
-                                    const instructionsText = `Para guardar el contacto:\n1. Toca la tarjeta de arriba.\n2. Selecciona "Guardar" o "Añadir a contactos".\n\n¡Perfecto! Ya quedaste registrado. 📱`;
-                                    try {
-                                        await whatsappService.sendMessage(from, instructionsText, { source: 'qr_vcard_dynamic_instructions' });
-                                    } catch (instErr) {
-                                        console.error('❌ Error enviando instrucciones dinámicas:', instErr);
-                                    }
-
-                                    // Guardar al cliente en Google Contacts automáticamente
-                                    const googleContacts = getGoogleContactsService();
-                                    let contactProfileName = value?.contacts?.[0]?.profile?.name || `WhatsApp ${from.slice(-4)}`;
-                                    console.log(`👤 [GoogleContacts] Sincronizando contacto dinámico: ${contactProfileName} (${from})`);
-                                    if (googleContacts) {
-                                        googleContacts.createContact(from, contactProfileName)
-                                            .then(res => {
-                                                if (res) console.log(`✅ [GoogleContacts] Sincronización exitosa: ${res}`);
-                                            })
-                                            .catch(e => console.error(`❌ [GoogleContacts] Error en Google Contacts:`, e));
-                                    }
                                 }
-                            } else {
-                                console.error(`❌ Error consultando vCard en ActivaQR: ${response.statusText}`);
+
+                                scanStatus = vcardSent ? 'success' : 'send_failed';
+                                if (!vcardSent) {
+                                    errorDetail = 'Both Meta API and Evolution API failed to deliver the vCard';
+                                    console.error(`❌ [QR_VCARD_DYNAMIC] ${errorDetail} | ${capturedFrom}`);
+                                    // Avisamos al usuario que algo salió mal en el envío
+                                    await whatsappService.sendMessage(capturedFrom, 'No pudimos enviarte el contacto en este momento. Inténtalo de nuevo en unos minutos. 🙏').catch(() => {});
+                                } else {
+                                    // Instrucciones de guardado solo si la entrega fue exitosa
+                                    await whatsappService.sendMessage(capturedFrom,
+                                        `Para guardar el contacto:\n1. Toca la tarjeta de arriba.\n2. Selecciona "Guardar" o "Añadir a contactos".\n\n¡Perfecto! Ya quedaste registrado. 📱`,
+                                        { source: 'qr_vcard_dynamic_instructions' }
+                                    ).catch(() => {});
+                                }
+
+                                // Google Contacts sync (fire & forget — no bloquea el flujo)
+                                const googleContacts = getGoogleContactsService();
+                                if (googleContacts) {
+                                    googleContacts.createContact(capturedFrom, capturedProfileName)
+                                        .then(res => { if (res) console.log(`✅ [GoogleContacts] Sincronizado: ${capturedFrom}`); })
+                                        .catch(e => console.error(`❌ [GoogleContacts] Error (no fatal):`, e.message));
+                                }
+
+                            } catch (err: any) {
+                                scanStatus = 'exception';
+                                errorDetail = err.message || 'Unknown exception';
+                                console.error('❌ [QR_VCARD_DYNAMIC] Unhandled exception in waitUntil:', errorDetail);
+                                // Último recurso: avisar al usuario
+                                await whatsappService.sendMessage(capturedFrom, 'Hubo un error inesperado. Por favor escanea el QR de nuevo. 🙏').catch(() => {});
+
+                            } finally {
+                                // ── AUDIT LOG PERMANENTE ──────────────────────────────────────
+                                // Este bloque se ejecuta SIEMPRE: éxito, error de API, o excepción.
+                                // Es la fuente de verdad para métricas de clientes y depuración.
+                                // Consulta de ejemplo: SELECT * FROM interactions
+                                //   WHERE metadata->>'source' = 'qr_vcard_scan'
+                                //   AND metadata->>'slug' = 'tu-slug-aqui'
+                                //   ORDER BY "performedAt" DESC;
+                                try {
+                                    await db.insert(interactions).values({
+                                        contactId: capturedContactId,
+                                        discoveryLeadId: capturedDiscoveryLeadId,
+                                        type: 'whatsapp',
+                                        content: `Contacto:${capturedSlug}`,
+                                        direction: 'inbound',
+                                        performedAt: new Date(),
+                                        createdAt: new Date(),
+                                        metadata: {
+                                            source: 'qr_vcard_scan',
+                                            slug: capturedSlug,
+                                            status: scanStatus,          // ← éxito o tipo de falla exacto
+                                            delivery_method: deliveryMethod, // ← cómo se entregó
+                                            error_detail: errorDetail,   // ← por qué falló (si aplica)
+                                            phone: capturedFrom,         // ← quién escaneó
+                                            client: clientData,          // ← datos del dueño del QR
+                                        }
+                                    });
+                                    console.log(`📊 [QR_VCARD_AUDIT] slug=${capturedSlug} | from=${capturedFrom} | status=${scanStatus} | via=${deliveryMethod}`);
+                                } catch (logErr: any) {
+                                    // Si esto falla, al menos queda en los logs de Vercel
+                                    console.error('🚨 [QR_VCARD_AUDIT] CRITICAL: Failed to write audit log to DB:', logErr.message);
+                                }
                             }
-                        } catch (apiErr) {
-                            console.error('❌ Error llamando a API ActivaQR:', apiErr);
-                        }
+                        })());
                     }
+
+                    // ✅ 200 a Meta INMEDIATAMENTE (< 100ms) — independiente de lo que haga waitUntil
                     return NextResponse.json({ status: 'dynamic_vcard_intercepted' });
                 }
 
