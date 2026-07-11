@@ -139,6 +139,13 @@ export interface FichaCliente {
   campana_ad?: string;   // Nombre o ID del anuncio que vio el lead
   ad_interes?: string;   // Producto del anuncio: contacto_digital, business, etc.
   fbads?: { contador: number; paso: number };
+  contacto_digital_funnel?: {
+    paso: 0 | 1 | 2 | 3 | 4 | 5;
+    nodo3_enviado_at?: string;
+    bot_pausado?: boolean;
+    pago_confirmado?: boolean;
+    recuperacion_enviada?: boolean;
+  };
   [key: string]: any;
 }
 
@@ -867,6 +874,125 @@ async function ejecutarOnboarding(
 }
 
 // ═══════════════════════════════════════════
+// FUNNEL CONTACTO DIGITAL (DETERMINISTA FB ADS)
+// ═══════════════════════════════════════════
+
+function ejecutarFunnelContactoDigital(texto: string, ficha: FichaCliente): ResultadoActivaQR {
+  if (!ficha.contacto_digital_funnel) {
+    ficha.contacto_digital_funnel = { paso: 0 };
+  }
+  const estado = ficha.contacto_digital_funnel;
+  const textoLimpio = texto.toLowerCase().trim();
+  const tel = ficha.numero || 'unknown';
+
+  // Si está pausado (Handoff a César), no responde, deja que el worker o humano lo maneje
+  if (estado.bot_pausado) {
+    return { respuesta: null, nuevaFicha: ficha, transferir: false };
+  }
+
+  // Keywords comunes
+  const keywordsInfo = ['info', 'información', 'informacion', 'cómo funciona', 'como funciona', 'de qué trata', 'de que trata', 'video', 'detalles', 'si', 'claro', 'dale', 'de una', 'okay', 'ok'];
+  const keywordsSi = ['sí', 'si', 'claro', 'dale', 'envíame', 'enviame', 'pasame el link', 'pásame el link', 'okay', 'ok', 'de una', 'arrancar', 'quiero', 'info', 'enlace', 'link', 'pasame', 'pásame', 'manda', 'mandame', 'enviar'];
+  const keywordsObjecion = ['pensar', 'luego', 'caro', 'después', 'despues', 'mañana', 'consultar', 'duda', 'no sé', 'no se', 'precio', 'cuanto', 'cuánto', 'cuel'];
+
+  // APERTURAS POR SLUG
+  const APERTURAS: Record<string, string> = {
+    'cd_medico': '¡Hola Doc! Veo que vienes del video. Después de tantos años de estudio y práctica médica, no es justo que los pacientes compartan tu contacto de forma informal perdiendo todo tu prestigio. ¿Te preparo ahora mismo tu código QR para que cuando te recomienden, lleves toda tu información profesional como una hoja de vida?',
+    'cd_abogado': '¡Hola! Veo que vienes del video sobre el contacto digital. Asumo que estás buscando que tus clientes te guarden en su agenda para no perder más ventas, ¿verdad? Si es así, ¿te preparo ahora mismo tu código QR para que lo puedas imprimir y usar hoy?', // TODO: Actualizar según reel
+    'cd_taxi': '¡Hola! Veo que vienes del video sobre el contacto digital. Asumo que estás buscando que tus clientes te guarden en su agenda para no perder más ventas, ¿verdad? Si es así, ¿te preparo ahora mismo tu código QR para que lo puedas imprimir y usar hoy?', // TODO: Actualizar según reel
+    'cd_realty': '¡Hola! Veo que vienes del video sobre el contacto digital. Asumo que estás buscando que tus clientes te guarden en su agenda para no perder más ventas, ¿verdad? Si es así, ¿te preparo ahora mismo tu código QR para que lo puedas imprimir y usar hoy?', // TODO: Actualizar según reel
+    'cd_arq': '¡Hola! Veo que vienes del video sobre el contacto digital. Asumo que estás buscando que tus clientes te guarden en su agenda para no perder más ventas, ¿verdad? Si es así, ¿te preparo ahora mismo tu código QR para que lo puedas imprimir y usar hoy?', // TODO: Actualizar según reel
+    'default': '¡Hola! Veo que vienes del video sobre el contacto digital. Asumo que estás buscando que tus clientes te guarden en su agenda para no perder más ventas, ¿verdad? Si es así, ¿te preparo ahora mismo tu código QR para que lo puedas imprimir y usar hoy?'
+  };
+
+  const getSlugKey = (campana: string | undefined): string => {
+    if (!campana) return 'default';
+    const c = campana.toLowerCase();
+    if (c.includes('cd_medico')) return 'cd_medico';
+    if (c.includes('cd_abogado')) return 'cd_abogado';
+    if (c.includes('cd_taxi')) return 'cd_taxi';
+    if (c.includes('cd_realty')) return 'cd_realty';
+    if (c.includes('cd_arq')) return 'cd_arq';
+    return 'default';
+  };
+
+  // ── NODO 4: HANDOFF (Prioritario si hay objeción en cualquier paso antes del cierre)
+  if (keywordsObjecion.some(k => textoLimpio.includes(k))) {
+    log('FUNNEL-CD', tel, 'Nodo 4: Objeción detectada, pausando bot y notificando a César');
+    estado.bot_pausado = true;
+    
+    // Notificar a César vía webhook (lo maneja CortexRouter o worker si transferir=true)
+    ficha.motivo_transferencia = `Objeción funnel Contacto Digital: "${texto}"`;
+    ficha.contacto_humano_solicitado = true;
+
+    return {
+      respuesta: 'Comprendo perfectamente. Sé que al implementar nuevas herramientas para tu profesión es vital tener la total seguridad de que estás respaldado por una empresa real, que cumple y que tiene experiencia comprobada.\n\nPara darte esa confianza, te voy a comunicar en este momento con César, nuestro director. Él te va a atender personalmente para explicarte los detalles y resolver cualquier inquietud sin compromiso.\n\nDame un segundo, ya le notifico para que tome el chat.',
+      nuevaFicha: ficha,
+      transferir: true,
+      motivoTransferencia: ficha.motivo_transferencia
+    };
+  }
+
+  // ── NODO 1: APERTURA
+  if (estado.paso === 0) {
+    log('FUNNEL-CD', tel, 'Nodo 1: Apertura');
+    estado.paso = 1;
+    // Marcar onboarding como completado para que el orquestador no moleste en el futuro
+    if (!ficha.sesion) ficha.sesion = {};
+    ficha.sesion.onboarding_completado = true;
+    
+    const slugKey = getSlugKey(ficha.campana_ad);
+    return {
+      respuesta: APERTURAS[slugKey] || APERTURAS['default'],
+      nuevaFicha: ficha,
+      transferir: false
+    };
+  }
+
+  // ── NODO 2: ENTREGA DE VALOR Y FILTRO
+  if (estado.paso === 1 && keywordsInfo.some(k => textoLimpio.includes(k))) {
+    // Si dice "si", y estaba en paso 1, saltamos directo al Nodo 3
+    if (keywordsSi.some(k => textoLimpio === k || textoLimpio.startsWith(k + ' ') || textoLimpio.endsWith(' ' + k))) {
+      // Dejar que caiga al Nodo 3
+    } else {
+      log('FUNNEL-CD', tel, 'Nodo 2: Entrega de Video');
+      estado.paso = 2;
+      return {
+        // En evolution, enviamos un identificador o usamos [Multimedia...] simulado si no podemos inyectar media directo aquí.
+        // PERO brain.ts solo devuelve texto. Para enviar el video, necesitamos usar un comando especial que Cortex/Worker reconozcan, 
+        // o mandar un texto con la URL para que whatsappService lo parsee. 
+        // Actualmente, vamos a enviar la URL cruda si es necesario, o depender de que whatsappService (en CortexRouter/Worker) maneje la magia.
+        // Lo más seguro: enviar el texto. Si queremos adjunto, podemos usar una convención como [VIDEO|URL|Caption].
+        // Para simplificar: enviamos texto + link al video. (Ajustaremos el worker si es necesario enviar media real).
+        respuesta: '[VIDEO|https://cesarweb.b-cdn.net/activaqr/Contacto%20Digital.mp4]\nTe lo resumo en este video de 30 segundos. Como ves, el trabajo pesado lo hacemos nosotros para que tú solo escanees y vendas. \n\nSolo necesito los datos de tu negocio para generar el código. ¿Te envío el enlace para arrancar ahora mismo?',
+        nuevaFicha: ficha,
+        transferir: false
+      };
+    }
+  }
+
+  // ── NODO 3: CIERRE DIRECTO
+  if ((estado.paso === 1 || estado.paso === 2) && keywordsSi.some(k => textoLimpio.includes(k))) {
+    log('FUNNEL-CD', tel, 'Nodo 3: Cierre (Envío Checkout)');
+    estado.paso = 3;
+    estado.nodo3_enviado_at = new Date().toISOString();
+    return {
+      respuesta: 'Perfecto. Entra a este enlace: https://activaqr.com/registro?plan=digital&step=2 \n\n1. Llena los datos de tu clínica/consultorio (incluye tu logo).\n2. Realiza tu pago seguro al final del formulario.\n3. Apenas se confirme, mi sistema te enviará por aquí mismo tu QR listo para imprimir.\n\nAvísame apenas lo completes para priorizar tu activación en nuestro servidor.',
+      nuevaFicha: ficha,
+      transferir: false
+    };
+  }
+
+  // ── FALLBACK 
+  // Si no entendió, pero está en el funnel, respondemos con el agente base para no quedar sordos
+  log('FUNNEL-CD', tel, 'Input no coincide con keywords del funnel, delegando a IA fallback');
+  // Usamos el fallback de clasificador normal si no matcheo, pero con la info de la ficha
+  // (Nota: podríamos forzar `return ejecutarAgenteExperto` aquí, pero para no romper el async, 
+  // simplemente devolvemos null para que el orquestador principal lo procese con IA)
+  return { respuesta: null, nuevaFicha: ficha, transferir: false };
+}
+
+// ═══════════════════════════════════════════
 // FUNCIÓN PRINCIPAL (ENTRY POINT)
 // ═══════════════════════════════════════════
 
@@ -948,6 +1074,13 @@ export async function procesarMensajeActivaQR(
       nuevaFicha: ficha,
       transferir: false,
     };
+  }
+
+  // ─── FUNNEL CONTACTO DIGITAL (Determinista, prioridad máxima) ───
+  const SLUGS_CD = ['cd_medico', 'cd_abogado', 'cd_taxi', 'cd_realty', 'cd_arq', 'cd_ads_2026'];
+  if (ficha.fuente_origen === 'fbads' && SLUGS_CD.some(slug => 
+      (ficha.campana_ad || '').toLowerCase().includes(slug))) {
+    return ejecutarFunnelContactoDigital(texto, ficha);
   }
 
   // ─── SALUDO (sync, sin LLM) ───

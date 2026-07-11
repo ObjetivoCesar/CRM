@@ -828,8 +828,34 @@ async function processQueue() {
                                         }
 
                                         if (clientMessage) {
-                                            console.log(`🤖 Ale responde a ${chat.chatId}: "${clientMessage.substring(0, 60)}..."`);
-                                            await messagingService.send(chat.chatId, clientMessage, { platform: chatPlatform });
+                                            // ── DETECTAR MEDIA EN LA RESPUESTA (Ej: [VIDEO|url]) ──
+                                            let finalMsg = clientMessage;
+                                            let videoUrl: string | null = null;
+                                            
+                                            const videoMatch = finalMsg.match(/\[VIDEO\|([^\]]+)\]/);
+                                            if (videoMatch) {
+                                                videoUrl = videoMatch[1].trim();
+                                                finalMsg = finalMsg.replace(videoMatch[0], '').trim();
+                                            }
+
+                                            console.log(`🤖 Ale responde a ${chat.chatId}: "${finalMsg.substring(0, 60)}..."`);
+                                            
+                                            if (videoUrl && chatPlatform === 'whatsapp') {
+                                                // Enviar el video
+                                                console.log(`🎥 Enviando video a ${chat.chatId}: ${videoUrl}`);
+                                                try {
+                                                    // Usamos whatsappService directamente para enviar media en WhatsApp (Meta o Evolution manejado según config)
+                                                    // Si MessagingService aún no abstrae el objeto media a todos los adapters, whatsappService sí lo hace.
+                                                    // Usaremos la abstracción existente de whatsappService
+                                                    await whatsappService.sendMessage(chat.chatId, '', { platform: chatPlatform }, { type: 'video', url: videoUrl, caption: finalMsg });
+                                                } catch (e) {
+                                                    console.error('Error enviando video:', e);
+                                                    // Fallback
+                                                    await messagingService.send(chat.chatId, finalMsg, { platform: chatPlatform });
+                                                }
+                                            } else {
+                                                await messagingService.send(chat.chatId, finalMsg, { platform: chatPlatform });
+                                            }
                                         }
 
                                         if (briefMessage) {
@@ -1008,6 +1034,83 @@ console.log('👷 Message Worker started (High Concurrency Ready)...');
 
     // Run idle check every minute
     setInterval(checkIdleConversations, 60 * 1000);
+
+    // ─── 🛒 NODO 5: RECUPERACIÓN CARRITO ABANDONADO (CONTACTO DIGITAL) ───
+    async function checkAbandonedCartsCD() {
+        if (isShuttingDown) return;
+        try {
+            const now = new Date();
+            const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+            
+            // Buscamos estados actualizados hace más de 4 horas (para no escanear toda la BD)
+            // Nos traemos los de las últimas 24h para estar seguros
+            const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+            const states = await db.select()
+                .from(conversationStates)
+                .where(and(
+                    sql`updated_at >= ${twentyFourHoursAgo.toISOString()}`,
+                    sql`updated_at <= ${fourHoursAgo.toISOString()}`
+                ));
+
+            for (const state of states) {
+                if (!state.data) continue;
+                const parsed = typeof state.data === 'string' ? JSON.parse(state.data as string) : state.data;
+                const ficha = parsed.ficha || parsed;
+
+                const funnel = ficha.contacto_digital_funnel;
+                if (!funnel) continue;
+                
+                // Condición del Nodo 5
+                if (
+                    funnel.paso === 3 &&
+                    funnel.nodo3_enviado_at &&
+                    !funnel.pago_confirmado &&
+                    !funnel.bot_pausado &&
+                    !funnel.recuperacion_enviada
+                ) {
+                    const sentAt = new Date(funnel.nodo3_enviado_at);
+                    const diffHours = (now.getTime() - sentAt.getTime()) / (1000 * 60 * 60);
+
+                    // Si pasaron 4 horas o más
+                    if (diffHours >= 4) {
+                        console.log(`🛒 [FUNNEL-CD] Nodo 5: Recuperando carrito abandonado para ${state.key} (${diffHours.toFixed(1)}h)`);
+                        
+                        const msg = "¡Hola de nuevo! Solo te escribo para avisarte que sigo teniendo tu espacio en el servidor reservado para generar tu código hoy. ¿Tuviste algún inconveniente técnico con el formulario o el método de pago? Avísame y te ayudo a resolverlo rápido.";
+                        
+                        try {
+                            // Enviar mensaje
+                            await messagingService.send(state.key, msg, { platform: 'whatsapp' });
+
+                            // Actualizar ficha
+                            funnel.recuperacion_enviada = true;
+                            funnel.paso = 5; // Lo movemos de paso para que no se repita
+                            await db.update(conversationStates)
+                                .set({ data: JSON.stringify({ ficha }), updatedAt: new Date() })
+                                .where(eq(conversationStates.key, state.key));
+
+                            // Guardar en log/history
+                            await db.insert(donnaChatMessages).values({
+                                chatId: state.key,
+                                role: 'assistant',
+                                content: msg,
+                                platform: 'whatsapp',
+                                messageTimestamp: new Date(),
+                                metadata: { source: 'funnel_cd_nodo5' }
+                            });
+                        } catch (err) {
+                            console.error(`❌ [FUNNEL-CD] Error en recuperación de carrito para ${state.key}:`, err);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("❌ Error checking abandoned carts CD:", error);
+        }
+    }
+
+    // Correr revisión de carritos abandonados cada 10 minutos
+    setInterval(checkAbandonedCartsCD, 10 * 60 * 1000);
 
     // Auto-Reactivation checker for seen contacts (run every 5 minutes)
     async function checkReactivationConversations() {

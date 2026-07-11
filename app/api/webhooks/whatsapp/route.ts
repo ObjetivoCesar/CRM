@@ -202,6 +202,171 @@ export async function POST(req: Request) {
                         .where(eq(contacts.id, contactId));
                 }
 
+                // 3.4. INTERCEPT DYNAMIC QR CODES (Contacto:slug)
+                if (content.trim().toLowerCase().startsWith('contacto:')) {
+                    const slug = content.split(':')[1]?.trim();
+                    console.log(`📇 [QR_VCARD_DYNAMIC] Intercepted dynamic VCard request for slug: ${slug} from ${from}`);
+                    
+                    if (slug) {
+                        try {
+                            // 1. Consultar datos en la API de ActivaQR
+                            const response = await fetch(`https://activaqr.com/api/external/vcard?slug=${slug}`, {
+                                method: 'GET',
+                                headers: {
+                                    'x-api-key': 'activaqr-ext-m3ta-b0t-2026-s3cur3',
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                            
+                            if (response.ok) {
+                                const data = await response.json();
+                                if (data.success && data.vcf_url) {
+                                    // Log the incoming message interaction in DB so it's visible in the CRM
+                                    await db.insert(interactions).values({
+                                        contactId: contactId,
+                                        discoveryLeadId: discoveryLeadId,
+                                        type: 'whatsapp',
+                                        content: content,
+                                        direction: 'inbound',
+                                        performedAt: new Date(),
+                                        createdAt: new Date(),
+                                        metadata: { 
+                                            source: 'qr_vcard_scan',
+                                            slug: slug,
+                                            client: data.client
+                                        }
+                                    });
+
+                                    // Pausa de IA por 1 hora (Networking Humano) e inclusión de metadatos de ActivaQR
+                                    try {
+                                        if (contactId) {
+                                            const existingContact = await db.select().from(contacts).where(eq(contacts.id, contactId)).limit(1);
+                                            let research = (existingContact[0]?.researchData as any) || {};
+                                            if (typeof research !== 'object') research = {};
+                                            
+                                            research.activaqr = {
+                                                slug: data.client.slug,
+                                                clientName: data.client.nombre,
+                                                clientEmpresa: data.client.empresa,
+                                                clientWhatsapp: data.client.whatsapp,
+                                                scannedAt: new Date().toISOString()
+                                            };
+
+                                            await db.update(contacts).set({ 
+                                                botMode: 'paused' as any,
+                                                source: 'activaqr_vcard',
+                                                researchData: research
+                                            }).where(eq(contacts.id, contactId));
+                                        }
+                                        
+                                        const pauseUntil = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+                                        await db.insert(donnaChatMessages).values({
+                                            chatId: from,
+                                            role: 'assistant',
+                                            content: `[Sistema] IA pausada por 1 hora por escaneo de QR de ${data.client.nombre} (Networking)`,
+                                            platform: 'whatsapp',
+                                            messageTimestamp: new Date(),
+                                            metadata: { 
+                                                source: 'crm_human_agent', 
+                                                humanPausedUntil: pauseUntil.toISOString() 
+                                            }
+                                        });
+                                        console.log(`⏸️ [QR_VCARD_DYNAMIC] IA pausada automáticamente por 1 hora para ${from}`);
+                                    } catch (pauseErr) {
+                                        console.error('❌ Error pausando IA para VCard Dinámico:', pauseErr);
+                                    }
+
+                                    // Enviar archivo .vcf
+                                    let vcardSent = false;
+                                    const captionText = `Aquí tienes el contacto de *${data.client.nombre}* (${data.client.profesion || 'Profesional'}).`;
+                                    
+                                    try {
+                                        const vcardMedia: any = {
+                                            type: 'document',
+                                            url: data.vcf_url,
+                                            filename: `${data.client.nombre.replace(/\s+/g, '_')}.vcf`,
+                                            caption: captionText
+                                        };
+                                        const vcardResult = await whatsappService.sendMessage(from, '', { source: 'qr_vcard_dynamic_auto' }, vcardMedia);
+                                        if (vcardResult?.success !== false) {
+                                            vcardSent = true;
+                                            console.log('✅ [Dynamic VCard] Enviado via Meta API');
+                                        }
+                                    } catch (metaErr: any) {
+                                        console.warn('⚠️ [Dynamic VCard] Meta API falló, intentando Evolution API...', metaErr.message);
+                                    }
+
+                                    // Evolution API fallback
+                                    if (!vcardSent) {
+                                        try {
+                                            const evoUrl = process.env.WHATSAPP_API_URL;
+                                            const evoKey = process.env.WHATSAPP_API_KEY;
+                                            const evoInstance = process.env.WHATSAPP_INSTANCE_NAME;
+
+                                            if (evoUrl && evoKey && evoInstance) {
+                                                const vcfResponse = await fetch(data.vcf_url);
+                                                if (vcfResponse.ok) {
+                                                    const arrayBuffer = await vcfResponse.arrayBuffer();
+                                                    const vcfBase64 = Buffer.from(arrayBuffer).toString('base64');
+                                                    const evoPayload = {
+                                                        number: from,
+                                                        mediatype: 'document',
+                                                        mimetype: 'text/vcard',
+                                                        media: vcfBase64,
+                                                        fileName: `${data.client.nombre.replace(/\s+/g, '_')}.vcf`,
+                                                        caption: captionText
+                                                    };
+
+                                                    const evoRes = await fetch(`${evoUrl}/message/sendMedia/${evoInstance}`, {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                                                        body: JSON.stringify(evoPayload)
+                                                    });
+
+                                                    if (evoRes.ok) {
+                                                        console.log('✅ [Dynamic VCard] Enviado via Evolution API (fallback)');
+                                                        vcardSent = true;
+                                                    } else {
+                                                        const evoErr = await evoRes.json();
+                                                        console.error('❌ [Dynamic VCard] Evolution API también falló:', evoErr);
+                                                    }
+                                                }
+                                            }
+                                        } catch (evoErr: any) {
+                                            console.error('❌ [Dynamic VCard] Error en fallback Evolution:', evoErr.message);
+                                        }
+                                    }
+
+                                    // Enviar instrucciones de guardado de contacto inmediatamente
+                                    const instructionsText = `Para guardar el contacto:\n1. Toca la tarjeta de arriba.\n2. Selecciona "Guardar" o "Añadir a contactos".\n\n¡Perfecto! Ya quedaste registrado. 📱`;
+                                    try {
+                                        await whatsappService.sendMessage(from, instructionsText, { source: 'qr_vcard_dynamic_instructions' });
+                                    } catch (instErr) {
+                                        console.error('❌ Error enviando instrucciones dinámicas:', instErr);
+                                    }
+
+                                    // Guardar al cliente en Google Contacts automáticamente
+                                    const googleContacts = getGoogleContactsService();
+                                    let contactProfileName = value?.contacts?.[0]?.profile?.name || `WhatsApp ${from.slice(-4)}`;
+                                    console.log(`👤 [GoogleContacts] Sincronizando contacto dinámico: ${contactProfileName} (${from})`);
+                                    if (googleContacts) {
+                                        googleContacts.createContact(from, contactProfileName)
+                                            .then(res => {
+                                                if (res) console.log(`✅ [GoogleContacts] Sincronización exitosa: ${res}`);
+                                            })
+                                            .catch(e => console.error(`❌ [GoogleContacts] Error en Google Contacts:`, e));
+                                    }
+                                }
+                            } else {
+                                console.error(`❌ Error consultando vCard en ActivaQR: ${response.statusText}`);
+                            }
+                        } catch (apiErr) {
+                            console.error('❌ Error llamando a API ActivaQR:', apiErr);
+                        }
+                    }
+                    return NextResponse.json({ status: 'dynamic_vcard_intercepted' });
+                }
+
                 // 3.5. INTERCEPT SPECIAL QR CODES (e.g. VCard)
                 if (content.toLowerCase().includes('#activa-vcf')) {
                     console.log(`📇 [QR_VCARD] Intercepted VCard request from ${from}`);
