@@ -345,7 +345,17 @@ export async function POST(req: Request) {
                                 }).catch(() => {});
 
                                 // ── 3. ENVIAR EL .vcf ─────────────────────────────────────────
-                                const captionText = `Aquí tienes el contacto de *${data.client.nombre}* (${data.client.profesion || 'Profesional'}).`;
+                                // El mensaje habla en nombre del cliente (comercio/profesional)
+                                // no en nombre del sistema. "Soy X, aquí mi contacto digital."
+                                const clientIdentifier = data.client.empresa
+                                    ? `${data.client.nombre} de *${data.client.empresa}*`
+                                    : data.client.profesion
+                                        ? `${data.client.nombre} — ${data.client.profesion}`
+                                        : `*${data.client.nombre}*`;
+
+                                const vcfCaption =
+                                    `¡Hola! 👋 Te comparto el contacto digital de ${clientIdentifier}.\n` +
+                                    `Guárdalo para tener siempre sus datos a la mano. 🤝`;
 
                                 // Estrategia A: Meta Cloud API (primaria — URL directa)
                                 try {
@@ -353,7 +363,7 @@ export async function POST(req: Request) {
                                         type: 'document',
                                         url: data.vcf_url,
                                         filename: `${data.client.nombre.replace(/\s+/g, '_')}.vcf`,
-                                        caption: captionText
+                                        caption: vcfCaption
                                     });
                                     if (vcardResult?.success !== false) {
                                         vcardSent = true;
@@ -379,7 +389,7 @@ export async function POST(req: Request) {
                                                     headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
                                                     body: JSON.stringify({
                                                         number: capturedFrom, mediatype: 'document', mimetype: 'text/vcard',
-                                                        media: vcfBase64, fileName: `${data.client.nombre.replace(/\s+/g, '_')}.vcf`, caption: captionText
+                                                        media: vcfBase64, fileName: `${data.client.nombre.replace(/\s+/g, '_')}.vcf`, caption: vcfCaption
                                                     })
                                                 });
                                                 if (evoRes.ok) {
@@ -401,14 +411,23 @@ export async function POST(req: Request) {
                                 if (!vcardSent) {
                                     errorDetail = 'Both Meta API and Evolution API failed to deliver the vCard';
                                     console.error(`❌ [QR_VCARD_DYNAMIC] ${errorDetail} | ${capturedFrom}`);
-                                    // Avisamos al usuario que algo salió mal en el envío
-                                    await whatsappService.sendMessage(capturedFrom, 'No pudimos enviarte el contacto en este momento. Inténtalo de nuevo en unos minutos. 🙏').catch(() => {});
-                                } else {
-                                    // Instrucciones de guardado solo si la entrega fue exitosa
                                     await whatsappService.sendMessage(capturedFrom,
-                                        `Para guardar el contacto:\n1. Toca la tarjeta de arriba.\n2. Selecciona "Guardar" o "Añadir a contactos".\n\n¡Perfecto! Ya quedaste registrado. 📱`,
-                                        { source: 'qr_vcard_dynamic_instructions' }
+                                        'No pudimos enviarte el contacto en este momento. Inténtalo de nuevo en unos minutos. 🙏'
                                     ).catch(() => {});
+                                } else {
+                                    // ── Video tutorial de cómo guardar el contacto ──────────────
+                                    // Se envía solo si el .vcf llegó exitosamente.
+                                    // Reemplaza las instrucciones de texto plano con un video claro.
+                                    await whatsappService.sendMessage(
+                                        capturedFrom,
+                                        '',
+                                        { source: 'qr_vcard_tutorial_video' },
+                                        {
+                                            type: 'video',
+                                            url: 'https://cesarweb.b-cdn.net/activaqr/tuto-contacto%20digital.mp4',
+                                            caption: '📱 ¿Cómo guardar el contacto en tu teléfono? ¡Mira este tutorial rápido! 👆'
+                                        }
+                                    ).catch(e => console.warn('⚠️ [QR_VCARD_DYNAMIC] Error enviando video tutorial:', e.message));
                                 }
 
                                 // Google Contacts sync (fire & forget — no bloquea el flujo)
