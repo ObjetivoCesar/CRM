@@ -349,14 +349,16 @@ export async function POST(req: Request) {
                                 // no en nombre del sistema. "Soy X, aquí mi contacto digital."
                                 // MODO B: Usar mensaje personalizado del cliente si existe, sino fallback
                                 let vcfCaption: string;
+                                console.log(`🔍 [MODO B] data.mensaje = "${data.mensaje}" | data.mensaje exists: ${data.mensaje !== undefined}`);
                                 if (data.mensaje) {
                                     // DEBUG: Verificar valores de reemplazo
-                                    console.log(`🔍 [MODO B] mensaje from API: "${data.mensaje}"`);
+                                    console.log(`🔍 [MODO B] USING custom mensaje`);
                                     console.log(`🔍 [MODO B] capturedProfileName: "${capturedProfileName}"`);
                                     vcfCaption = data.mensaje.replace('{nombre}', capturedProfileName);
                                     console.log(`🔍 [MODO B] vcfCaption after replace: "${vcfCaption}"`);
                                 } else {
                                     // Fallback: mensaje genérico actual
+                                    console.log(`🔍 [MODO B] USING fallback (data.mensaje is empty)`);
                                     const clientIdentifier = data.client.empresa
                                         ? `${data.client.nombre} de *${data.client.empresa}*`
                                         : data.client.profesion
