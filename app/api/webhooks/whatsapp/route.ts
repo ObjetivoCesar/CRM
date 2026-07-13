@@ -347,15 +347,22 @@ export async function POST(req: Request) {
                                 // ── 3. ENVIAR EL .vcf ─────────────────────────────────────────
                                 // El mensaje habla en nombre del cliente (comercio/profesional)
                                 // no en nombre del sistema. "Soy X, aquí mi contacto digital."
-                                const clientIdentifier = data.client.empresa
-                                    ? `${data.client.nombre} de *${data.client.empresa}*`
-                                    : data.client.profesion
-                                        ? `${data.client.nombre} — ${data.client.profesion}`
-                                        : `*${data.client.nombre}*`;
-
-                                const vcfCaption =
-                                    `¡Hola! 👋 Te comparto el contacto digital de ${clientIdentifier}.\n` +
-                                    `Guárdalo para tener siempre sus datos a la mano. 🤝`;
+                                // MODO B: Usar mensaje personalizado del cliente si existe, sino fallback
+                                let vcfCaption: string;
+                                if (data.mensaje) {
+                                    // Reemplazar {nombre} con el nombre de quien escaneó el QR
+                                    vcfCaption = data.mensaje.replace('{nombre}', capturedProfileName);
+                                } else {
+                                    // Fallback: mensaje genérico actual
+                                    const clientIdentifier = data.client.empresa
+                                        ? `${data.client.nombre} de *${data.client.empresa}*`
+                                        : data.client.profesion
+                                            ? `${data.client.nombre} — ${data.client.profesion}`
+                                            : `*${data.client.nombre}*`;
+                                    vcfCaption =
+                                        `¡Hola! 👋 Te comparto el contacto digital de ${clientIdentifier}.\n` +
+                                        `Guárdalo para tener siempre sus datos a la mano. 🤝`;
+                                }
 
                                 // Estrategia A: Meta Cloud API (primaria — URL directa)
                                 try {
