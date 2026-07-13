@@ -350,8 +350,11 @@ export async function POST(req: Request) {
                                 // MODO B: Usar mensaje personalizado del cliente si existe, sino fallback
                                 let vcfCaption: string;
                                 if (data.mensaje) {
-                                    // Reemplazar {nombre} con el nombre de quien escaneó el QR
+                                    // DEBUG: Verificar valores de reemplazo
+                                    console.log(`🔍 [MODO B] mensaje from API: "${data.mensaje}"`);
+                                    console.log(`🔍 [MODO B] capturedProfileName: "${capturedProfileName}"`);
                                     vcfCaption = data.mensaje.replace('{nombre}', capturedProfileName);
+                                    console.log(`🔍 [MODO B] vcfCaption after replace: "${vcfCaption}"`);
                                 } else {
                                     // Fallback: mensaje genérico actual
                                     const clientIdentifier = data.client.empresa
