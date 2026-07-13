@@ -18,7 +18,7 @@ Es interceptado directamente en `app/api/webhooks/whatsapp/route.ts` **antes** d
 **Fuente**: QR impreso en materiales físicos de César Reyes (demos, networking).
 
 **Secuencia**:
-1. Mensaje de saludo → *"¡Gracias por escribirnos! Aquí tienes el contacto de César Reyes 👇"*
+1. Mensaje de saludo personalizado → *"[Nombre], gracias por escanear mi contacto, tener uno como este permitirá que tus clientes te recuerden por tus productos, por tu foto, ubicación, nombre, etc. 👇"*
 2. Envío del `.vcf` estático desde Vercel (`/cesar-reyes-jaramillo.vcf`) con doble estrategia:
    - **Primaria**: Meta Cloud API con link directo (con header `Content-Type: text/vcard`)
    - **Fallback**: Evolution API vía Base64

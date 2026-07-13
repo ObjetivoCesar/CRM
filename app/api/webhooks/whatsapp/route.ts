@@ -489,6 +489,9 @@ export async function POST(req: Request) {
                 if (content.toLowerCase().includes('#activa-vcf')) {
                     console.log(`📇 [QR_VCARD] Intercepted VCard request from ${from}`);
                     
+                    // Extraer nombre de quien escanea desde el webhook payload
+                    const contactName = value?.contacts?.[0]?.profile?.name || `WhatsApp ${from.slice(-4)}`;
+                    
                     try {
                         // Log the incoming message interaction in DB so it's visible in the CRM
                         await db.insert(interactions).values({
@@ -525,8 +528,9 @@ export async function POST(req: Request) {
                             console.error('❌ Error pausando IA para VCard:', pauseErr);
                         }
 
-                        // Send Greeting
-                        await whatsappService.sendMessage(from, '¡Gracias por escribirnos! Aquí tienes el contacto de César Reyes 👇');
+                        // Send Greeting — MODO A: mensaje personalizado con el nombre de quien escanea
+                        const greetingMessage = `${contactName}, gracias por escanear mi contacto, tener uno como este permitirá que tus clientes te recuerden por tus productos, por tu foto, ubicación, nombre, etc. 👇`;
+                        await whatsappService.sendMessage(from, greetingMessage);
                         
                         // ── VCard Delivery Strategy ──────────────────────────────────────
                         // Strategy 1: Meta Cloud API with proper MIME endpoint
