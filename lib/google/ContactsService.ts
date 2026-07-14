@@ -29,6 +29,19 @@ export class GoogleContactsService {
         const label = displayName || `Lead QR ${cleanPhone.slice(-4)}`;
 
         try {
+            // 1. Verificar si el contacto ya existe buscando por número de teléfono
+            const searchRes = await this.people.people.searchContacts({
+                query: cleanPhone,
+                readMask: 'names,phoneNumbers',
+            });
+
+            if (searchRes.data.results && searchRes.data.results.length > 0) {
+                const existingResourceName = searchRes.data.results[0].person?.resourceName;
+                console.log(`ℹ️ [GoogleContacts] El contacto ya existe (${existingResourceName}). Se omite la creación de duplicados.`);
+                return existingResourceName || null;
+            }
+
+            // 2. Si no existe, lo creamos
             const res = await this.people.people.createContact({
                 requestBody: {
                     names: [{
