@@ -553,7 +553,7 @@ export async function POST(req: Request) {
                                 type: 'document',
                                 // Static file served with text/vcard header by Vercel
                                 url: 'https://crm-z2kv.vercel.app/cesar-reyes-jaramillo.vcf',
-                                filename: 'Cesar_Reyes.vcf'
+                                filename: 'Cesar_Reyes_Jaramillo.vcf'
                             };
                             const vcardResult = await whatsappService.sendMessage(from, '', { source: 'qr_vcard_auto' }, vcardMedia);
                             if (vcardResult?.success !== false) {
@@ -582,8 +582,8 @@ export async function POST(req: Request) {
                                         mediatype: 'document',
                                         mimetype: 'text/vcard',
                                         media: vcfBase64,
-                                        fileName: 'Cesar_Reyes.vcf',
-                                        caption: '📇 Contacto de César Reyes'
+                                        fileName: 'Cesar_Reyes_Jaramillo.vcf',
+                                        caption: '📇 Contacto de César Reyes Jaramillo'
                                     };
 
                                     const evoRes = await fetch(`${evoUrl}/message/sendMedia/${evoInstance}`, {
