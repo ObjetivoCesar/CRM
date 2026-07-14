@@ -607,12 +607,20 @@ export async function POST(req: Request) {
                         }
                         // ────────────────────────────────────────────────────────────────
                         
-                        // Enviar instrucciones de guardado de contacto inmediatamente
-                        const instructionsText = 'Para guardar el contacto:\n1. Toca la tarjeta de arriba.\n2. Selecciona "Guardar" o "Añadir a contactos".\n\n¡Perfecto! Ya quedaste registrado en mi agenda también. 📱\nMientras guardas mi contacto, échale un ojo a mi Estado de WhatsApp — tengo algo interesante que quiero mostrarte. 👀';
+                        // Enviar video tutorial de cómo guardar el contacto inmediatamente
                         try {
-                            await whatsappService.sendMessage(from, instructionsText, { source: 'qr_vcard_instructions' });
+                            await whatsappService.sendMessage(
+                                from,
+                                '',
+                                { source: 'qr_vcard_tutorial_video' },
+                                {
+                                    type: 'video',
+                                    url: 'https://cesarweb.b-cdn.net/activaqr/tuto-contacto%20digital.mp4',
+                                    caption: '📱 ¿Cómo guardar el contacto en tu teléfono? ¡Mira este tutorial rápido! 👆'
+                                }
+                            );
                         } catch (instErr) {
-                            console.error('❌ Error enviando instrucciones inmediatamente:', instErr);
+                            console.error('❌ Error enviando video tutorial inmediatamente:', instErr);
                         }
 
                         // Background: Guardar al cliente en Google Contacts automáticamente
