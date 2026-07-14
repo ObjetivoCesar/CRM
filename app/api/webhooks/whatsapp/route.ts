@@ -429,7 +429,8 @@ export async function POST(req: Request) {
                                 } else {
                                     // ── Video tutorial de cómo guardar el contacto ──────────────
                                     // Se envía solo si el .vcf llegó exitosamente.
-                                    // Reemplaza las instrucciones de texto plano con un video claro.
+                                    // Espera 5 segundos para que el usuario vea primero el contacto.
+                                    await new Promise(resolve => setTimeout(resolve, 5000));
                                     await whatsappService.sendMessage(
                                         capturedFrom,
                                         '',
@@ -607,8 +608,9 @@ export async function POST(req: Request) {
                         }
                         // ────────────────────────────────────────────────────────────────
                         
-                        // Enviar video tutorial de cómo guardar el contacto inmediatamente
+                        // Enviar video tutorial de cómo guardar el contacto (5s después de la vCard)
                         try {
+                            await new Promise(resolve => setTimeout(resolve, 5000));
                             await whatsappService.sendMessage(
                                 from,
                                 '',
@@ -620,7 +622,7 @@ export async function POST(req: Request) {
                                 }
                             );
                         } catch (instErr) {
-                            console.error('❌ Error enviando video tutorial inmediatamente:', instErr);
+                            console.error('❌ Error enviando video tutorial:', instErr);
                         }
 
                         // Background: Guardar al cliente en Google Contacts automáticamente
