@@ -17,13 +17,13 @@ Es interceptado directamente en `app/api/webhooks/whatsapp/route.ts` **antes** d
 
 **Fuente**: QR impreso en materiales físicos de César Reyes (demos, networking).
 
-**Secuencia**:
-1. Mensaje de saludo personalizado → *"[Nombre], gracias por escanear mi contacto, tener uno como este permitirá que tus clientes te recuerden por tus productos, por tu foto, ubicación, nombre, etc. 👇"*
-2. Envío del `.vcf` estático desde Vercel (`/cesar-reyes-jaramillo.vcf`) con doble estrategia:
+**Secuencia** (flujo fragmentado anti-abandono):
+1. **Texto inicial** → *"¡Hola [Nombre]! 👋 Guardá mi contacto haciendo clic"*
+2. **Envío del `.vcf`** desde Vercel (`/cesar-reyes-jaramillo.vcf`) con doble estrategia:
    - **Primaria**: Meta Cloud API con link directo (con header `Content-Type: text/vcard`)
    - **Fallback**: Evolution API vía Base64
-3. Envío del mensaje instructivo de guardado + llamada a ver el Estado de WhatsApp.
-4. Delay asíncrono (20s) → Envío del video de cierre "El Circo de Ventas".
+3. **Delay 30s** → Envío del video tutorial con texto: *"Por si no sabés cómo guardarlo, mirá este tutorial 👇"*
+4. **Delay 5 min** → Texto: *"¿Y vos ya tenés tu propia tarjeta digital? Podés tener la tuya con tu foto, nombre y servicios. Te interesa saber cómo?"* + video de cierre
 5. IA pausada por 1 hora (`botMode: paused`) — modo Networking Humano.
 6. Registro automático en Google Contacts del número que escaneó.
 
