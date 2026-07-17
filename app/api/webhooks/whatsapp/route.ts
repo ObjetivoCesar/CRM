@@ -658,7 +658,7 @@ export async function POST(req: Request) {
                                     try {
                                         const videoRes = await whatsappService.sendMessage(from, '', { source: 'qr_vcard_video' }, {
                                             type: 'video',
-                                            url: 'https://cesarweb.b-cdn.net/activaqr/Contacto%20Digital.mp4',
+                                            url: 'https://cesarweb.b-cdn.net/activaqr/contacto%20digital.mp4',
                                             caption: videoCaption
                                         });
                                         if (videoRes?.success !== false) {
@@ -678,7 +678,7 @@ export async function POST(req: Request) {
                                                 number: from,
                                                 mediatype: 'video',
                                                 mimetype: 'video/mp4',
-                                                media: 'https://cesarweb.b-cdn.net/activaqr/Contacto%20Digital.mp4',
+                                                media: 'https://cesarweb.b-cdn.net/activaqr/contacto%20digital.mp4',
                                                 caption: videoCaption
                                             };
                                             await fetch(`${evoUrl}/message/sendMedia/${evoInstance}`, {
