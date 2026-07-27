@@ -23,7 +23,7 @@ Es interceptado directamente en `app/api/webhooks/whatsapp/route.ts` **antes** d
    - **Primaria**: Meta Cloud API con link directo (con header `Content-Type: text/vcard`)
    - **Fallback**: Evolution API vía Base64
 3. **Delay 30s** → Envío del video tutorial con texto: *"Por si no sabés cómo guardarlo, mirá este tutorial 👇"*
-4. **Delay 5 min** → Texto: *"¿Y vos ya tenés tu propia tarjeta digital? Podés tener la tuya con tu foto, nombre y servicios. Te interesa saber cómo?"* + video de cierre
+4. **Delay 5 min** → Texto: *"Por eso necesitas tener tu contacto digital 👍"* + video de cierre
 5. IA pausada por 1 hora (`botMode: paused`) — modo Networking Humano.
 6. Registro automático en Google Contacts del número que escaneó.
 
