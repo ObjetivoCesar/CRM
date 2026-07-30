@@ -260,8 +260,8 @@ export async function POST(req: Request) {
 
                         waitUntil((async () => {
                             await whatsappService.sendMessage(from, 'No estar seguro es normal.');
-                            await whatsappService.sendMessage(from, 'Pero cuando hay arriendo, sueldos, luz, agua que pagar cada mes...\nsaber cuántos clientes tienes, cuáles van a volver, y quién de tu equipo te trae más clientes...\neso es lo único que te deja manejar tu negocio con tranquilidad.');
-                            await whatsappService.sendMessage(from, '¿Quieres tus 15 días gratis? 🎯\nAsí vas a poder responder todo esto con certeza, no con "creo".\n\n👉 https://crm-z2kv.vercel.app');
+                            await whatsappService.sendMessage(from, 'Pero cuando hay arriendo, sueldos, luz, agua por pagar cada mes...\n\nsaber:\n- cuántos clientes tienes\n- cuáles van a volver\n- quién de tu equipo te trae más clientes\n\nEso es lo único que te deja manejar tu negocio con tranquilidad.');
+                            await whatsappService.sendMessage(from, '¿Quieres tus 15 días gratis? 🎯\nAsí vas a poder responder todo esto con certeza, no con "creo".\n\n👉 https://www.barberosplus.com/crear-cuenta');
                         })());
 
                         return NextResponse.json({ status: 'referral_sequence_sent' });
