@@ -27,7 +27,8 @@ async function createTable() {
   const result = await db.execute(sql`
     SELECT COUNT(*) as count FROM referral_leads;
   `);
-  console.log('Table verified. Row count:', result.rows[0]);
+  // postgres-js retorna RowList<T>[] directamente (no .rows)
+  console.log('Table verified. Row count:', (result as unknown as Record<string, unknown>[])[0]);
 
   process.exit(0);
 }
