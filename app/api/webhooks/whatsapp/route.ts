@@ -248,8 +248,8 @@ export async function POST(req: Request) {
                         // Enviar video inicial inmediatamente
                         await whatsappService.sendMessage(from, 'Es duro decirlo pero debes saberlo 👇', {}, {
                             type: 'video',
-                            url: 'https://activaqr-archivos.b-cdn.net/barberos/Barber%C3%ADas%20-%20Bot.mp4',
-                            filename: 'Barberos-Bot.mp4'
+                            url: 'https://activaqr-archivos.b-cdn.net/barberos/Barberos-bot.mp4',
+                            filename: 'Barberos-bot.mp4'
                         }).catch(e => console.error('[Referral Bot] Error video:', e));
 
                         // Esperar 60 segundos
