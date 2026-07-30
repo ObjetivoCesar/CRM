@@ -70,6 +70,23 @@ export async function POST(req: Request) {
                 mediaData = message[message.type];
                 const caption = mediaData.caption ? `: ${mediaData.caption}` : '';
                 content = `[Multimedia: ${message.type}${caption}]`;
+            } else if (message.type === 'interactive') {
+                // Meta Interactive Messages: reply buttons (button_reply) or list picks (list_reply)
+                const interactive = message.interactive;
+                if (interactive?.type === 'button_reply') {
+                    const button = interactive.button_reply;
+                    content = button?.title || `[Interactive button]`;
+                    // Persist button id/title on the message object for downstream routing
+                    (message as any).buttonId = button?.id;
+                    (message as any).buttonTitle = button?.title;
+                } else if (interactive?.type === 'list_reply') {
+                    const listItem = interactive.list_reply;
+                    content = listItem?.title || `[Interactive list]`;
+                    (message as any).buttonId = listItem?.id;
+                    (message as any).buttonTitle = listItem?.title;
+                } else {
+                    content = `[Interactive: ${interactive?.type}]`;
+                }
             } else {
                 content = `[Mensaje de tipo ${message.type}]`;
             }
@@ -272,33 +289,50 @@ export async function POST(req: Request) {
                             // Simular escritura de mensaje corto (2.5 segundos)
                             await new Promise(resolve => setTimeout(resolve, 2500));
                             
-                            await whatsappService.sendMessage(from, '¿Quieres tus 15 días gratis? 🎯\nAsí vas a poder responder todo esto con certeza, no con "creo".\n\n👉 https://www.barberosplus.com/crear-cuenta');
+                            await whatsappService.sendMessage(from, '', {}, undefined, {
+                                type: 'button',
+                                bodyText: '¿Quieres tus 15 días gratis? 🎯',
+                                buttons: [
+                                    { id: 'BP_REGISTER', title: 'Registrarme' },
+                                    { id: 'BP_HUMAN', title: 'Atención personal' }
+                                ]
+                            });
                         })());
 
                         return NextResponse.json({ status: 'referral_sequence_sent' });
                     }
                     
                     if (existingReferralLead.sessionState === 'SEQUENCE_COMPLETED' || existingReferralLead.sessionState === 'HANDOVER_CESAR') {
-                        console.log(`[Referral Bot] Handover a César para lead: ${from}`);
-                        
+                        const buttonId = (message as any).buttonId as string | undefined;
+                        const buttonTitle = (message as any).buttonTitle as string | undefined;
+                        console.log(`[Referral Bot] Respuesta post-sequence de ${from} | buttonId=${buttonId} | buttonTitle=${buttonTitle}`);
+
                         if (existingReferralLead.sessionState === 'SEQUENCE_COMPLETED') {
                             await db.update(referralLeads)
                                 .set({ sessionState: 'HANDOVER_CESAR', updatedAt: new Date() })
                                 .where(eq(referralLeads.id, existingReferralLead.id));
 
                             waitUntil((async () => {
-                                await whatsappService.sendMessage(from, 'Entiendo que tienes dudas. 🤝\n\nTe paso el contacto de César, él puede responderte directamente.');
-                                
-                                // Simular envío de vCard (1.5 segundos)
-                                await new Promise(resolve => setTimeout(resolve, 1500));
-                                
-                                await whatsappService.sendMessage(from, '', {}, {
-                                    type: 'contacts',
-                                    contacts: [{
-                                        name: { formatted_name: 'César Reyes Jaramillo', first_name: 'César', last_name: 'Reyes' },
-                                        phones: [{ phone: '+593963410409', type: 'WORK', wa_id: '593963410409' }]
-                                    }]
-                                });
+                                if (buttonId === 'BP_REGISTER') {
+                                    // Botón "Registrarme" → entregar link de registro
+                                    await whatsappService.sendMessage(from,
+                                        '¡Genial! 🙌 Empieza tus 15 días gratis aquí:\n\n👉 https://www.barberosplus.com/crear-cuenta\n\nSi necesitas algo, escríbeme. ¡Éxitos! 💈'
+                                    );
+                                } else {
+                                    // Botón "Atención personal" (BP_HUMAN) o texto libre → handoff a César
+                                    await whatsappService.sendMessage(from, 'Entiendo que tienes dudas. 🤝\n\nTe paso el contacto de César, él puede responderte directamente.');
+
+                                    // Simular envío de vCard (1.5 segundos)
+                                    await new Promise(resolve => setTimeout(resolve, 1500));
+
+                                    await whatsappService.sendMessage(from, '', {}, {
+                                        type: 'contacts',
+                                        contacts: [{
+                                            name: { formatted_name: 'César Reyes Jaramillo', first_name: 'César', last_name: 'Reyes' },
+                                            phones: [{ phone: '+593963410409', type: 'WORK', wa_id: '593963410409' }]
+                                        }]
+                                    });
+                                }
                             })());
                         }
                         return NextResponse.json({ status: 'referral_handover_sent' });

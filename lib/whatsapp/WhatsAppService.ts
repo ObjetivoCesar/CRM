@@ -12,6 +12,26 @@ export interface WhatsAppMedia {
     contacts?: any[];
 }
 
+/**
+ * Botón interactivo de tipo "quick reply" (reply button).
+ * Meta permite máx. 3 botones por mensaje y 20 caracteres por título.
+ */
+export interface WhatsAppInteractiveButton {
+    id: string;
+    title: string;
+}
+
+/**
+ * Mensaje interactivo tipo "button" (reply buttons).
+ * Se envía dentro de la ventana de 24h sin necesidad de template.
+ */
+export interface WhatsAppInteractive {
+    type: 'button';
+    bodyText: string;
+    buttons: WhatsAppInteractiveButton[];
+    footerText?: string;
+}
+
 export class WhatsAppService {
     private version: string = 'v21.0';
 
@@ -28,9 +48,15 @@ export class WhatsAppService {
     }
 
     /**
-     * Unified method for sending messages (Text or Multimedia)
+     * Unified method for sending messages (Text, Multimedia or Interactive)
      */
-    async sendMessage(phone: string, text: string, metadata: any = {}, media?: WhatsAppMedia): Promise<any> {
+    async sendMessage(
+        phone: string,
+        text: string,
+        metadata: any = {},
+        media?: WhatsAppMedia,
+        interactive?: WhatsAppInteractive
+    ): Promise<any> {
         const { accessToken, phoneNumberId } = this.getCredentials();
 
         if (!accessToken || !phoneNumberId) {
@@ -59,7 +85,21 @@ export class WhatsAppService {
                 to: cleanPhone
             };
 
-            if (media) {
+            if (interactive) {
+                // Meta Interactive Message: Reply Buttons (max 3 buttons, 20 chars title)
+                payload.type = "interactive";
+                payload.interactive = {
+                    type: interactive.type,
+                    body: { text: interactive.bodyText },
+                    action: {
+                        buttons: interactive.buttons.map(btn => ({
+                            type: 'reply',
+                            reply: { id: btn.id, title: btn.title }
+                        }))
+                    },
+                    ...(interactive.footerText ? { footer: { text: interactive.footerText } } : {})
+                };
+            } else if (media) {
                 if (media.type === 'contacts') {
                     payload.type = "contacts";
                     payload.contacts = media.contacts;
@@ -115,7 +155,9 @@ export class WhatsAppService {
                     }
                 }
 
-                const logContent = media ? `[Multimedia: ${media.type}] ${media.caption || ''}` : text;
+                const logContent = interactive
+                ? `[Interactive: ${interactive.type}] ${interactive.bodyText} | Buttons: ${interactive.buttons.map(b => b.title).join(', ')}`
+                : media ? `[Multimedia: ${media.type}] ${media.caption || ''}` : text;
 
                 // Fire and forget: Log to interactions (CRM audit trail)
                 // Note: donna_chat_messages is now handled by message_worker.ts (Single Writer Pattern)
@@ -130,7 +172,8 @@ export class WhatsAppService {
                     metadata: {
                         source: metadata.source || 'system',
                         data: response.data,
-                        media: media || null
+                        media: media || null,
+                        interactive: interactive || null
                     }
                 }).then(() => {
                     console.log(`🗄️ Interaction logged for ${cleanPhone}`);
