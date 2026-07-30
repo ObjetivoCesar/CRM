@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { interactions, contacts, discoveryLeads, whatsappLogs, contactChannels, donnaChatMessages } from '@/lib/db/schema';
+import { interactions, contacts, discoveryLeads, whatsappLogs, contactChannels, donnaChatMessages, referralLeads } from '@/lib/db/schema';
 import { sql, eq, and } from 'drizzle-orm';
 import { cortexRouter } from '@/lib/donna/services/CortexRouterService';
 import { whatsappService } from '@/lib/whatsapp/WhatsAppService';
@@ -200,6 +200,94 @@ export async function POST(req: Request) {
                     await db.update(contacts)
                         .set(updateData)
                         .where(eq(contacts.id, contactId));
+                }
+
+                // 3.1. INTERCEPT REFERRAL LEADS (BarberosPlus)
+                // ─────────────────────────────────────────────────────────────────
+                const refMatch = content.match(/\bREF[-:\s]*([a-z0-9_-]+)\b/i) || content.match(/\[REF[-:\s]*([a-z0-9_-]+)\]/i);
+                const referralCode = refMatch ? refMatch[1].toUpperCase() : null;
+
+                const [existingReferralLead] = await db.select()
+                    .from(referralLeads)
+                    .where(and(eq(referralLeads.phone, from), eq(referralLeads.converted, false)))
+                    .orderBy(sql`${referralLeads.capturedAt} DESC`)
+                    .limit(1);
+
+                // NUEVO LEAD
+                if (referralCode && !existingReferralLead) {
+                    console.log(`[Referral Bot] Nuevo lead capturado: código ${referralCode} desde ${from}`);
+                    
+                    await db.insert(referralLeads).values({
+                        phone: from,
+                        referralCode,
+                        clientName: value?.contacts?.[0]?.profile?.name || `WhatsApp ${from.slice(-4)}`,
+                        sessionState: 'AWAITING_QUESTION_ANSWER',
+                    });
+
+                    waitUntil((async () => {
+                        // Enviar video inicial inmediatamente
+                        await whatsappService.sendMessage(from, 'Es duro decirlo pero debes saberlo 👇', {}, {
+                            type: 'video',
+                            url: 'https://activaqr-archivos.b-cdn.net/barberos/Barber%C3%ADas%20-%20Bot.mp4',
+                            filename: 'Barberos-Bot.mp4'
+                        }).catch(e => console.error('[Referral Bot] Error video:', e));
+
+                        // Esperar 60 segundos
+                        await new Promise(resolve => setTimeout(resolve, 60000));
+
+                        // Verificar que no haya respondido ya
+                        const [checkLead] = await db.select().from(referralLeads)
+                            .where(and(eq(referralLeads.phone, from), eq(referralLeads.converted, false)))
+                            .orderBy(sql`${referralLeads.capturedAt} DESC`)
+                            .limit(1);
+
+                        if (checkLead?.sessionState === 'AWAITING_QUESTION_ANSWER') {
+                            await whatsappService.sendMessage(from, '¿Tienes idea de cuántos clientes reales tienes ahorita mismo? 🤔').catch(e => console.error('[Referral Bot] Error pregunta:', e));
+                        }
+                    })());
+
+                    return NextResponse.json({ status: 'referral_lead_captured' });
+                }
+
+                // RESPUESTA DEL LEAD
+                if (existingReferralLead) {
+                    if (existingReferralLead.sessionState === 'AWAITING_QUESTION_ANSWER') {
+                        console.log(`[Referral Bot] Lead respondió la pregunta: ${from}`);
+                        
+                        await db.update(referralLeads)
+                            .set({ sessionState: 'SEQUENCE_COMPLETED', updatedAt: new Date() })
+                            .where(eq(referralLeads.id, existingReferralLead.id));
+
+                        waitUntil((async () => {
+                            await whatsappService.sendMessage(from, 'No estar seguro es normal.');
+                            await whatsappService.sendMessage(from, 'Pero cuando hay arriendo, sueldos, luz, agua que pagar cada mes...\nsaber cuántos clientes tienes, cuáles van a volver, y quién de tu equipo te trae más clientes...\neso es lo único que te deja manejar tu negocio con tranquilidad.');
+                            await whatsappService.sendMessage(from, '¿Quieres tus 15 días gratis? 🎯\nAsí vas a poder responder todo esto con certeza, no con "creo".\n\n👉 https://crm-z2kv.vercel.app');
+                        })());
+
+                        return NextResponse.json({ status: 'referral_sequence_sent' });
+                    }
+                    
+                    if (existingReferralLead.sessionState === 'SEQUENCE_COMPLETED' || existingReferralLead.sessionState === 'HANDOVER_CESAR') {
+                        console.log(`[Referral Bot] Handover a César para lead: ${from}`);
+                        
+                        if (existingReferralLead.sessionState === 'SEQUENCE_COMPLETED') {
+                            await db.update(referralLeads)
+                                .set({ sessionState: 'HANDOVER_CESAR', updatedAt: new Date() })
+                                .where(eq(referralLeads.id, existingReferralLead.id));
+
+                            waitUntil((async () => {
+                                await whatsappService.sendMessage(from, 'Entiendo que tienes dudas. 🤝\n\nTe paso el contacto de César, él puede responderte directamente.');
+                                await whatsappService.sendMessage(from, '', {}, {
+                                    type: 'contacts',
+                                    contacts: [{
+                                        name: { formatted_name: 'César Reyes Jaramillo', first_name: 'César', last_name: 'Reyes' },
+                                        phones: [{ phone: '+593963410409', type: 'WORK', wa_id: '593963410409' }]
+                                    }]
+                                });
+                            })());
+                        }
+                        return NextResponse.json({ status: 'referral_handover_sent' });
+                    }
                 }
 
                 // 3.4. INTERCEPT DYNAMIC QR CODES (Contacto:slug)
