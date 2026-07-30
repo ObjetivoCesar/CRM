@@ -204,7 +204,10 @@ export async function POST(req: Request) {
 
                 // 3.1. INTERCEPT REFERRAL LEADS (BarberosPlus)
                 // ─────────────────────────────────────────────────────────────────
-                const refMatch = content.match(/\bREF[-:\s]*([a-z0-9_-]+)\b/i) || content.match(/\[REF[-:\s]*([a-z0-9_-]+)\]/i);
+                const refMatch = content.match(/\bREF[-:\s]*([a-z0-9_-]+)\b/i)
+                    || content.match(/\[REF[-:\s]*([a-z0-9_-]+)\]/i)
+                    || content.match(/vengo de parte de\s+([a-z0-9_]+)/i)
+                    || content.match(/de parte de\s+([a-z0-9_]+)/i);
                 const referralCode = refMatch ? refMatch[1].toUpperCase() : null;
 
                 const [existingReferralLead] = await db.select()
