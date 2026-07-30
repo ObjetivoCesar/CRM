@@ -263,7 +263,15 @@ export async function POST(req: Request) {
 
                         waitUntil((async () => {
                             await whatsappService.sendMessage(from, 'No estar seguro es normal.');
+                            
+                            // Simular escritura de mensaje largo (3.5 segundos)
+                            await new Promise(resolve => setTimeout(resolve, 3500));
+                            
                             await whatsappService.sendMessage(from, 'Pero cuando hay arriendo, sueldos, luz, agua por pagar cada mes...\n\nsaber:\n- cuántos clientes tienes\n- cuáles van a volver\n- quién de tu equipo te trae más clientes\n\nEso es lo único que te deja manejar tu negocio con tranquilidad.');
+                            
+                            // Simular escritura de mensaje corto (2.5 segundos)
+                            await new Promise(resolve => setTimeout(resolve, 2500));
+                            
                             await whatsappService.sendMessage(from, '¿Quieres tus 15 días gratis? 🎯\nAsí vas a poder responder todo esto con certeza, no con "creo".\n\n👉 https://www.barberosplus.com/crear-cuenta');
                         })());
 
@@ -280,6 +288,10 @@ export async function POST(req: Request) {
 
                             waitUntil((async () => {
                                 await whatsappService.sendMessage(from, 'Entiendo que tienes dudas. 🤝\n\nTe paso el contacto de César, él puede responderte directamente.');
+                                
+                                // Simular envío de vCard (1.5 segundos)
+                                await new Promise(resolve => setTimeout(resolve, 1500));
+                                
                                 await whatsappService.sendMessage(from, '', {}, {
                                     type: 'contacts',
                                     contacts: [{
