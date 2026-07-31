@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { referralLeads } from '@/lib/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, gte, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
                 and(
                     eq(referralLeads.phone, cleanPhone),
                     eq(referralLeads.converted, false),
-                    sql`(${referralLeads.expiresAt} > ${now.toISOString()} OR (${referralLeads.expiresAt} IS NULL AND ${referralLeads.capturedAt} >= ${fortyFiveDaysAgo.toISOString()}))`
+                    gte(referralLeads.capturedAt, fortyFiveDaysAgo)
                 )
             )
             .orderBy(sql`${referralLeads.capturedAt} ASC`) // First-touch
