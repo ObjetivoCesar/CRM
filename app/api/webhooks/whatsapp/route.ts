@@ -233,19 +233,14 @@ export async function POST(req: Request) {
                 const fortyFiveDaysAgo = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000);
 
                 // Buscar si existe un lead de referral activo (< 45 días y no convertido)
+                // Usamos únicamente capturedAt para compatibilidad inmediata con la BD en producción
                 const [existingReferralLead] = await db.select()
                     .from(referralLeads)
                     .where(
                         and(
                             eq(referralLeads.phone, from),
                             eq(referralLeads.converted, false),
-                            or(
-                                gt(referralLeads.expiresAt, now),
-                                and(
-                                    isNull(referralLeads.expiresAt),
-                                    gte(referralLeads.capturedAt, fortyFiveDaysAgo)
-                                )
-                            )
+                            gte(referralLeads.capturedAt, fortyFiveDaysAgo)
                         )
                     )
                     .orderBy(sql`${referralLeads.capturedAt} DESC`)
@@ -309,15 +304,11 @@ export async function POST(req: Request) {
                         return NextResponse.json({ status: 'referral_lead_race_condition_ignored' });
                     }
 
-                    // Expiración calculada a 45 días
-                    const expiresAt = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000);
-
                     await db.insert(referralLeads).values({
                         phone: from,
                         referralCode,
                         clientName: value?.contacts?.[0]?.profile?.name || `WhatsApp ${from.slice(-4)}`,
                         sessionState: 'ACTIVE',
-                        expiresAt,
                     });
 
                     // DISPARO ÚNICO DE SECUENCIA AUTOMATIZADA (Single-shot, non-blocking)
