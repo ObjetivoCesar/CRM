@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { interactions, contacts, discoveryLeads, whatsappLogs, contactChannels, donnaChatMessages, referralLeads } from '@/lib/db/schema';
-import { sql, eq, and } from 'drizzle-orm';
+import { sql, eq, and, or } from 'drizzle-orm';
 import { cortexRouter } from '@/lib/donna/services/CortexRouterService';
 import { whatsappService } from '@/lib/whatsapp/WhatsAppService';
 import { getGoogleContactsService } from '@/lib/google/ContactsService';
@@ -221,123 +221,148 @@ export async function POST(req: Request) {
 
                 // 3.1. INTERCEPT REFERRAL LEADS (BarberosPlus)
                 // ─────────────────────────────────────────────────────────────────
-                const refMatch = content.match(/\bREF[-:\s]*([a-z0-9_-]+)\b/i)
-                    || content.match(/\[REF[-:\s]*([a-z0-9_-]+)\]/i)
-                    || content.match(/vengo de parte de\s+([a-z0-9_]+)/i)
-                    || content.match(/de parte de\s+([a-z0-9_]+)/i);
+                // Regex mejorada: requiere separador [-:\s]+ obligatorio y mínimo 3 caracteres de código
+                // Evita falsos positivos como "soy REFerente de ventas"
+                const refMatch = content.match(/\bREF[-:\s]+([a-z0-9_-]{3,})\b/i)
+                    || content.match(/\[REF[-:\s]+([a-z0-9_-]{3,})\]/i)
+                    || content.match(/vengo de parte de\s+([a-z0-9_]{3,})/i)
+                    || content.match(/de parte de\s+([a-z0-9_]{3,})/i);
                 const referralCode = refMatch ? refMatch[1].toUpperCase() : null;
 
+                const now = new Date();
+                const fortyFiveDaysAgo = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000);
+
+                // Buscar si existe un lead de referral activo (< 45 días y no convertido)
                 const [existingReferralLead] = await db.select()
                     .from(referralLeads)
-                    .where(and(eq(referralLeads.phone, from), eq(referralLeads.converted, false)))
+                    .where(
+                        and(
+                            eq(referralLeads.phone, from),
+                            eq(referralLeads.converted, false),
+                            or(
+                                sql`${referralLeads.expiresAt} > ${now.toISOString()}`,
+                                and(
+                                    sql`${referralLeads.expiresAt} IS NULL`,
+                                    sql`${referralLeads.capturedAt} >= ${fortyFiveDaysAgo.toISOString()}`
+                                )
+                            )
+                        )
+                    )
                     .orderBy(sql`${referralLeads.capturedAt} DESC`)
                     .limit(1);
 
-                // NUEVO LEAD
-                if (referralCode && !existingReferralLead) {
-                    console.log(`[Referral Bot] Nuevo lead capturado: código ${referralCode} desde ${from}`);
+                // CASO A: El usuario intenta escanear un código DISTINTO teniendo ya una atribución activa
+                if (referralCode && existingReferralLead && referralCode !== existingReferralLead.referralCode) {
+                    console.log(`[Referral Bot] Conflicto de código: ${from} escaneó ${referralCode} pero ya tiene asignado ${existingReferralLead.referralCode}`);
                     
+                    const conflictMsgId = `ref_conflict_${message.id}`;
+                    const { webhookEventsProcessed } = await import('@/lib/db/schema');
+                    const [alreadyProcessed] = await db.select()
+                        .from(webhookEventsProcessed)
+                        .where(and(
+                            eq(webhookEventsProcessed.provider, 'whatsapp'),
+                            eq(webhookEventsProcessed.externalId, conflictMsgId)
+                        ))
+                        .limit(1);
+
+                    if (!alreadyProcessed) {
+                        try {
+                            await db.insert(webhookEventsProcessed).values({
+                                provider: 'whatsapp',
+                                externalId: conflictMsgId,
+                            });
+                        } catch (e) {}
+
+                        waitUntil((async () => {
+                            await whatsappService.sendMessage(from, `¡Hola! Ya estabas registrado previamente con el código de referido *${existingReferralLead.referralCode}*. Tu atribución inicial se mantiene activa. 🙌`);
+                        })());
+                    }
+
+                    return NextResponse.json({ status: 'referral_code_conflict_notified' });
+                }
+
+                // CASO B: NUEVO LEAD CAPTURADO (Escaneó un código y no tiene lead activo previo o su lead anterior expiró)
+                if (referralCode && !existingReferralLead) {
+                    console.log(`[Referral Bot] Capturando nuevo lead: código ${referralCode} desde ${from}`);
+                    
+                    const captureMsgId = `ref_capture_${message.id}`;
+                    const { webhookEventsProcessed } = await import('@/lib/db/schema');
+                    const [alreadyProcessed] = await db.select()
+                        .from(webhookEventsProcessed)
+                        .where(and(
+                            eq(webhookEventsProcessed.provider, 'whatsapp'),
+                            eq(webhookEventsProcessed.externalId, captureMsgId)
+                        ))
+                        .limit(1);
+
+                    if (alreadyProcessed) {
+                        console.log(`⚠️ [Referral Bot] Duplicate capture event detected (${captureMsgId}). Skipping.`);
+                        return NextResponse.json({ status: 'referral_lead_duplicate_ignored' });
+                    }
+
+                    try {
+                        await db.insert(webhookEventsProcessed).values({
+                            provider: 'whatsapp',
+                            externalId: captureMsgId,
+                        });
+                    } catch (idempotencyErr) {
+                        return NextResponse.json({ status: 'referral_lead_race_condition_ignored' });
+                    }
+
+                    // Expiración calculada a 45 días
+                    const expiresAt = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000);
+
                     await db.insert(referralLeads).values({
                         phone: from,
                         referralCode,
                         clientName: value?.contacts?.[0]?.profile?.name || `WhatsApp ${from.slice(-4)}`,
-                        sessionState: 'AWAITING_QUESTION_ANSWER',
+                        sessionState: 'ACTIVE',
+                        expiresAt,
                     });
 
+                    // DISPARO ÚNICO DE SECUENCIA AUTOMATIZADA (Single-shot, non-blocking)
                     waitUntil((async () => {
-                        // Enviar video inicial inmediatamente
-                        await whatsappService.sendMessage(from, 'Es duro decirlo pero debes saberlo 👇', {}, {
-                            type: 'video',
-                            url: 'https://activaqr-archivos.b-cdn.net/barberos/Barberos-bot.mp4',
-                            filename: 'Barberos-bot.mp4'
-                        }).catch(e => console.error('[Referral Bot] Error video:', e));
+                        try {
+                            // T+0s: Video inicial
+                            await whatsappService.sendMessage(from, 'Es duro decirlo pero debes saberlo 👇', {}, {
+                                type: 'video',
+                                url: 'https://activaqr-archivos.b-cdn.net/barberos/Barberos-bot.mp4',
+                                filename: 'Barberos-bot.mp4'
+                            }).catch(e => console.error('[Referral Bot] Error video:', e));
 
-                        // Esperar 60 segundos
-                        await new Promise(resolve => setTimeout(resolve, 60000));
-
-                        // Verificar que no haya respondido ya
-                        const [checkLead] = await db.select().from(referralLeads)
-                            .where(and(eq(referralLeads.phone, from), eq(referralLeads.converted, false)))
-                            .orderBy(sql`${referralLeads.capturedAt} DESC`)
-                            .limit(1);
-
-                        if (checkLead?.sessionState === 'AWAITING_QUESTION_ANSWER') {
+                            // T+10s: Mensaje de reflexión retórica
+                            await new Promise(resolve => setTimeout(resolve, 10000));
                             await whatsappService.sendMessage(from, '¿Tienes idea de cuántos clientes reales tienes ahorita mismo? 🤔').catch(e => console.error('[Referral Bot] Error pregunta:', e));
+
+                            // T+25s: Explicación (simula pausa de lectura)
+                            await new Promise(resolve => setTimeout(resolve, 15000));
+                            await whatsappService.sendMessage(from, 'No estar seguro es normal.').catch(() => {});
+                            await new Promise(resolve => setTimeout(resolve, 3500));
+                            await whatsappService.sendMessage(from, 'Pero cuando hay arriendo, sueldos, luz, agua por pagar cada mes...\n\nsaber:\n- cuántos clientes tienes\n- cuáles van a volver\n- quién de tu equipo te trae más clientes\n\nEso es lo único que te deja manejar tu negocio con tranquilidad.').catch(() => {});
+
+                            // T+55s: Cierre con link directo de registro + vCard de César para atención personal
+                            await new Promise(resolve => setTimeout(resolve, 25000));
+                            await whatsappService.sendMessage(from, '¡Genial! 🙌 Empieza tus 15 días gratis aquí:\n\n👉 https://www.barberosplus.com/crear-cuenta\n\nSi necesitas algo o tienes dudas, te paso el contacto de César para atención personal. ¡Éxitos! 💈').catch(() => {});
+
+                            await new Promise(resolve => setTimeout(resolve, 1500));
+                            await whatsappService.sendMessage(from, '', {}, {
+                                type: 'contacts',
+                                contacts: [{
+                                    name: { formatted_name: 'César Reyes Jaramillo', first_name: 'César', last_name: 'Reyes' },
+                                    phones: [{ phone: '+593963410409', type: 'WORK', wa_id: '593963410409' }]
+                                }]
+                            }).catch(() => {});
+                        } catch (seqError) {
+                            console.error('[Referral Bot] Exception in automated sequence execution:', seqError);
                         }
                     })());
 
                     return NextResponse.json({ status: 'referral_lead_captured' });
                 }
 
-                // RESPUESTA DEL LEAD
-                if (existingReferralLead) {
-                    if (existingReferralLead.sessionState === 'AWAITING_QUESTION_ANSWER') {
-                        console.log(`[Referral Bot] Lead respondió la pregunta: ${from}`);
-                        
-                        await db.update(referralLeads)
-                            .set({ sessionState: 'SEQUENCE_COMPLETED', updatedAt: new Date() })
-                            .where(eq(referralLeads.id, existingReferralLead.id));
-
-                        waitUntil((async () => {
-                            await whatsappService.sendMessage(from, 'No estar seguro es normal.');
-                            
-                            // Simular escritura de mensaje largo (3.5 segundos)
-                            await new Promise(resolve => setTimeout(resolve, 3500));
-                            
-                            await whatsappService.sendMessage(from, 'Pero cuando hay arriendo, sueldos, luz, agua por pagar cada mes...\n\nsaber:\n- cuántos clientes tienes\n- cuáles van a volver\n- quién de tu equipo te trae más clientes\n\nEso es lo único que te deja manejar tu negocio con tranquilidad.');
-                            
-                            // Simular escritura de mensaje corto (2.5 segundos)
-                            await new Promise(resolve => setTimeout(resolve, 2500));
-                            
-                            await whatsappService.sendMessage(from, '', {}, undefined, {
-                                type: 'button',
-                                bodyText: '¿Quieres tus 15 días gratis? 🎯',
-                                buttons: [
-                                    { id: 'BP_REGISTER', title: 'Registrarme' },
-                                    { id: 'BP_HUMAN', title: 'Atención personal' }
-                                ]
-                            });
-                        })());
-
-                        return NextResponse.json({ status: 'referral_sequence_sent' });
-                    }
-                    
-                    if (existingReferralLead.sessionState === 'SEQUENCE_COMPLETED' || existingReferralLead.sessionState === 'HANDOVER_CESAR') {
-                        const buttonId = (message as any).buttonId as string | undefined;
-                        const buttonTitle = (message as any).buttonTitle as string | undefined;
-                        console.log(`[Referral Bot] Respuesta post-sequence de ${from} | buttonId=${buttonId} | buttonTitle=${buttonTitle}`);
-
-                        if (existingReferralLead.sessionState === 'SEQUENCE_COMPLETED') {
-                            await db.update(referralLeads)
-                                .set({ sessionState: 'HANDOVER_CESAR', updatedAt: new Date() })
-                                .where(eq(referralLeads.id, existingReferralLead.id));
-
-                            waitUntil((async () => {
-                                if (buttonId === 'BP_REGISTER') {
-                                    // Botón "Registrarme" → entregar link de registro
-                                    await whatsappService.sendMessage(from,
-                                        '¡Genial! 🙌 Empieza tus 15 días gratis aquí:\n\n👉 https://www.barberosplus.com/crear-cuenta\n\nSi necesitas algo, escríbeme. ¡Éxitos! 💈'
-                                    );
-                                } else {
-                                    // Botón "Atención personal" (BP_HUMAN) o texto libre → handoff a César
-                                    await whatsappService.sendMessage(from, 'Entiendo que tienes dudas. 🤝\n\nTe paso el contacto de César, él puede responderte directamente.');
-
-                                    // Simular envío de vCard (1.5 segundos)
-                                    await new Promise(resolve => setTimeout(resolve, 1500));
-
-                                    await whatsappService.sendMessage(from, '', {}, {
-                                        type: 'contacts',
-                                        contacts: [{
-                                            name: { formatted_name: 'César Reyes Jaramillo', first_name: 'César', last_name: 'Reyes' },
-                                            phones: [{ phone: '+593963410409', type: 'WORK', wa_id: '593963410409' }]
-                                        }]
-                                    });
-                                }
-                            })());
-                        }
-                        return NextResponse.json({ status: 'referral_handover_sent' });
-                    }
-                }
+                // NOTA: Se eliminó el bloque interceptor "if (existingReferralLead)".
+                // Los mensajes posteriores del usuario NUNCA se bloquean y fluyen a otros triggers
+                // (contacto:slug, #activa-vcf, o la cola de mensajes de Ale/Donna).
 
                 // 3.4. INTERCEPT DYNAMIC QR CODES (Contacto:slug)
                 // ─────────────────────────────────────────────────────────────────

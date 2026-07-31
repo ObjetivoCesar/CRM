@@ -22,10 +22,11 @@ export async function POST(req: Request) {
         // Normalizar teléfono (solo números, formato internacional sin +)
         const cleanPhone = phone.replace(/\D/g, '');
 
-        // Buscar lead activo (menos de 30 días, no convertido)
+        // Buscar lead activo (no convertido, no expirado)
         // First-Touch Attribution (el lead más antiguo que siga activo)
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const now = new Date();
+        const fortyFiveDaysAgo = new Date();
+        fortyFiveDaysAgo.setDate(fortyFiveDaysAgo.getDate() - 45);
 
         const [lead] = await db.select()
             .from(referralLeads)
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
                 and(
                     eq(referralLeads.phone, cleanPhone),
                     eq(referralLeads.converted, false),
-                    sql`${referralLeads.capturedAt} >= ${thirtyDaysAgo.toISOString()}`
+                    sql`(${referralLeads.expiresAt} > ${now.toISOString()} OR (${referralLeads.expiresAt} IS NULL AND ${referralLeads.capturedAt} >= ${fortyFiveDaysAgo.toISOString()}))`
                 )
             )
             .orderBy(sql`${referralLeads.capturedAt} ASC`) // First-touch

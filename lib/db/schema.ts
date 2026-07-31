@@ -970,10 +970,9 @@ export const referralLeads = pgTable('referral_leads', {
   phone: text('phone').notNull(),
   referralCode: text('referral_code').notNull(), // e.g. REF-123
   clientName: text('client_name'),
-  sessionState: text('session_state', {
-    enum: ['NEW_LEAD', 'AWAITING_QUESTION_ANSWER', 'SEQUENCE_COMPLETED', 'HANDOVER_CESAR']
-  }).default('NEW_LEAD'),
+  sessionState: text('session_state').default('ACTIVE'),
   converted: boolean('converted').default(false).notNull(),
   capturedAt: timestamp('captured_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at'),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
