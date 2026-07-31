@@ -973,6 +973,5 @@ export const referralLeads = pgTable('referral_leads', {
   sessionState: text('session_state').default('ACTIVE'),
   converted: boolean('converted').default(false).notNull(),
   capturedAt: timestamp('captured_at').defaultNow().notNull(),
-  expiresAt: timestamp('expires_at'),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
