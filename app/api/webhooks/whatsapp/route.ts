@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { interactions, contacts, discoveryLeads, whatsappLogs, contactChannels, donnaChatMessages, referralLeads } from '@/lib/db/schema';
-import { sql, eq, and, or } from 'drizzle-orm';
+import { sql, eq, and, or, gt, gte, isNull } from 'drizzle-orm';
 import { cortexRouter } from '@/lib/donna/services/CortexRouterService';
 import { whatsappService } from '@/lib/whatsapp/WhatsAppService';
 import { getGoogleContactsService } from '@/lib/google/ContactsService';
@@ -240,10 +240,10 @@ export async function POST(req: Request) {
                             eq(referralLeads.phone, from),
                             eq(referralLeads.converted, false),
                             or(
-                                sql`${referralLeads.expiresAt} > ${now.toISOString()}`,
+                                gt(referralLeads.expiresAt, now),
                                 and(
-                                    sql`${referralLeads.expiresAt} IS NULL`,
-                                    sql`${referralLeads.capturedAt} >= ${fortyFiveDaysAgo.toISOString()}`
+                                    isNull(referralLeads.expiresAt),
+                                    gte(referralLeads.capturedAt, fortyFiveDaysAgo)
                                 )
                             )
                         )
