@@ -102,6 +102,12 @@ export const contacts = pgTable('contacts', {
   lastActivityAt: timestamp('last_activity_at'), // For inbox sorting
   unreadCount: integer('unread_count').default(0),
 
+  // Extension for Acquisition Module (2026-08-04)
+  campaignId: uuid('campaign_id').references(() => acquisitionCampaigns.id, { onDelete: 'set null' }),
+  telefonoE164: text('telefono_e164'),
+  telefonoTipo: text('telefono_tipo'),
+  esTargetReal: boolean('es_target_real').default(true),
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -615,7 +621,15 @@ export const discoveryLeads = pgTable('discovery_leads', {
   }).default('pending'),
   botMode: text('bot_mode', { enum: ['active', 'paused', 'disabled', 'co-pilot'] }).default('active'),
 
-
+  // Extension for Acquisition Module
+  campaignId: uuid('campaign_id').references(() => acquisitionCampaigns.id, { onDelete: 'set null' }),
+  telefonoE164: text('telefono_e164'),
+  telefonoTipo: text('telefono_tipo'),
+  esTargetReal: boolean('es_target_real').default(true),
+  acquisitionSource: text('acquisition_source'),
+  acquisitionCampaignId: uuid('acquisition_campaign_id'),
+  acquisitionScriptId: uuid('acquisition_script_id'),
+  lastInteractionAt: timestamp('last_interaction_at', { withTimezone: true }),
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -632,6 +646,13 @@ export const callAnalyses = pgTable('call_analyses', {
   metrics: text('metrics'), // JSON
   feedback: text('feedback'), // JSON
   nextFocus: text('next_focus'),
+
+  // Extension for Acquisition Module
+  campaignId: uuid('campaign_id').references(() => acquisitionCampaigns.id, { onDelete: 'set null' }),
+  scriptId: uuid('script_id').references(() => salesScripts.id, { onDelete: 'set null' }),
+  audioBlobKey: text('audio_blob_key'),
+  audioExpiresAt: timestamp('audio_expires_at', { withTimezone: true }),
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -975,3 +996,49 @@ export const referralLeads = pgTable('referral_leads', {
   capturedAt: timestamp('captured_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// ============================================
+// ADQUISICIÓN GEO-TARGETED (2026-08-04)
+// Motor de scraping + Pitch Auditor IA
+// ============================================
+
+// Guiones de Ventas Dinámicos
+export const salesScripts = pgTable('sales_scripts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  nombreGuion: text('nombre_guion').notNull(),
+  contextoCampana: text('contexto_campana'), // Para qué tipo de campaña aplica
+  activo: boolean('activo').default(true),
+  // pasos: [{ orden, gatillo, frase, objetivo, keywords }]
+  pasos: jsonb('pasos').notNull().default([]),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Campañas de Adquisición — Entidad raíz que agrupa fuente + pitch + prospectos
+export const acquisitionCampaigns = pgTable('acquisition_campaigns', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  nombre: text('nombre').notNull(),
+  descripcion: text('descripcion'),
+  fuenteTipo: text('fuente_tipo', {
+    enum: ['scraper_google', 'discovery_mintur', 'csv_manual', 'referido']
+  }).notNull().default('scraper_google'),
+  ciudad: text('ciudad'),
+  canton: text('canton'),
+  categoriaBusqueda: text('categoria_busqueda'),
+  scriptId: uuid('script_id').references(() => salesScripts.id, { onDelete: 'set null' }),
+  totalProspectos: integer('total_prospectos').default(0),
+  totalLlamadas: integer('total_llamadas').default(0),
+  totalConvertidos: integer('total_convertidos').default(0),
+  estado: text('estado', {
+    enum: ['activa', 'pausada', 'cerrada']
+  }).default('activa'),
+  fechaInicio: timestamp('fecha_inicio', { withTimezone: true }).defaultNow(),
+  metadata: jsonb('metadata').default({}),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ── Extension columns wired in contacts table (via ALTER TABLE migration) ──
+// campaign_id, telefono_e164, telefono_tipo, es_target_real
+// These are declared here for reference — actual columns added in adquisicion_v1.sql
+

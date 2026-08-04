@@ -62,7 +62,7 @@ export class TranscriptionService {
         }
 
         // ─── 1st: Gemini cascade (6 keys) ───
-        const geminiResult = await this.transcribeWithGemini(audioBuffer);
+        const geminiResult = await this.transcribeWithGemini(audioBuffer, fileName);
         if (geminiResult !== null) return geminiResult;
 
         // ─── 2nd: Groq Whisper-compatible ───
@@ -79,7 +79,7 @@ export class TranscriptionService {
         return "[Error en transcripción de audio]";
     }
 
-    private async transcribeWithGemini(audioBuffer: Buffer): Promise<string | null> {
+    private async transcribeWithGemini(audioBuffer: Buffer, fileName: string): Promise<string | null> {
         // ─── CASCADE: intentar hasta 5 API keys de Gemini ───
         const geminiKeys = [
             process.env.GOOGLE_AI_API_KEY,
@@ -103,13 +103,20 @@ export class TranscriptionService {
                 const genAI = new GoogleGenerativeAI(apiKey);
                 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
+                const ext = fileName.split('.').pop()?.toLowerCase() || 'ogg';
+                const mimeMap: Record<string, string> = {
+                  ogg: 'audio/ogg', webm: 'audio/webm',
+                  mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4',
+                };
+                const mimeType = mimeMap[ext] || 'audio/webm';
+
                 const base64Audio = audioBuffer.toString('base64');
                 const transcriptionPrompt = this.prompt || "Transcribe este audio comercial en español. Solo devuelve el texto transcrito.";
 
                 const result = await model.generateContent([
                     {
                         inlineData: {
-                            mimeType: "audio/ogg",
+                            mimeType: mimeType,
                             data: base64Audio
                         }
                     },

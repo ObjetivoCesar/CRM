@@ -27,6 +27,7 @@ import {
   Sparkles,
   FileSignature,
   TrendingUp,
+  Target,
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -102,6 +103,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: "Marketing", icon: Users, href: "/marketing/scheduler" },
     { name: "Campañas", icon: TrendingUp, href: "/marketing/launch" },
     { name: "Discovery", icon: Search, href: "/discovery" },
+    { name: "Adquisición", icon: Target, href: "/adquisicion", badge: "GEO" },
     { name: "Entrenador", icon: Mic, href: "/trainer" },
     { name: "Donna", icon: Sparkles, href: "/donna", badge: "AI" },
   ]
