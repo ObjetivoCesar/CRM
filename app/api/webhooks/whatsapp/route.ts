@@ -161,9 +161,35 @@ export async function POST(req: Request) {
                         }
                     } else {
                         // C. Check Discovery Leads (Pre-Contact)
-                        const [foundLead] = await db.select().from(discoveryLeads)
-                            .where(sql`${discoveryLeads.telefonoPrincipal} LIKE ${'%' + last9}`)
-                            .limit(1);
+                        // ─────────────────────────────────────────────────────────────────
+                        // Importante: Si la tabla discovery_leads está desactualizada en
+                        // producción (ej. faltan columnas acquisition_*), el SELECT
+                        // EXPLOTA con "column does not exist (42703)" y rompe TODO el
+                        // flujo del webhook. Por eso envolvemos en try/catch local:
+                        // si falla, seguimos como si no hubiera match (el usuario
+                        // seguirá recibiendo atención vía channels/contacts path).
+                        // ─────────────────────────────────────────────────────────────────
+                        let foundLead: { id: string } | undefined;
+                        try {
+                            const [lead] = await db.select({ id: discoveryLeads.id })
+                                .from(discoveryLeads)
+                                .where(sql`${discoveryLeads.telefonoPrincipal} LIKE ${'%' + last9}`)
+                                .limit(1);
+                            foundLead = lead;
+                        } catch (discoveryErr: any) {
+                            // Logueamos la causa REAL de PostgreSQL (ej. 42703 column
+                            // does not exist) para facilitar el diagnóstico.
+                            const pgCode = discoveryErr?.cause?.code || discoveryErr?.code;
+                            const pgDetail = discoveryErr?.cause?.detail || discoveryErr?.detail;
+                            const pgMessage = discoveryErr?.cause?.message || discoveryErr?.message;
+                            console.error('⚠️ [discovery_leads] lookup failed (non-fatal, continuing):', {
+                                pgCode,
+                                pgDetail,
+                                pgMessage,
+                                hint: 'Run migrations/028_discovery_leads_acquisition_columns.sql if columns are missing'
+                            });
+                            // No re-throw: continuar como si no hubiera match
+                        }
 
                         if (foundLead) {
                             discoveryLeadId = foundLead.id;
@@ -881,7 +907,16 @@ export async function POST(req: Request) {
                     console.error('Queue Error:', queueErr);
                 }
             } catch (dbError: any) {
-                console.error('⚠️ Webhook DB Error:', dbError.message);
+                // Mostramos la causa REAL de PostgreSQL (no solo el query truncado)
+                const pgCode = dbError?.cause?.code || dbError?.code;
+                const pgDetail = dbError?.cause?.detail || dbError?.detail;
+                const pgMessage = dbError?.cause?.message || dbError?.message;
+                console.error('⚠️ Webhook DB Error:', {
+                    pgCode,
+                    pgDetail,
+                    pgMessage,
+                    hint: 'Check migrations/028 if error is 42703 (column does not exist)'
+                });
             }
             return NextResponse.json({ status: 'processed' });
         }
