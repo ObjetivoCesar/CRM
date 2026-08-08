@@ -238,7 +238,7 @@ export default function TasksPage() {
                                     </div>
                                 </div>
                                 <DialogFooter>
-                                    <Button onClick={handleCreateTask} className="w-full bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 py-6 text-md font-bold transition-all hover:scale-[1.01]">
+                                    <Button onClick={handleCreateTask} className="w-full py-6 text-md font-bold transition-all hover:scale-[1.01]">
                                         <CheckCircle2 className="mr-2 h-5 w-5" /> Guardar Tarea y Activar Recordatorio
                                     </Button>
                                 </DialogFooter>

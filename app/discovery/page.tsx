@@ -550,10 +550,7 @@ export default function DiscoveryPage() {
     return (
         <DashboardLayout>
             <div className="relative isolate">
-                {/* Decorative Background for Glassmorphism */}
-                <div className="fixed inset-0 z-0 pointer-events-none h-full w-full bg-white bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
-                <div className="fixed inset-0 z-0 pointer-events-none bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(255,87,34,0.15),rgba(255,255,255,0))]"></div>
-                <div className="fixed inset-0 z-0 pointer-events-none bg-[radial-gradient(circle_at_bottom_right,rgba(120,119,198,0.2),transparent)]"></div>
+                {/* Discovery Content */}
 
                 <div className="p-8 md:p-12 lg:p-16 w-full max-w-[95%] mx-auto space-y-8 animate-in fade-in duration-700 relative z-10">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-2">
@@ -568,7 +565,7 @@ export default function DiscoveryPage() {
 
                         <Dialog>
                             <DialogTrigger asChild>
-                                <Button className="h-12 px-6 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl shadow-xl shadow-blue-500/20 border-0 transition-all active:scale-95 group">
+                                <Button className="h-12 px-6 font-black border-0 transition-all active:scale-95 group">
                                     <Plus className="mr-2 h-5 w-5 group-hover:rotate-90 transition-transform duration-300" /> Nuevo Prospecto
                                 </Button>
                             </DialogTrigger>

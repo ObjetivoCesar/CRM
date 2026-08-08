@@ -18,7 +18,6 @@ export function NotificationsPopover() {
     const [open, setOpen] = useState(false)
 
     const checkNotifications = async () => {
-        // Check Leads
         try {
             const res = await fetch("/api/leads/count-new")
             if (res.ok) {
@@ -27,7 +26,6 @@ export function NotificationsPopover() {
             }
         } catch (e) { console.error(e) }
 
-        // Check WhatsApp
         try {
             const res = await fetch("/api/whatsapp/unread")
             if (res.ok) {
@@ -48,47 +46,54 @@ export function NotificationsPopover() {
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative overflow-visible px-2 w-auto" aria-label="Notificaciones">
+                <button
+                    type="button"
+                    className="relative flex items-center justify-center p-2 rounded-lg text-[#B0B0B0] hover:text-white hover:bg-white/10 transition-colors outline-none focus:ring-2 focus:ring-[#C82AEF]"
+                    aria-label="Notificaciones"
+                >
                     <Bell className="h-5 w-5" />
                     {total > 0 && (
-                        <Badge className="absolute -top-1 -right-1 h-5 w-5 min-w-[1.25rem] rounded-full p-0 flex items-center justify-center bg-red-500 text-[10px] ring-2 ring-background text-white font-bold shadow-sm">
-                            {total}
-                        </Badge>
+                        <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#C82AEF] text-[9px] font-extrabold text-white ring-2 ring-[#0E0E0E] shadow-[0_0_8px_rgba(200,42,239,0.8)]">
+                            {total > 9 ? '9+' : total}
+                        </span>
                     )}
-                </Button>
+                </button>
             </PopoverTrigger>
-            <PopoverContent className="w-72 p-0 mr-4" align="end">
-                <div className="p-3 border-b text-sm font-semibold bg-muted/50">Notificaciones</div>
-                <div className="grid gap-0 p-1">
+            <PopoverContent className="w-80 p-0 bg-[#1A1A1A] border border-white/10 text-white shadow-2xl rounded-2xl overflow-hidden" align="end" sideOffset={8}>
+                <div className="px-4 py-3 border-b border-white/10 text-xs font-bold uppercase tracking-wider text-[#8B8B8B] bg-black/40 flex items-center justify-between">
+                    <span>Notificaciones</span>
+                    {total > 0 && <span className="px-2 py-0.5 rounded-full bg-[#C82AEF]/20 text-[#E870FF] text-[10px]">{total} Nuevas</span>}
+                </div>
+                <div className="p-1 space-y-1">
                     <Button
                         variant="ghost"
-                        className="justify-start gap-3 h-auto py-3 px-3 relative"
+                        className="w-full justify-start gap-3 h-auto py-3 px-3 hover:bg-white/5 rounded-xl transition-colors"
                         onClick={() => { router.push('/leads'); setOpen(false); }}
                     >
-                        <div className="relative p-2 bg-blue-500/10 rounded-full text-blue-500">
+                        <div className="relative p-2 bg-[#C82AEF]/15 rounded-xl text-[#E870FF] border border-[#C82AEF]/30">
                             <UserPlus className="h-4 w-4" />
-                            {newLeadsCount > 0 && <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-blue-500 border-2 border-background rounded-full" />}
+                            {newLeadsCount > 0 && <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-[#C82AEF] rounded-full ring-2 ring-[#1A1A1A]" />}
                         </div>
                         <div className="flex flex-col items-start gap-0.5">
-                            <span className="text-sm font-medium">Nuevos Leads</span>
-                            <span className="text-xs text-muted-foreground">
-                                {newLeadsCount === 0 ? "No hay leads pendientes" : `${newLeadsCount} leads por revisar`}
+                            <span className="text-sm font-semibold text-white">Nuevos Leads</span>
+                            <span className="text-xs text-[#8B8B8B]">
+                                {newLeadsCount === 0 ? "No hay prospectos pendientes" : `${newLeadsCount} prospectos por revisar`}
                             </span>
                         </div>
                     </Button>
 
                     <Button
                         variant="ghost"
-                        className="justify-start gap-3 h-auto py-3 px-3 relative"
-                        onClick={() => { router.push('/whatsapp'); setOpen(false); }}
+                        className="w-full justify-start gap-3 h-auto py-3 px-3 hover:bg-white/5 rounded-xl transition-colors"
+                        onClick={() => { router.push('/comunicaciones'); setOpen(false); }}
                     >
-                        <div className="relative p-2 bg-green-500/10 rounded-full text-green-500">
+                        <div className="relative p-2 bg-emerald-500/15 rounded-xl text-emerald-400 border border-emerald-500/30">
                             <MessageSquare className="h-4 w-4" />
-                            {unreadMessagesCount > 0 && <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-green-500 border-2 border-background rounded-full" />}
+                            {unreadMessagesCount > 0 && <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-emerald-500 rounded-full ring-2 ring-[#1A1A1A]" />}
                         </div>
                         <div className="flex flex-col items-start gap-0.5">
-                            <span className="text-sm font-medium">WhatsApp</span>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-sm font-semibold text-white">WhatsApp</span>
+                            <span className="text-xs text-[#8B8B8B]">
                                 {unreadMessagesCount === 0 ? "Bandeja al día" : `${unreadMessagesCount} mensajes no leídos`}
                             </span>
                         </div>

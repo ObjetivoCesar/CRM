@@ -234,7 +234,7 @@ function ConnectionsConfig({ preferences, onPreferenceChange }: {
                                 <span className="text-[10px] block text-gray-500 mt-1">* Ideal para validar el número sin ventana de 24h.</span>
                             </p>
                             <Button
-                                className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white gap-2 font-bold"
+                                className="w-full bg-[#25D366] hover:bg-[#20b859] text-white gap-2 font-bold rounded-xl shadow-lg shadow-[#25D366]/20"
                                 onClick={testWhatsApp}
                                 disabled={loadingWA}
                             >
@@ -258,7 +258,7 @@ function ConnectionsConfig({ preferences, onPreferenceChange }: {
                                 Envía una notificación de prueba a tu canal o usuario de Telegram configurado.
                             </p>
                             <Button
-                                className="w-full bg-[#0088cc] hover:bg-[#0077b5] text-white gap-2 font-bold"
+                                className="w-full bg-[#0088cc] hover:bg-[#0077b5] text-white gap-2 font-bold rounded-xl shadow-lg shadow-[#0088cc]/20"
                                 onClick={testTelegram}
                                 disabled={loadingTG}
                             >
@@ -283,7 +283,7 @@ function ConnectionsConfig({ preferences, onPreferenceChange }: {
                             </p>
                             <Link href="/settings/instagram" className="block w-full">
                                 <Button
-                                    className="w-full bg-pink-600 hover:bg-pink-700 text-white gap-2 font-bold"
+                                    className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white gap-2 font-bold rounded-xl shadow-lg shadow-pink-500/20"
                                 >
                                     <Settings size={16} />
                                     Configurar Instagram
@@ -464,7 +464,7 @@ export default function SettingsPage() {
                     Based on the instruction, the save button is now in a separate flex container below the main header.
                 */}
                 {/* The original title div content is now part of the new header above. */}
-                <Button onClick={saveSettings} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
+                <Button onClick={saveSettings} className="gap-2">
                     <Save size={18} />
                     Guardar Cambios
                 </Button>

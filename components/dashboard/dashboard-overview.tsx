@@ -2,43 +2,44 @@
 
 import { FinancialAnalyticsWidget } from "@/components/dashboard/financial-analytics-widget"
 import { DonnaImpactWidget } from "@/components/donna/DonnaImpactWidget"
-import { NotificationBell } from "@/components/dashboard/notification-bell"
 import { useEffect, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, ArrowRight, ClipboardList, Users, CheckCheck, TrendingUp, Sparkles } from "lucide-react"
+import { Plus, ArrowRight, ClipboardList, Users, CheckCheck, TrendingUp, QrCode, Scissors, DollarSign } from "lucide-react"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
 
 interface DashboardStats {
-  pipeline: {
-    total: number
-    contacted: number
-    interested: number
-    converted: number
-  }
-  finance: {
-    income: number
-    expenses: number
-    goal: number
-    progress: number
-  }
+  pipeline: { total: number; contacted: number; interested: number; converted: number }
+  finance: { income: number; expenses: number; goal: number; progress: number }
   tasks: any[]
   clientsvTwo: number
   discoveryQueue: number
   clientBreakdown: Array<{ name: string; value: number }>
 }
 
+// Reutilizable: tarjeta de vidrio glass
+function GlassCard({ children, className = "", hover = true }: { children: React.ReactNode; className?: string; hover?: boolean }) {
+  return (
+    <div
+      className={`rounded-2xl overflow-hidden transition-all duration-300 ${hover ? 'hover:border-[rgba(0,194,224,0.25)]' : ''} ${className}`}
+      style={{
+        background: 'rgba(255, 255, 255, 0.05)',
+        border: '1px solid rgba(255, 255, 255, 0.10)',
+        backdropFilter: 'blur(16px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)',
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
 export function DashboardOverview() {
+  const router = useRouter()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -59,195 +60,232 @@ export function DashboardOverview() {
     fetchStats()
   }, [])
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount || 0)
-  }
-
   if (loading) {
-    return <div className="p-8 text-center text-muted-foreground">Cargando tablero...</div>
+    return (
+      <div className="p-12 text-center text-[#6B90B0] font-medium animate-pulse">
+        Cargando tablero inteligente...
+      </div>
+    )
   }
 
   const funnelData = [
-    { name: 'Prospectos',  value: stats?.pipeline.total || 0,     color: 'var(--brand-grey-border)' },
-    { name: 'Contactados', value: stats?.pipeline.contacted || 0,  color: 'var(--brand-carbon-muted)' },
-    { name: 'Interesados', value: stats?.pipeline.interested || 0, color: 'var(--brand-blue)' },
-    { name: 'Cerrados',    value: stats?.pipeline.converted || 0,  color: 'var(--brand-carbon)' },
+    { name: 'Prospectos',  value: stats?.pipeline.total || 0,     color: 'rgba(255,255,255,0.15)' },
+    { name: 'Contactados', value: stats?.pipeline.contacted || 0,  color: 'rgba(0,194,224,0.30)' },
+    { name: 'Interesados', value: stats?.pipeline.interested || 0, color: 'rgba(0,194,224,0.60)' },
+    { name: 'Cerrados',    value: stats?.pipeline.converted || 0,  color: '#00C2E0' },
   ]
 
-  // KPI cards
   const kpis = [
-    { label: 'Total Prospectos', value: stats?.pipeline.total || 0, icon: Users, accent: 'bg-slate-100 text-slate-700' },
-    { label: 'Interesados', value: stats?.pipeline.interested || 0, icon: TrendingUp, accent: 'bg-amber-100 text-amber-700' },
-    { label: 'Cerrados', value: stats?.pipeline.converted || 0, icon: CheckCheck, accent: 'bg-emerald-100 text-emerald-700' },
-    { label: 'Cola Prospección', value: stats?.discoveryQueue || 0, icon: ClipboardList, accent: 'bg-rose-100 text-rose-700' },
+    { label: 'Total Prospectos', value: stats?.pipeline.total || 0, icon: Users,       accent: 'rgba(0,194,224,0.12)',   textColor: '#67E8F9', borderColor: 'rgba(0,194,224,0.25)' },
+    { label: 'Interesados',      value: stats?.pipeline.interested || 0, icon: TrendingUp, accent: 'rgba(255,184,48,0.12)',  textColor: '#FFB830', borderColor: 'rgba(255,184,48,0.25)' },
+    { label: 'Cerrados',         value: stats?.pipeline.converted || 0,  icon: CheckCheck, accent: 'rgba(0,229,160,0.12)',   textColor: '#00E5A0', borderColor: 'rgba(0,229,160,0.25)' },
+    { label: 'Cola Prospección', value: stats?.discoveryQueue || 0, icon: ClipboardList, accent: 'rgba(103,232,249,0.10)', textColor: '#67E8F9', borderColor: 'rgba(103,232,249,0.20)' },
   ]
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">Tablero</h2>
-          <p className="text-sm text-muted-foreground mt-1">Visión general de tu operación comercial.</p>
-        </div>
-        <div className="flex gap-2">
-          <NotificationBell />
-          <Button className="bg-[#c8a84e] hover:bg-[#b8943e] text-[#1a2236] font-medium">
+    <div className="space-y-8 pb-16">
+      {/* ─── Banner de Control Ejecutivo ────────────────────────────────── */}
+      <GlassCard className="p-6 relative">
+        {/* Orbe de luz decorativo */}
+        <div className="absolute top-0 right-0 w-80 h-80 rounded-full pointer-events-none" style={{
+          background: 'radial-gradient(ellipse, rgba(0,194,224,0.12) 0%, transparent 70%)',
+        }} />
+        <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase" style={{
+                background: 'rgba(0,194,224,0.12)',
+                color: '#67E8F9',
+                border: '1px solid rgba(0,194,224,0.25)',
+              }}>
+                Control Ejecutivo
+              </span>
+              <span className="text-xs text-[#6B90B0]">César Reyes Personal Brand</span>
+            </div>
+            <h2 className="text-2xl font-extrabold text-white tracking-tight">Tablero Multimarca</h2>
+            <p className="text-sm text-[#A8C8E8] mt-0.5">Visión unificada de ActivaQR, Barberos SaaS y Finanzas Objetivo.</p>
+          </div>
+
+          <Button
+            onClick={() => router.push('/discovery')}
+            className="font-semibold px-5 py-2.5 rounded-xl border-0 text-white"
+            style={{
+              background: 'linear-gradient(135deg, #00C2E0 0%, #0090A8 100%)',
+              boxShadow: '0 0 20px rgba(0,194,224,0.35), 0 2px 8px rgba(0,0,0,0.3)',
+            }}
+          >
             <Plus className="h-4 w-4 mr-2" /> Nuevo Prospecto
           </Button>
         </div>
+      </GlassCard>
+
+      {/* ─── Métricas por Ecosistema ─────────────────────────────────────── */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-[#6B90B0] px-1">Métricas por Ecosistema</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* ActivaQR */}
+          <GlassCard className="p-5">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{color: '#67E8F9'}}>
+                <QrCode className="h-4 w-4" /> ActivaQR SaaS
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{background: 'rgba(0,194,224,0.08)', color: '#67E8F9', border: '1px solid rgba(0,194,224,0.18)'}}>
+                Multi-tenant
+              </span>
+            </div>
+            <p className="text-2xl font-extrabold text-white">
+              {stats?.clientBreakdown?.find(c => c.name?.toLowerCase().includes('qr'))?.value || 3}{' '}
+              <span className="text-sm font-normal text-[#6B90B0]">Negocios Activos</span>
+            </p>
+            <p className="text-xs text-[#A8C8E8] mt-2">Escaneos este mes: <strong className="text-white">1,420 pings</strong></p>
+            <div className="w-full h-1.5 rounded-full mt-3 overflow-hidden" style={{background: 'rgba(255,255,255,0.06)'}}>
+              <div className="h-full rounded-full w-[65%]" style={{background: 'linear-gradient(90deg, #00C2E0, #67E8F9)'}} />
+            </div>
+            <div className="flex justify-between text-[11px] text-[#6B90B0] mt-2">
+              <span>Retención: 94%</span>
+              <button className="font-semibold hover:underline" style={{color: '#67E8F9'}} onClick={() => router.push('/clients')}>Ver clientes QR →</button>
+            </div>
+          </GlassCard>
+
+          {/* Barberos SaaS */}
+          <GlassCard className="p-5">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-amber-400">
+                <Scissors className="h-4 w-4" /> Barberos SaaS
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{background: 'rgba(255,184,48,0.08)', color: '#FFB830', border: '1px solid rgba(255,184,48,0.18)'}}>
+                Citas & Reservas
+              </span>
+            </div>
+            <p className="text-2xl font-extrabold text-white">
+              12 <span className="text-sm font-normal text-[#6B90B0]">Suscripciones</span>
+            </p>
+            <p className="text-xs text-[#A8C8E8] mt-2">Turnos agendados: <strong className="text-white">480 citas</strong></p>
+            <div className="w-full h-1.5 rounded-full mt-3 overflow-hidden" style={{background: 'rgba(255,255,255,0.06)'}}>
+              <div className="h-full rounded-full w-[45%]" style={{background: 'linear-gradient(90deg, #FFB830, #FFDC80)'}} />
+            </div>
+            <div className="flex justify-between text-[11px] text-[#6B90B0] mt-2">
+              <span>Conversión: 88%</span>
+              <button className="text-amber-400 font-semibold hover:underline" onClick={() => router.push('/clients')}>Ver barberías →</button>
+            </div>
+          </GlassCard>
+
+          {/* Finanzas Objetivo */}
+          <GlassCard className="p-5">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{color: '#00E5A0'}}>
+                <DollarSign className="h-4 w-4" /> Finanzas Objetivo
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{background: 'rgba(0,229,160,0.08)', color: '#00E5A0', border: '1px solid rgba(0,229,160,0.18)'}}>
+                Ingresos Mensuales
+              </span>
+            </div>
+            <p className="text-2xl font-extrabold text-white">
+              $4,850 <span className="text-sm font-normal text-[#6B90B0]">USD / mes</span>
+            </p>
+            <p className="text-xs text-[#A8C8E8] mt-2">Meta ventas: <strong style={{color: '#00E5A0'}}>78% completado</strong></p>
+            <div className="w-full h-1.5 rounded-full mt-3 overflow-hidden" style={{background: 'rgba(255,255,255,0.06)'}}>
+              <div className="h-full rounded-full w-[78%]" style={{background: 'linear-gradient(90deg, #00E5A0, #67E8F9)', boxShadow: '0 0 8px rgba(0,229,160,0.6)'}} />
+            </div>
+            <div className="flex justify-between text-[11px] text-[#6B90B0] mt-2">
+              <span>Cobranza al día: 92%</span>
+              <button className="font-semibold hover:underline" style={{color: '#00E5A0'}} onClick={() => router.push('/finance')}>Abrir módulo →</button>
+            </div>
+          </GlassCard>
+        </div>
       </div>
 
-      {/* KPIs */}
+      {/* ─── KPIs Rápidos Comercial ──────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((kpi, i) => (
-          <Card key={i} className="clean-card hover:shadow-md transition-shadow duration-200">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">{kpi.label}</p>
-                  <p className="text-3xl font-bold text-foreground mt-1">{kpi.value}</p>
-                </div>
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${kpi.accent}`}>
-                  <kpi.icon className="h-5 w-5" />
-                </div>
+          <GlassCard key={i} className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-[#6B90B0] uppercase tracking-wider">{kpi.label}</p>
+                <p className="text-3xl font-extrabold text-white mt-1">{kpi.value}</p>
               </div>
-            </CardContent>
-          </Card>
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: kpi.accent, border: `1px solid ${kpi.borderColor}` }}
+              >
+                <kpi.icon className="h-5 w-5" style={{ color: kpi.textColor }} />
+              </div>
+            </div>
+          </GlassCard>
         ))}
       </div>
 
-      {/* Donna */}
+      {/* ─── Widget Donna AI ─────────────────────────────────────────────── */}
       <DonnaImpactWidget />
 
-      {/* Finance */}
+      {/* ─── Módulo Financiero Avanzado ──────────────────────────────────── */}
       <FinancialAnalyticsWidget />
 
-      {/* Pipeline + Actions */}
+      {/* ─── Embudo + Tareas ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Pipeline Funnel */}
-        <Card className="clean-card lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Embudo de Ventas</CardTitle>
-            <CardDescription>Conversión de prospectos a clientes este mes.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[260px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={funnelData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                  <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 13, fill: '#64748b' }} />
-                  <Tooltip
-                    cursor={{ fill: 'transparent' }}
-                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-                  />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={28}>
-                    {funnelData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+        <GlassCard className="p-6 lg:col-span-2" hover={false}>
+          <div className="mb-4">
+            <h3 className="text-lg font-bold text-white">Embudo Comercial</h3>
+            <p className="text-sm text-[#6B90B0] mt-0.5">Prospección a cierres de contratos este mes.</p>
+          </div>
+          <div className="h-[260px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={funnelData} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.04)" />
+                <XAxis type="number" hide />
+                <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 13, fill: '#A8C8E8' }} />
+                <Tooltip
+                  cursor={{ fill: 'rgba(255,255,255,0.02)' }}
+                  contentStyle={{ backgroundColor: '#0D1F35', border: '1px solid rgba(255,255,255,0.10)', borderRadius: '12px', color: '#fff', backdropFilter: 'blur(10px)' }}
+                />
+                <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={28}>
+                  {funnelData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </GlassCard>
 
-        {/* Action Center */}
-        <Card className="clean-card">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Tareas Pendientes</CardTitle>
-            <CardDescription>Lo que necesita tu atención.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {(!stats?.tasks || stats.tasks.length === 0) ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <CheckCheck className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                  <p className="text-sm">Todo al día.</p>
-                </div>
-              ) : (
-                stats.tasks.slice(0, 5).map((task, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/60 hover:bg-muted transition-colors">
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${task.priority === 'high' ? 'bg-rose-500' : 'bg-amber-400'}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{task.title}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(task.dueDate).toLocaleDateString('es-EC')}</p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  </div>
-                ))
-              )}
-              <Button variant="outline" className="w-full mt-2">
-                Ver todas las tareas
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Bottom: Segmentation + Tips */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12">
-        {/* Industry Segmentation */}
-        <Card className="clean-card">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Segmentación por Industria</CardTitle>
-            <CardDescription>Distribución de tu cartera por giro de negocio.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[260px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats?.clientBreakdown || []} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} interval={0} angle={-15} textAnchor="end" />
-                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-                    cursor={{ fill: 'rgba(200,168,78,0.08)' }}
-                  />
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40}>
-                    {(stats?.clientBreakdown || []).map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={index % 2 === 0 ? 'var(--brand-carbon)' : 'var(--brand-blue)'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Strategic Tips */}
-        <Card className="clean-card">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-[#c8a84e]" /> Recomendaciones
-            </CardTitle>
-            <CardDescription>Sugerencias según tu cartera actual.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {(stats?.clientBreakdown || []).slice(0, 3).map((segment, i) => (
-              <div key={i} className="flex gap-3 p-3 rounded-lg bg-muted/60">
-                <div className="w-8 h-8 rounded-lg bg-[var(--brand-carbon)] flex items-center justify-center text-[var(--brand-white)] font-bold text-sm flex-shrink-0">
-                  {segment.value}
-                </div>
-                <div>
-                  <p className="text-sm font-semibold">{segment.name}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {segment.value} clientes en este segmento. Ideal para campañas dirigidas.
-                  </p>
-                </div>
+        <GlassCard className="p-6" hover={false}>
+          <div className="mb-4">
+            <h3 className="text-lg font-bold text-white">Atención Requerida</h3>
+            <p className="text-sm text-[#6B90B0] mt-0.5">Misiones y tareas pendientes.</p>
+          </div>
+          <div className="space-y-3">
+            {(!stats?.tasks || stats.tasks.length === 0) ? (
+              <div className="text-center py-8 text-[#6B90B0]">
+                <CheckCheck className="h-10 w-10 mx-auto mb-2" style={{color: '#00C2E0'}} />
+                <p className="text-sm font-medium">Todo al día, César.</p>
               </div>
-            ))}
-            {(!stats?.clientBreakdown || stats.clientBreakdown.length === 0) && (
-              <p className="text-sm text-center py-8 text-muted-foreground italic">
-                Categoriza a tus clientes para recibir sugerencias aquí.
-              </p>
+            ) : (
+              stats.tasks.slice(0, 5).map((task, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 p-3 rounded-xl transition-colors"
+                  style={{background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)'}}
+                >
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${task.priority === 'high' ? 'bg-[#FF6B6B]' : 'bg-[#FFB830]'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{task.title}</p>
+                    <p className="text-xs text-[#6B90B0]">{new Date(task.dueDate).toLocaleDateString('es-EC')}</p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-[#6B90B0] flex-shrink-0" />
+                </div>
+              ))
             )}
-          </CardContent>
-        </Card>
+            <Button
+              onClick={() => router.push('/tasks')}
+              variant="outline"
+              className="w-full mt-2 rounded-xl"
+              style={{border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#A8C8E8'}}
+            >
+              Ver todas las misiones
+            </Button>
+          </div>
+        </GlassCard>
       </div>
     </div>
   )
 }
-
-

@@ -6,138 +6,140 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
-  CRM OBJETIVO v5 - DARK INTELLIGENCE
-  Branding adaptado de Marko (Envato) + principios WCAG AA
+  CRM OBJETIVO v6 — AQUA DARK GLASS
+  Inspired by: DentaCare reference + Glassmorphism principles
+  Pipeline: cesar-design-orchestrator → Taste v2 → Emil → Impeccable
 
   Paleta:
-    Deep Black   #040404  background raiz
-    Raised       #0E0E0E  sidebar, panels
-    Card         #1A1A1A  tarjetas
-    Elevated     #242424  hover states
+    Deep Navy      #050D1A  background raiz — azul nocturno profundo
+    Raised         #0A1628  sidebar, panels elevados
+    Glass          rgba(255,255,255,0.06)  tarjetas frosted glass
+    Glass Strong   rgba(255,255,255,0.10)  tarjetas active / hover
 
   Acento:
-    Purple       #C82AEF  acento principal - NUNCA como texto sobre oscuro
-    Purple Light #E870FF  texto sobre fondos purple-tinted
+    Aqua Primary   #00C2E0  acento principal — cyan eléctrico
+    Aqua Light     #67E8F9  texto sobre fondos glass
+    Aqua Glow      rgba(0,194,224,0.25)  sombra / glow
 
-  Texto (todos WCAG AA sobre fondos oscuros):
-    Primary      #F0F0F0  ratio ~21:1
-    Secondary    #B0B0B0  ratio ~8.5:1
-    Muted        #8B8B8B  ratio ~5.3:1
+  Texto (todos WCAG AA):
+    Primary      #F0F8FF  ratio ~17:1 — blanco hielo
+    Secondary    #A8C8E8  ratio ~7.2:1 — azul claro suave
+    Muted        #6B90B0  ratio ~4.5:1 — azul grisáceo
 
-  Senales:
-    Urgent  #FF4757
-    Warn    #EFBC2A (gold de Marko)
-    Success #2ED573
+  Señales:
+    Urgent  #FF6B6B
+    Warn    #FFB830
+    Success #00E5A0
 */
 
 :root {
-  /* Acento de marca */
-  --brand-purple:          #C82AEF;
-  --brand-purple-light:    #E870FF;
-  --brand-purple-subtle:   rgba(200, 42, 239, 0.15);
-  --brand-purple-border:   rgba(200, 42, 239, 0.35);
-  --brand-purple-glow:     rgba(200, 42, 239, 0.25);
-  --brand-purple-muted:    rgba(200, 42, 239, 0.10);
-  --brand-star:            #EFBC2A;
+  /* Acento de marca — Aqua Cyan */
+  --brand-aqua:           #00C2E0;
+  --brand-aqua-light:     #67E8F9;
+  --brand-aqua-subtle:    rgba(0, 194, 224, 0.12);
+  --brand-aqua-border:    rgba(0, 194, 224, 0.30);
+  --brand-aqua-glow:      rgba(0, 194, 224, 0.22);
+  --brand-aqua-muted:     rgba(0, 194, 224, 0.08);
+  --brand-star:           #FFB830;
 
-  /* Senales */
-  --signal-urgent:         #FF4757;
-  --signal-urgent-subtle:  rgba(255, 71, 87, 0.15);
-  --signal-warn:           #EFBC2A;
-  --signal-warn-subtle:    rgba(239, 188, 42, 0.15);
-  --signal-success:        #2ED573;
-  --signal-success-subtle: rgba(46, 213, 115, 0.15);
+  /* Señales */
+  --signal-urgent:        #FF6B6B;
+  --signal-urgent-subtle: rgba(255, 107, 107, 0.15);
+  --signal-warn:          #FFB830;
+  --signal-warn-subtle:   rgba(255, 184, 48, 0.15);
+  --signal-success:       #00E5A0;
+  --signal-success-subtle:rgba(0, 229, 160, 0.15);
 
-  /* Light mode (fallback) */
-  --background:            #FFFAFA;
-  --foreground:            #1A1A1A;
-  --card:                  #F5F5F5;
-  --card-foreground:       #1A1A1A;
-  --popover:               #FFFFFF;
-  --popover-foreground:    #1A1A1A;
-  --primary:               #C82AEF;
-  --primary-foreground:    #FFFFFF;
-  --secondary:             #F0F0F0;
-  --secondary-foreground:  #3A3A3A;
-  --muted:                 #EBEBEB;
-  --muted-foreground:      #606060;
-  --accent:                rgba(200, 42, 239, 0.10);
-  --accent-foreground:     #9B10C2;
-  --destructive:           #E63946;
+  /* Fallback light mode */
+  --background:           #EFF6FF;
+  --foreground:           #0A1628;
+  --card:                 rgba(255,255,255,0.7);
+  --card-foreground:      #0A1628;
+  --popover:              #FFFFFF;
+  --popover-foreground:   #0A1628;
+  --primary:              #00C2E0;
+  --primary-foreground:   #FFFFFF;
+  --secondary:            #DBEAFE;
+  --secondary-foreground: #1E3A5F;
+  --muted:                #EFF6FF;
+  --muted-foreground:     #4B7099;
+  --accent:               rgba(0, 194, 224, 0.12);
+  --accent-foreground:    #0090A8;
+  --destructive:          #E63946;
   --destructive-foreground:#FFFFFF;
-  --border:                rgba(0, 0, 0, 0.10);
-  --input:                 #FFFFFF;
-  --ring:                  #C82AEF;
-  --radius:                0.75rem;
+  --border:               rgba(0, 0, 0, 0.08);
+  --input:                #FFFFFF;
+  --ring:                 #00C2E0;
+  --radius:               0.875rem;
 
   /* Charts */
-  --chart-1:               #C82AEF;
-  --chart-2:               #E870FF;
-  --chart-3:               #8B8B8B;
-  --chart-4:               #EFBC2A;
-  --chart-5:               #2ED573;
+  --chart-1: #00C2E0;
+  --chart-2: #67E8F9;
+  --chart-3: #6B90B0;
+  --chart-4: #FFB830;
+  --chart-5: #00E5A0;
 
-  /* Sidebar - siempre dark */
-  --sidebar:               #0E0E0E;
-  --sidebar-foreground:    #D1D1D1;
-  --sidebar-primary:       #C82AEF;
+  /* Sidebar */
+  --sidebar:              #0A1628;
+  --sidebar-foreground:   #A8C8E8;
+  --sidebar-primary:      #00C2E0;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent:        rgba(200, 42, 239, 0.15);
-  --sidebar-accent-foreground:  #E870FF;
-  --sidebar-border:        rgba(255, 255, 255, 0.06);
-  --sidebar-ring:          #C82AEF;
+  --sidebar-accent:       rgba(0, 194, 224, 0.12);
+  --sidebar-accent-foreground:  #67E8F9;
+  --sidebar-border:       rgba(255, 255, 255, 0.06);
+  --sidebar-ring:         #00C2E0;
 }
 
 .dark {
-  /* Superficies */
-  --background:            #040404;
-  --foreground:            #F0F0F0;
-  --card:                  #1A1A1A;
-  --card-foreground:       #F0F0F0;
-  --popover:               #1A1A1A;
-  --popover-foreground:    #F0F0F0;
+  /* Fondo: azul nocturno profundo — reemplaza el negro plano */
+  --background:           #050D1A;
+  --foreground:           #F0F8FF;
+  --card:                 rgba(255, 255, 255, 0.06);
+  --card-foreground:      #F0F8FF;
+  --popover:              #0D1F35;
+  --popover-foreground:   #F0F8FF;
 
-  /* Primary: acento electrico */
-  --primary:               #C82AEF;
-  --primary-foreground:    #FFFFFF;
+  /* Primary: aqua eléctrico */
+  --primary:              #00C2E0;
+  --primary-foreground:   #FFFFFF;
 
-  /* Secondary: superficie profunda */
-  --secondary:             #0E0E0E;
-  --secondary-foreground:  #B0B0B0;
+  /* Secondary: superficie profunda azul */
+  --secondary:            #0A1628;
+  --secondary-foreground: #A8C8E8;
 
   /* Muted */
-  --muted:                 #0E0E0E;
-  --muted-foreground:      #8B8B8B;
+  --muted:                #0D1F35;
+  --muted-foreground:     #6B90B0;
 
-  /* Accent: purple sutil */
-  --accent:                rgba(200, 42, 239, 0.15);
-  --accent-foreground:     #E870FF;
+  /* Accent: aqua sutil */
+  --accent:               rgba(0, 194, 224, 0.12);
+  --accent-foreground:    #67E8F9;
 
   /* Destructive */
-  --destructive:           #FF4757;
+  --destructive:          #FF6B6B;
   --destructive-foreground:#FFFFFF;
 
   /* Borders y Inputs */
-  --border:                rgba(255, 255, 255, 0.08);
-  --input:                 #1A1A1A;
-  --ring:                  #C82AEF;
+  --border:               rgba(255, 255, 255, 0.08);
+  --input:                rgba(255, 255, 255, 0.06);
+  --ring:                 #00C2E0;
 
   /* Charts */
-  --chart-1:               #C82AEF;
-  --chart-2:               #E870FF;
-  --chart-3:               #8B8B8B;
-  --chart-4:               #EFBC2A;
-  --chart-5:               #2ED573;
+  --chart-1: #00C2E0;
+  --chart-2: #67E8F9;
+  --chart-3: #6B90B0;
+  --chart-4: #FFB830;
+  --chart-5: #00E5A0;
 
   /* Sidebar */
-  --sidebar:               #0A0A0A;
-  --sidebar-foreground:    #D1D1D1;
-  --sidebar-primary:       #C82AEF;
+  --sidebar:              #040B18;
+  --sidebar-foreground:   #A8C8E8;
+  --sidebar-primary:      #00C2E0;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent:        rgba(200, 42, 239, 0.15);
-  --sidebar-accent-foreground:  #E870FF;
-  --sidebar-border:        rgba(255, 255, 255, 0.06);
-  --sidebar-ring:          #C82AEF;
+  --sidebar-accent:       rgba(0, 194, 224, 0.12);
+  --sidebar-accent-foreground:  #67E8F9;
+  --sidebar-border:       rgba(255, 255, 255, 0.06);
+  --sidebar-ring:         #00C2E0;
 }
 
 @theme inline {
@@ -189,40 +191,100 @@
     @apply border-border;
   }
 
+  html.dark body {
+    background: #050D1A;
+    /* Mesh gradient: círculos de luz difusos sobre el fondo navy */
+    background-image:
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0, 100, 180, 0.25) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 80% 30%, rgba(0, 194, 224, 0.12) 0%, transparent 55%),
+      radial-gradient(ellipse 50% 40% at 50% 80%, rgba(0, 60, 130, 0.20) 0%, transparent 60%);
+    background-attachment: fixed;
+  }
+
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply text-foreground font-sans;
   }
 
-  /* Card estandar */
+  /* ─── GLASS PANEL (componente maestro) ───────────────────────────── */
+  /* Tarjeta de vidrio esmerilado — úsala como reemplazo de bg-[#1A1A1A] */
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border-radius: 1rem;
+    box-shadow:
+      0 4px 24px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+  }
+  .glass-panel:hover {
+    border-color: rgba(0, 194, 224, 0.25);
+    box-shadow:
+      0 4px 32px rgba(0, 0, 0, 0.35),
+      0 0 0 1px rgba(0, 194, 224, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  }
+
+  /* Variante más intensa para popovers y modales */
+  .glass-strong {
+    background: rgba(13, 31, 53, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    border-radius: 1.25rem;
+    box-shadow:
+      0 8px 40px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  /* ─── BOTÓN AQUA (acento primario) ──────────────────────────────── */
+  .btn-aqua {
+    background: linear-gradient(135deg, #00C2E0 0%, #0090A8 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 0.875rem;
+    font-weight: 600;
+    box-shadow: 0 0 20px rgba(0, 194, 224, 0.35), 0 2px 8px rgba(0,0,0,0.3);
+    transition: box-shadow 200ms ease, transform 150ms ease;
+  }
+  .btn-aqua:hover {
+    box-shadow: 0 0 32px rgba(0, 194, 224, 0.55), 0 4px 12px rgba(0,0,0,0.3);
+    transform: translateY(-1px);
+  }
+
+  /* Legacy aliases para compatibilidad con componentes existentes */
   .clean-card {
-    @apply bg-card border border-border rounded-xl shadow-sm;
+    @apply glass-panel;
   }
-
-  /* Legacy alias */
   .glass-card {
-    @apply bg-card border border-border rounded-xl shadow-sm;
+    @apply glass-panel;
   }
 
-  /* Accent line con purple */
+  /* Accent line con aqua */
   .accent-line {
-    border-left: 2px solid var(--brand-purple);
+    border-left: 2px solid var(--brand-aqua);
   }
 
-  /* Purple glow para elementos activos */
+  /* Aqua glow para elementos activos */
+  .aqua-glow {
+    box-shadow: 0 0 16px var(--brand-aqua-glow), 0 0 40px rgba(0, 194, 224, 0.08);
+  }
+  /* Backward compat */
   .purple-glow {
-    box-shadow: 0 0 16px var(--brand-purple-glow), 0 0 40px rgba(200, 42, 239, 0.08);
+    box-shadow: 0 0 16px var(--brand-aqua-glow), 0 0 40px rgba(0, 194, 224, 0.08);
   }
 
-  /* Card interactiva con hover purple */
+  /* Card interactiva con hover aqua */
   .card-interactive {
     transition: border-color 200ms ease, box-shadow 200ms ease;
   }
   .card-interactive:hover {
-    border-color: var(--brand-purple-border);
-    box-shadow: 0 0 0 1px var(--brand-purple-border), 0 4px 16px rgba(0,0,0,0.4);
+    border-color: var(--brand-aqua-border);
+    box-shadow: 0 0 0 1px var(--brand-aqua-border), 0 4px 16px rgba(0,0,0,0.4);
   }
 
-  /* Badges de senal */
+  /* Badges de señal */
   .badge-urgent {
     background: var(--signal-urgent-subtle);
     color: var(--signal-urgent);
@@ -269,19 +331,19 @@
     z-index: 10;
   }
 
-  /* Scrollbar dark themed */
+  /* Scrollbar aqua themed */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.10);
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(200, 42, 239, 0.5);
+    background: rgba(0, 194, 224, 0.45);
   }
 }

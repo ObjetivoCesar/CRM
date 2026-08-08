@@ -3,188 +3,260 @@
 import React from "react"
 import type { ReactNode } from "react"
 import {
-  Bell,
-  Calendar,
-  CheckSquare,
-  FileText,
-  Home,
-  LineChart,
-  LogOut,
-  Menu,
-  Package,
-  Package2,
-  ShoppingCart,
-  Users,
-  UserPlus,
-  MapPin,
-  BarChart3,
-  Settings,
-  UserCheck,
-  MessageSquare,
-  Database,
-  Search,
-  Mic,
-  Sparkles,
-  FileSignature,
-  TrendingUp,
-  Target,
+  Calendar, CheckSquare, FileText, Users, UserPlus, MapPin, BarChart3,
+  Settings, UserCheck, MessageSquare, Search, Mic, Sparkles,
+  FileSignature, TrendingUp, Target, DollarSign, LogOut, Menu, X,
 } from "lucide-react"
 import Image from "next/image"
-import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-  SidebarProvider,
-  SidebarTrigger,
-  SidebarFooter,
-} from "@/components/ui/sidebar"
-
 import { NotificationsPopover } from "@/components/dashboard/notifications-popover"
 
 interface DashboardLayoutProps {
   children: ReactNode
 }
 
+const navigation = [
+  { name: "Tablero Principal", icon: BarChart3,     href: "/dashboard" },
+  { name: "Comunicaciones",    icon: MessageSquare, href: "/comunicaciones" },
+  { name: "Recorridos",        icon: MapPin,        href: "/recorridos" },
+  { name: "Leads",             icon: UserPlus,      href: "/leads" },
+  { name: "Clientes",          icon: UserCheck,     href: "/clients" },
+  { name: "Tareas",            icon: CheckSquare,   href: "/tasks" },
+  { name: "Eventos",           icon: Calendar,      href: "/events" },
+  { name: "Finanzas",          icon: DollarSign,    href: "/finance" },
+  { name: "Cotizaciones",      icon: FileText,      href: "/cotizaciones" },
+  { name: "Contratos",         icon: FileSignature, href: "/contratos" },
+  { name: "Marketing",         icon: Users,         href: "/marketing/scheduler" },
+  { name: "Campañas",          icon: TrendingUp,    href: "/marketing/launch" },
+  { name: "Discovery",         icon: Search,        href: "/discovery" },
+  { name: "Adquisición",       icon: Target,        href: "/adquisicion", badge: "GEO" },
+  { name: "Entrenador",        icon: Mic,           href: "/trainer" },
+  { name: "Donna AI",          icon: Sparkles,      href: "/donna", badge: "AI" },
+]
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const [sidebarOpen, setSidebarOpen] = React.useState(true)
   const [newLeadsCount, setNewLeadsCount] = React.useState(0)
 
-  // Restore sidebar badge logic
   React.useEffect(() => {
     const checkNewLeads = async () => {
       try {
-        const response = await fetch("/api/leads/count-new")
-        if (response.ok) {
-          const { count } = await response.json()
+        const res = await fetch("/api/leads/count-new")
+        if (res.ok) {
+          const { count } = await res.json()
           setNewLeadsCount(count)
         }
-      } catch (error) {
-        console.error("Error checking new leads:", error)
-      }
+      } catch {}
     }
-
     checkNewLeads()
-    const interval = setInterval(checkNewLeads, 30000)
-    return () => clearInterval(interval)
+    const iv = setInterval(checkNewLeads, 30000)
+    return () => clearInterval(iv)
   }, [])
 
-  const navigation = [
-    { name: "Dashboard", icon: BarChart3, href: "/dashboard" },
-    { name: "Comunicaciones", icon: MessageSquare, href: "/comunicaciones" },
-    { name: "Recorridos", icon: MapPin, href: "/recorridos" },
-    // { name: "Base de Datos", icon: Database, href: "/prospects" }, // Temporarily removed per user request
-    { name: "Leads", icon: UserPlus, href: "/leads", badge: newLeadsCount > 0 ? newLeadsCount : undefined },
-    { name: "Clientes", icon: UserCheck, href: "/clients" },
-    { name: "Tareas", icon: CheckSquare, href: "/tasks" },
-    { name: "Eventos", icon: Calendar, href: "/events" },
-    { name: "Finanzas", icon: MessageSquare, href: "/finance" }, // Usando MessageSquare temporalmente, cambiar a Banknote si disponible
-    { name: "Cotizaciones", icon: FileText, href: "/cotizaciones" },
-    { name: "Contratos", icon: FileSignature, href: "/contratos" },
-    { name: "Marketing", icon: Users, href: "/marketing/scheduler" },
-    { name: "Campañas", icon: TrendingUp, href: "/marketing/launch" },
-    { name: "Discovery", icon: Search, href: "/discovery" },
-    { name: "Adquisición", icon: Target, href: "/adquisicion", badge: "GEO" },
-    { name: "Entrenador", icon: Mic, href: "/trainer" },
-    { name: "Donna", icon: Sparkles, href: "/donna", badge: "AI" },
-  ]
-
-  const settingsNavigation = { name: "Configuración", icon: Settings, href: "/settings" }
+  const activeItem = navigation.find(
+    item => pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
+  )
 
   return (
-    <SidebarProvider>
-      <div className="flex h-screen w-full bg-muted/20 overflow-hidden">
-        <Sidebar>
-          <SidebarHeader>
-            <div className="flex items-center space-x-3">
-              <Image
-                src="/logo.jpg"
-                alt="CRM OBJETIVO"
-                width={40}
-                height={40}
-                className="object-contain rounded-lg"
-              />
-              <div>
-                <span className="text-xl font-display tracking-[0.12em] text-sidebar-foreground">OBJETIVO</span>
-                <p className="text-xs text-sidebar-foreground/60 tracking-wider">CRM Inteligente</p>
-              </div>
+    <div className="relative flex h-screen w-full overflow-hidden">
+      {/* ═══════════════════════════════════════════════════════════
+          CAPA 0: Fondo FIXED — el gradient que todos los glass ven
+      ═══════════════════════════════════════════════════════════ */}
+      <div
+        className="fixed inset-0 -z-10"
+        style={{
+          background: "#07101E",
+          backgroundImage: `
+            radial-gradient(ellipse 70% 55% at 15% 5%,  rgba(30,80,180,0.45) 0%, transparent 60%),
+            radial-gradient(ellipse 55% 45% at 85% 20%, rgba(0,160,220,0.20) 0%, transparent 55%),
+            radial-gradient(ellipse 60% 50% at 50% 90%, rgba(20,50,130,0.35) 0%, transparent 60%),
+            radial-gradient(ellipse 40% 35% at 80% 80%, rgba(100,40,200,0.12) 0%, transparent 50%)
+          `,
+        }}
+      />
+
+      {/* ═══════════════════════════════════════════════════════════
+          CAPA 1: SIDEBAR — vidrio esmerilado lateral
+      ═══════════════════════════════════════════════════════════ */}
+      <aside
+        className={cn(
+          "relative z-20 flex flex-col h-full transition-all duration-300 ease-in-out flex-shrink-0",
+          sidebarOpen ? "w-[220px]" : "w-0 overflow-hidden"
+        )}
+      >
+        {/* Panel glass del sidebar */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "rgba(8, 16, 36, 0.55)",
+            backdropFilter: "blur(28px) saturate(160%)",
+            WebkitBackdropFilter: "blur(28px) saturate(160%)",
+            borderRight: "1px solid rgba(255,255,255,0.07)",
+            boxShadow: "inset -1px 0 0 rgba(255,255,255,0.04), 4px 0 24px rgba(0,0,0,0.3)",
+          }}
+        />
+
+        <div className="relative z-10 flex flex-col h-full">
+          {/* Logo */}
+          <div className="flex items-center gap-3 px-5 py-5 border-b border-white/5">
+            <div
+              className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center"
+              style={{
+                background: "rgba(0,194,224,0.10)",
+                border: "1px solid rgba(0,194,224,0.22)",
+                boxShadow: "0 0 14px rgba(0,194,224,0.18)",
+              }}
+            >
+              <Image src="/logo.jpg" alt="CRM" width={32} height={32} className="object-contain" />
             </div>
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarMenu>
-              {navigation.map((item) => {
-                const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
-                return (
-                  <SidebarMenuItem key={item.name}>
-                    <SidebarMenuButton
-                      onClick={() => router.push(item.href)}
-                      isActive={isActive}
-                    >
-                      <item.icon className="h-5 w-5" />
-                      <span>{item.name}</span>
-                      {item.badge && (
-                        <Badge className="ml-auto">{item.badge}</Badge>
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarContent>
-          <SidebarFooter>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => router.push(settingsNavigation.href)}
-                  isActive={pathname.startsWith(settingsNavigation.href)}
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[15px] font-extrabold tracking-widest text-white">OBJETIVO</span>
+                <span
+                  className="w-1.5 h-1.5 rounded-full animate-pulse"
+                  style={{ background: "#00C2E0", boxShadow: "0 0 6px #00C2E0" }}
+                />
+              </div>
+              <p className="text-[9px] uppercase tracking-[0.18em] font-semibold" style={{ color: "#4A7A9B" }}>
+                CRM Inteligente v2
+              </p>
+            </div>
+          </div>
+
+          {/* Nav items */}
+          <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 no-scrollbar">
+            {navigation.map((item) => {
+              const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
+              const hasBadge = item.href === "/leads" ? newLeadsCount > 0 : !!item.badge
+              const badgeLabel = item.href === "/leads" ? newLeadsCount : item.badge
+              return (
+                <button
+                  key={item.name}
+                  onClick={() => router.push(item.href)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 text-left group"
+                  style={
+                    isActive
+                      ? {
+                          background: "rgba(0,194,224,0.13)",
+                          border: "1px solid rgba(0,194,224,0.28)",
+                          color: "#67E8F9",
+                          boxShadow: "0 0 16px rgba(0,194,224,0.10), inset 0 1px 0 rgba(255,255,255,0.06)",
+                          backdropFilter: "blur(8px)",
+                        }
+                      : {
+                          background: "transparent",
+                          border: "1px solid transparent",
+                          color: "#6A90B0",
+                        }
+                  }
                 >
-                  <settingsNavigation.icon className="h-5 w-5" />
-                  <span>{settingsNavigation.name}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => router.push("/auth/login")}>
-                  <LogOut className="h-5 w-5" />
-                  <span>Cerrar Sesión</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarFooter>
-        </Sidebar>
-        <div className="flex flex-col flex-1">
-          <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-6 sm:h-auto sm:border-0 sm:bg-transparent sm:px-8">
-            <SidebarTrigger className="sm:hidden" aria-label="Alternar menú lateral" />
-            <h1 className="text-2xl font-bold text-foreground">
-              {navigation.find((item) => pathname.startsWith(item.href))?.name || "Dashboard"}
-            </h1>
-            <div className="relative ml-auto flex-1 md:grow-0">
-              <div className="ml-auto w-fit">
-                <NotificationsPopover />
-              </div>
-            </div>
-          </header>
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 w-full max-w-full">{children}</main>
+                  <item.icon
+                    className="h-4 w-4 flex-shrink-0 transition-colors duration-200"
+                    style={{ color: isActive ? "#00C2E0" : "#4A6A8A" }}
+                  />
+                  <span className={cn("flex-1 truncate", !isActive && "group-hover:text-white transition-colors")}>{item.name}</span>
+                  {hasBadge && (
+                    <span
+                      className="text-[10px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0"
+                      style={
+                        item.badge === "AI"
+                          ? { background: "#00C2E0", color: "#fff", boxShadow: "0 0 8px rgba(0,194,224,0.5)" }
+                          : item.badge === "GEO"
+                          ? { background: "rgba(255,184,48,0.15)", color: "#FFB830", border: "1px solid rgba(255,184,48,0.3)" }
+                          : { background: "#EF4444", color: "#fff" }
+                      }
+                    >
+                      {badgeLabel}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </nav>
+
+          {/* Footer */}
+          <div className="px-2 py-3 border-t border-white/5 space-y-0.5">
+            <button
+              onClick={() => router.push("/settings")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 text-left"
+              style={{ color: "#6A90B0" }}
+            >
+              <Settings className="h-4 w-4" style={{ color: "#4A6A8A" }} />
+              <span>Configuración</span>
+            </button>
+            <button
+              onClick={() => router.push("/auth/login")}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 text-left"
+              style={{ color: "rgba(248,113,113,0.75)" }}
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Cerrar Sesión</span>
+            </button>
+          </div>
         </div>
+      </aside>
+
+      {/* ═══════════════════════════════════════════════════════════
+          CAPA 2: MAIN AREA — header glass + scrollable content
+      ═══════════════════════════════════════════════════════════ */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        {/* ── Header glass ── */}
+        <header
+          className="sticky top-0 z-30 flex h-14 items-center justify-between px-5 flex-shrink-0"
+          style={{
+            background: "rgba(7, 16, 30, 0.60)",
+            backdropFilter: "blur(24px) saturate(180%)",
+            WebkitBackdropFilter: "blur(24px) saturate(180%)",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            boxShadow: "0 1px 0 rgba(255,255,255,0.04), 0 4px 24px rgba(0,0,0,0.2)",
+          }}
+        >
+          <div className="flex items-center gap-3">
+            {/* Hamburger toggle */}
+            <button
+              onClick={() => setSidebarOpen(prev => !prev)}
+              className="p-1.5 rounded-lg transition-colors"
+              style={{ color: "#4A7A9B" }}
+            >
+              {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+
+            <div>
+              <h1 className="text-[15px] font-bold text-white tracking-tight leading-none">
+                {activeItem?.name || "Tablero"}
+              </h1>
+              <p className="text-[10px] mt-0.5 hidden sm:block" style={{ color: "#3D6080" }}>
+                Ecosistema Objetivo · Grupo Empresarial Reyes
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Pill glass contenedor de notificaciones */}
+            <div
+              className="flex items-center rounded-xl px-2 py-1.5"
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                backdropFilter: "blur(12px)",
+              }}
+            >
+              <NotificationsPopover />
+            </div>
+          </div>
+        </header>
+
+        {/* ── Contenido principal scrollable ── */}
+        <main className="flex-1 overflow-x-hidden overflow-y-auto">
+          <div className="max-w-7xl mx-auto p-5 md:p-8 space-y-6">
+            {children}
+          </div>
+        </main>
       </div>
-    </SidebarProvider>
+    </div>
   )
 }
