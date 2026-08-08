@@ -6,170 +6,138 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
-  ─── CRM OBJETIVO v4 · César Reyes Personal Brand ───
-  Tokens defined FIRST. Components consume tokens, never raw values.
+  CRM OBJETIVO v5 - DARK INTELLIGENCE
+  Branding adaptado de Marko (Envato) + principios WCAG AA
 
-  Brand Palette:
-    Carbon   #18181b  → sidebar active, headings, avatars (dark: #09090b)
-    Sky Blue #38bdf8  → interactive accent, links, selection (dark: #7dd3fc)
-    Grey     #f4f4f5  → column surfaces, muted backgrounds (dark: #27272a)
-    White    #ffffff  → cards, panels (dark: #18181b mapped from card var)
+  Paleta:
+    Deep Black   #040404  background raiz
+    Raised       #0E0E0E  sidebar, panels
+    Card         #1A1A1A  tarjetas
+    Elevated     #242424  hover states
 
-  Signal Palette (semantic, NOT branding):
-    Urgent   #ef4444  → unread messages, critical alerts
-    Warn     #f59e0b  → intervention column, medium priority
-    Success  #10b981  → converted, closed, ok states
+  Acento:
+    Purple       #C82AEF  acento principal - NUNCA como texto sobre oscuro
+    Purple Light #E870FF  texto sobre fondos purple-tinted
+
+  Texto (todos WCAG AA sobre fondos oscuros):
+    Primary      #F0F0F0  ratio ~21:1
+    Secondary    #B0B0B0  ratio ~8.5:1
+    Muted        #8B8B8B  ratio ~5.3:1
+
+  Senales:
+    Urgent  #FF4757
+    Warn    #EFBC2A (gold de Marko)
+    Success #2ED573
 */
 
 :root {
-  /* ── Brand Tokens ── */
-  --brand-carbon:      #18181b;
-  --brand-carbon-muted:#3f3f46;
-  --brand-blue:        #38bdf8;
-  --brand-blue-subtle: #e0f2fe;
-  --brand-blue-border: #bae6fd;
-  --brand-grey:        #f4f4f5;
-  --brand-grey-border: #e4e4e7;
-  --brand-white:       #ffffff;
+  /* Acento de marca */
+  --brand-purple:          #C82AEF;
+  --brand-purple-light:    #E870FF;
+  --brand-purple-subtle:   rgba(200, 42, 239, 0.15);
+  --brand-purple-border:   rgba(200, 42, 239, 0.35);
+  --brand-purple-glow:     rgba(200, 42, 239, 0.25);
+  --brand-purple-muted:    rgba(200, 42, 239, 0.10);
+  --brand-star:            #EFBC2A;
 
-  /* ── Signal Tokens ── */
-  --signal-urgent:     #ef4444;
-  --signal-urgent-subtle: #fee2e2;
-  --signal-warn:       #f59e0b;
-  --signal-warn-subtle:#fef3c7;
-  --signal-success:    #10b981;
-  --signal-success-subtle: #d1fae5;
+  /* Senales */
+  --signal-urgent:         #FF4757;
+  --signal-urgent-subtle:  rgba(255, 71, 87, 0.15);
+  --signal-warn:           #EFBC2A;
+  --signal-warn-subtle:    rgba(239, 188, 42, 0.15);
+  --signal-success:        #2ED573;
+  --signal-success-subtle: rgba(46, 213, 115, 0.15);
 
-  /* ── Surface ── */
-  --background:        #ffffff;
-  --foreground:        #09090b;
+  /* Light mode (fallback) */
+  --background:            #FFFAFA;
+  --foreground:            #1A1A1A;
+  --card:                  #F5F5F5;
+  --card-foreground:       #1A1A1A;
+  --popover:               #FFFFFF;
+  --popover-foreground:    #1A1A1A;
+  --primary:               #C82AEF;
+  --primary-foreground:    #FFFFFF;
+  --secondary:             #F0F0F0;
+  --secondary-foreground:  #3A3A3A;
+  --muted:                 #EBEBEB;
+  --muted-foreground:      #606060;
+  --accent:                rgba(200, 42, 239, 0.10);
+  --accent-foreground:     #9B10C2;
+  --destructive:           #E63946;
+  --destructive-foreground:#FFFFFF;
+  --border:                rgba(0, 0, 0, 0.10);
+  --input:                 #FFFFFF;
+  --ring:                  #C82AEF;
+  --radius:                0.75rem;
 
-  /* ── Cards ── */
-  --card:              #ffffff;
-  --card-foreground:   #09090b;
+  /* Charts */
+  --chart-1:               #C82AEF;
+  --chart-2:               #E870FF;
+  --chart-3:               #8B8B8B;
+  --chart-4:               #EFBC2A;
+  --chart-5:               #2ED573;
 
-  /* ── Popover ── */
-  --popover:           #ffffff;
-  --popover-foreground:#09090b;
-
-  /* ── Primary: Brand Carbon (dark, authoritative) ── */
-  --primary:           #18181b;
-  --primary-foreground:#ffffff;
-
-  /* ── Secondary: Brand Blue (interactive accent) ── */
-  --secondary:         #e0f2fe;
-  --secondary-foreground: #0369a1;
-
-  /* ── Muted ── */
-  --muted:             #f4f4f5;
-  --muted-foreground:  #71717a;
-
-  /* ── Accent: Sky Blue ── */
-  --accent:            #e0f2fe;
-  --accent-foreground: #0369a1;
-
-  /* ── Destructive ── */
-  --destructive:       #ef4444;
-  --destructive-foreground: #ffffff;
-
-  /* ── Borders & Inputs ── */
-  --border:            #e4e4e7;
-  --input:             #ffffff;
-  --ring:              #38bdf8;
-
-  /* ── Radius ── */
-  --radius:            0.625rem;
-
-  /* ── Charts (updated to new brand) ── */
-  --chart-1:           #18181b;
-  --chart-2:           #38bdf8;
-  --chart-3:           #71717a;
-  --chart-4:           #7dd3fc;
-  --chart-5:           #3f3f46;
-
-  /* ── Sidebar (carbon black for premium feel) ── */
-  --sidebar:           #18181b;
-  --sidebar-foreground:#f4f4f5;
-  --sidebar-primary:   #38bdf8;
-  --sidebar-primary-foreground: #18181b;
-  --sidebar-accent:    #27272a;
-  --sidebar-accent-foreground:  #f4f4f5;
-  --sidebar-border:    #27272a;
-  --sidebar-ring:      #38bdf8;
+  /* Sidebar - siempre dark */
+  --sidebar:               #0E0E0E;
+  --sidebar-foreground:    #D1D1D1;
+  --sidebar-primary:       #C82AEF;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent:        rgba(200, 42, 239, 0.15);
+  --sidebar-accent-foreground:  #E870FF;
+  --sidebar-border:        rgba(255, 255, 255, 0.06);
+  --sidebar-ring:          #C82AEF;
 }
 
 .dark {
-  /* ── Brand Tokens (dark mode) ── */
-  --brand-carbon:      #09090b;
-  --brand-carbon-muted:#52525b;
-  --brand-blue:        #7dd3fc;
-  --brand-blue-subtle: #0c4a6e;
-  --brand-blue-border: #075985;
-  --brand-grey:        #27272a;
-  --brand-grey-border: #3f3f46;
-  --brand-white:       #18181b;
+  /* Superficies */
+  --background:            #040404;
+  --foreground:            #F0F0F0;
+  --card:                  #1A1A1A;
+  --card-foreground:       #F0F0F0;
+  --popover:               #1A1A1A;
+  --popover-foreground:    #F0F0F0;
 
-  /* ── Signal Tokens (dark mode) ── */
-  --signal-urgent:     #f87171;
-  --signal-urgent-subtle: #450a0a;
-  --signal-warn:       #fbbf24;
-  --signal-warn-subtle:#451a03;
-  --signal-success:    #34d399;
-  --signal-success-subtle: #022c22;
+  /* Primary: acento electrico */
+  --primary:               #C82AEF;
+  --primary-foreground:    #FFFFFF;
 
-  /* ── Surface ── */
-  --background:        #09090b;
-  --foreground:        #f4f4f5;
+  /* Secondary: superficie profunda */
+  --secondary:             #0E0E0E;
+  --secondary-foreground:  #B0B0B0;
 
-  /* ── Cards ── */
-  --card:              #18181b;
-  --card-foreground:   #f4f4f5;
+  /* Muted */
+  --muted:                 #0E0E0E;
+  --muted-foreground:      #8B8B8B;
 
-  /* ── Popover ── */
-  --popover:           #18181b;
-  --popover-foreground:#f4f4f5;
+  /* Accent: purple sutil */
+  --accent:                rgba(200, 42, 239, 0.15);
+  --accent-foreground:     #E870FF;
 
-  /* ── Primary ── */
-  --primary:           #38bdf8;
-  --primary-foreground:#09090b;
+  /* Destructive */
+  --destructive:           #FF4757;
+  --destructive-foreground:#FFFFFF;
 
-  /* ── Secondary ── */
-  --secondary:         #27272a;
-  --secondary-foreground: #f4f4f5;
+  /* Borders y Inputs */
+  --border:                rgba(255, 255, 255, 0.08);
+  --input:                 #1A1A1A;
+  --ring:                  #C82AEF;
 
-  /* ── Muted ── */
-  --muted:             #27272a;
-  --muted-foreground:  #a1a1aa;
+  /* Charts */
+  --chart-1:               #C82AEF;
+  --chart-2:               #E870FF;
+  --chart-3:               #8B8B8B;
+  --chart-4:               #EFBC2A;
+  --chart-5:               #2ED573;
 
-  /* ── Accent ── */
-  --accent:            #0c4a6e;
-  --accent-foreground: #7dd3fc;
-
-  /* ── Destructive ── */
-  --destructive:       #991b1b;
-  --destructive-foreground: #fef2f2;
-
-  /* ── Borders & Inputs ── */
-  --border:            #27272a;
-  --input:             #27272a;
-  --ring:              #7dd3fc;
-
-  /* ── Charts ── */
-  --chart-1:           #7dd3fc;
-  --chart-2:           #38bdf8;
-  --chart-3:           #a1a1aa;
-  --chart-4:           #bae6fd;
-  --chart-5:           #71717a;
-
-  /* ── Sidebar ── */
-  --sidebar:           #09090b;
-  --sidebar-foreground:#f4f4f5;
-  --sidebar-primary:   #7dd3fc;
-  --sidebar-primary-foreground: #09090b;
-  --sidebar-accent:    #18181b;
-  --sidebar-accent-foreground:  #f4f4f5;
-  --sidebar-border:    #18181b;
-  --sidebar-ring:      #7dd3fc;
+  /* Sidebar */
+  --sidebar:               #0A0A0A;
+  --sidebar-foreground:    #D1D1D1;
+  --sidebar-primary:       #C82AEF;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent:        rgba(200, 42, 239, 0.15);
+  --sidebar-accent-foreground:  #E870FF;
+  --sidebar-border:        rgba(255, 255, 255, 0.06);
+  --sidebar-ring:          #C82AEF;
 }
 
 @theme inline {
@@ -211,8 +179,8 @@
   --color-sidebar-ring: var(--sidebar-ring);
 
   /* Fonts */
-  --font-sans:    var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-poiret), sans-serif;
+  --font-sans:    var(--font-jakarta), 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-jakarta), 'Plus Jakarta Sans', sans-serif;
   --font-mono:    ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
@@ -225,7 +193,7 @@
     @apply bg-background text-foreground font-sans;
   }
 
-  /* Clean card */
+  /* Card estandar */
   .clean-card {
     @apply bg-card border border-border rounded-xl shadow-sm;
   }
@@ -235,12 +203,40 @@
     @apply bg-card border border-border rounded-xl shadow-sm;
   }
 
-  /* Brand accent line — updated to sky blue */
+  /* Accent line con purple */
   .accent-line {
-    @apply border-l-2 border-[var(--brand-blue)];
+    border-left: 2px solid var(--brand-purple);
   }
 
-  /* ── Scrollbar utilities ── */
+  /* Purple glow para elementos activos */
+  .purple-glow {
+    box-shadow: 0 0 16px var(--brand-purple-glow), 0 0 40px rgba(200, 42, 239, 0.08);
+  }
+
+  /* Card interactiva con hover purple */
+  .card-interactive {
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+  }
+  .card-interactive:hover {
+    border-color: var(--brand-purple-border);
+    box-shadow: 0 0 0 1px var(--brand-purple-border), 0 4px 16px rgba(0,0,0,0.4);
+  }
+
+  /* Badges de senal */
+  .badge-urgent {
+    background: var(--signal-urgent-subtle);
+    color: var(--signal-urgent);
+  }
+  .badge-warn {
+    background: var(--signal-warn-subtle);
+    color: var(--signal-warn);
+  }
+  .badge-success {
+    background: var(--signal-success-subtle);
+    color: var(--signal-success);
+  }
+
+  /* Scrollbar utilities */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
@@ -249,7 +245,7 @@
     scrollbar-width: none;
   }
 
-  /* ── Kanban scroll fade — visual hint that content continues ── */
+  /* Kanban scroll fade */
   .kanban-fade-right::after {
     content: '';
     position: absolute;
@@ -271,5 +267,21 @@
     background: linear-gradient(to left, transparent, var(--background));
     pointer-events: none;
     z-index: 10;
+  }
+
+  /* Scrollbar dark themed */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(200, 42, 239, 0.5);
   }
 }

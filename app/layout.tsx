@@ -1,22 +1,15 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Montserrat, Poiret_One } from "next/font/google"
+import { Plus_Jakarta_Sans } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/sonner"
 import { GlobalWidgetsWrapper } from "@/components/layout/global-widgets-wrapper"
 
-const montserrat = Montserrat({
+const jakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"],
   display: "swap",
-  variable: "--font-montserrat",
-})
-
-const poiretOne = Poiret_One({
-  subsets: ["latin"],
-  weight: ["400"],
-  display: "swap",
-  variable: "--font-poiret",
+  variable: "--font-jakarta",
 })
 
 export const metadata: Metadata = {
@@ -32,7 +25,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport = {
-  themeColor: "#111827",
+  themeColor: "#040404",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -44,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className={`${montserrat.variable} ${poiretOne.variable} antialiased`} suppressHydrationWarning>
+    <html lang="es" className={`${jakartaSans.variable} dark antialiased`} suppressHydrationWarning>
       <body className="font-sans bg-background text-foreground" suppressHydrationWarning>
         {children}
         <GlobalWidgetsWrapper />

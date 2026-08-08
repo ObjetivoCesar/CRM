@@ -47,14 +47,13 @@ const config: Config = {
         input: 'var(--input)',
         ring: 'var(--ring)',
         brand: {
-          carbon:  'var(--brand-carbon)',
-          'carbon-muted': 'var(--brand-carbon-muted)',
-          blue:    'var(--brand-blue)',
-          'blue-subtle': 'var(--brand-blue-subtle)',
-          'blue-border': 'var(--brand-blue-border)',
-          grey:    'var(--brand-grey)',
-          'grey-border': 'var(--brand-grey-border)',
-          white:   'var(--brand-white)',
+          purple:         'var(--brand-purple)',
+          'purple-light': 'var(--brand-purple-light)',
+          'purple-subtle':'var(--brand-purple-subtle)',
+          'purple-border':'var(--brand-purple-border)',
+          'purple-glow':  'var(--brand-purple-glow)',
+          'purple-muted': 'var(--brand-purple-muted)',
+          star:           'var(--brand-star)',
         },
         signal: {
           urgent:  'var(--signal-urgent)',
@@ -90,19 +89,21 @@ const config: Config = {
         full: '50%'
       },
       fontFamily: {
-        sans:    ['var(--font-montserrat)', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-        display: ['var(--font-poiret)', 'sans-serif'],
+        sans:    ['var(--font-jakarta)', 'Plus Jakarta Sans', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        display: ['var(--font-jakarta)', 'Plus Jakarta Sans', 'sans-serif'],
         mono:    ['ui-monospace', 'SFMono-Regular', 'Consolas', 'monospace'],
       },
       boxShadow: {
-        card: '0 8px 32px 0 rgba(31, 38, 135, 0.15)', // Glass shadow
-        elevated: '0 12px 48px 0 rgba(31, 38, 135, 0.20)', // Elevated glass
-        subtle: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-        glass: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'
+        card:         '0 1px 3px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)',
+        elevated:     '0 4px 16px rgba(0,0,0,0.6), 0 0 0 1px rgba(200,42,239,0.10)',
+        subtle:       '0 1px 2px rgba(0,0,0,0.4)',
+        'glow-purple':'0 0 20px rgba(200,42,239,0.4), 0 0 60px rgba(200,42,239,0.10)',
+        'glow-subtle':'0 0 8px rgba(200,42,239,0.20)',
       },
       backgroundImage: {
-        'primary-gradient': 'linear-gradient(135deg, #ff6b35 0%, #ff8f00 100%)',
-        'secondary-gradient': 'linear-gradient(135deg, #ffd23f 0%, #ffeb3b 100%)',
+        'purple-fade':    'linear-gradient(180deg, #C82AEF 0%, transparent 80%)',
+        'purple-radial':  'radial-gradient(ellipse at top, rgba(200,42,239,0.15) 0%, transparent 70%)',
+        'dark-gradient':  'linear-gradient(135deg, #0E0E0E 0%, #040404 100%)',
       },
       keyframes: {
         'accordion-down': {
