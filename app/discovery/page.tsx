@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/dashboard/dashboard-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,9 @@ import {
     MessageSquare,
     Filter,
     X,
-    ClipboardList
+    ClipboardList,
+    ListChecks,
+    Sparkles
 } from 'lucide-react';
 import {
     Dialog,
@@ -203,12 +206,45 @@ interface PaginationData {
 }
 
 export default function DiscoveryPage() {
+    const router = useRouter();
     const [leads, setLeads] = useState<DiscoveryLead[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
     const [isResearching, setIsResearching] = useState<string | null>(null);
     const [pagination, setPagination] = useState<PaginationData>({ total: 0, page: 1, limit: 50, totalPages: 0 });
     const [selectedLead, setSelectedLead] = useState<DiscoveryLead | null>(null);
+
+    // ─── Bulk Selection State ───
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [bulkLoading, setBulkLoading] = useState(false);
+
+    const toggleSelected = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const allVisibleSelected = leads.length > 0 && leads.every(l => selectedIds.has(l.id));
+    const toggleSelectAllVisible = () => {
+        setSelectedIds(prev => {
+            if (leads.every(l => prev.has(l.id))) {
+                // Deselect all visible
+                const next = new Set(prev);
+                leads.forEach(l => next.delete(l.id));
+                return next;
+            } else {
+                // Select all visible
+                const next = new Set(prev);
+                leads.forEach(l => next.add(l.id));
+                return next;
+            }
+        });
+    };
+
+    const clearSelection = () => setSelectedIds(new Set());
 
     // Dynamic Facets Options
     const [facetOptions, setFacetOptions] = useState({
@@ -394,13 +430,76 @@ export default function DiscoveryPage() {
 
             if (data.success) {
                 toast.success(newStatus === 'en_cola' ? '📋 Añadido a Mi Cola' : 'Removido de la cola');
-                fetchLeads();
+                // ✅ OPTIMISTIC UPDATE — no más recarga de página
+                setLeads(prev => prev.map(l =>
+                    l.id === leadId ? { ...l, columna2: newStatus as DiscoveryLead['columna2'] } : l
+                ));
             } else {
                 throw new Error(data.error || 'Error al actualizar');
             }
         } catch (error) {
             toast.error("Error al actualizar cola: " + (error as Error).message);
         }
+    }
+
+    // ─── BULK: Añadir varios a la cola en paralelo ───
+    async function bulkAddToQueue() {
+        if (selectedIds.size === 0) return;
+        setBulkLoading(true);
+        const ids = Array.from(selectedIds);
+        let ok = 0;
+        let fail = 0;
+
+        // PATCH en paralelo (no secuencial)
+        await Promise.allSettled(ids.map(async (id) => {
+            const res = await fetch(`/api/discovery/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ columna2: 'en_cola' }),
+            });
+            if (res.ok) ok++;
+            else fail++;
+        }));
+
+        // Optimistic update masivo
+        setLeads(prev => prev.map(l =>
+            selectedIds.has(l.id) ? { ...l, columna2: 'en_cola' } : l
+        ));
+
+        toast.success(`📋 ${ok} añadidos a Mi Cola${fail ? `, ${fail} fallaron` : ''}`);
+        setBulkLoading(false);
+    }
+
+    // ─── BULK: Añadir a la cola Y saltar al Trainer ───
+    async function bulkSendToTrainer() {
+        if (selectedIds.size === 0) return;
+        setBulkLoading(true);
+        const ids = Array.from(selectedIds);
+
+        // Asegurar que todos estén en_cola antes de saltar
+        await Promise.allSettled(ids.map(async (id) => {
+            return fetch(`/api/discovery/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ columna2: 'en_cola' }),
+            });
+        }));
+
+        // Optimistic update masivo
+        setLeads(prev => prev.map(l =>
+            selectedIds.has(l.id) ? { ...l, columna2: 'en_cola' } : l
+        ));
+
+        toast.success(`🎯 ${ids.length} prospectos listos en el Trainer`);
+        clearSelection();
+        setBulkLoading(false);
+
+        // Persistir selección para que Trainer la recoja (opcional, ver integración)
+        if (typeof window !== 'undefined') {
+            sessionStorage.setItem('trainer_focus_ids', JSON.stringify(ids));
+        }
+
+        router.push('/trainer');
     }
 
     const clearFilters = () => {
@@ -648,11 +747,26 @@ export default function DiscoveryPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Results Summary */}
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <p>
-                            Mostrando <span className="font-semibold text-foreground">{((pagination.page - 1) * pagination.limit) + 1}</span> - <span className="font-semibold text-foreground">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> de <span className="font-semibold text-foreground">{pagination.total.toLocaleString()}</span> resultados
-                        </p>
+                    {/* Results Summary + Bulk Toolbar */}
+                    <div className="flex items-center justify-between text-sm text-muted-foreground gap-4">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                            {leads.length > 0 && (
+                                <Checkbox
+                                    checked={allVisibleSelected}
+                                    onCheckedChange={toggleSelectAllVisible}
+                                    aria-label="Seleccionar todos los visibles"
+                                    className="h-5 w-5 rounded border-white/20 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                                />
+                            )}
+                            <p>
+                                Mostrando <span className="font-semibold text-foreground">{((pagination.page - 1) * pagination.limit) + 1}</span> - <span className="font-semibold text-foreground">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> de <span className="font-semibold text-foreground">{pagination.total.toLocaleString()}</span> resultados
+                                {selectedIds.size > 0 && (
+                                    <span className="ml-3 text-blue-400 font-bold">
+                                        · {selectedIds.size} seleccionados
+                                    </span>
+                                )}
+                            </p>
+                        </div>
                         <Select value={pagination.limit.toString()} onValueChange={(value) => setPagination({ ...pagination, limit: parseInt(value), page: 1 })}>
                             <SelectTrigger className="w-[120px]">
                                 <SelectValue />
@@ -664,6 +778,62 @@ export default function DiscoveryPage() {
                             </SelectContent>
                         </Select>
                     </div>
+
+                    {/* ─── FLOATING BULK ACTION TOOLBAR ─── */}
+                    {selectedIds.size > 0 && (
+                        <div className="sticky top-4 z-30 mx-auto max-w-3xl">
+                            <div className="rounded-2xl border border-blue-500/40 bg-blue-950/90 backdrop-blur-xl shadow-2xl shadow-blue-500/20 p-3 flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
+                                <div className="flex items-center gap-2 text-blue-200">
+                                    <ListChecks className="h-5 w-5" />
+                                    <span className="font-black text-sm uppercase tracking-wider">
+                                        {selectedIds.size} {selectedIds.size === 1 ? 'prospecto' : 'prospectos'}
+                                    </span>
+                                </div>
+
+                                <div className="flex-1" />
+
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={clearSelection}
+                                    className="text-blue-200/70 hover:text-white hover:bg-white/5"
+                                    disabled={bulkLoading}
+                                >
+                                    <X className="h-4 w-4 mr-1" />
+                                    Cancelar
+                                </Button>
+
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={bulkAddToQueue}
+                                    disabled={bulkLoading}
+                                    className="border-orange-500/40 text-orange-300 hover:bg-orange-500/10 font-bold"
+                                >
+                                    {bulkLoading ? (
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    ) : (
+                                        <ClipboardList className="h-4 w-4 mr-2" />
+                                    )}
+                                    Añadir a Mi Cola
+                                </Button>
+
+                                <Button
+                                    size="sm"
+                                    onClick={bulkSendToTrainer}
+                                    disabled={bulkLoading}
+                                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold shadow-lg shadow-blue-500/30"
+                                >
+                                    {bulkLoading ? (
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    ) : (
+                                        <Sparkles className="h-4 w-4 mr-2" />
+                                    )}
+                                    Llevar al Trainer
+                                </Button>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="grid gap-6">
                         {loading ? (
@@ -683,18 +853,31 @@ export default function DiscoveryPage() {
                             </Card>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                {leads.map((lead) => (
-                                    <Card key={lead.id} className="group flex flex-col h-full overflow-hidden border-border/40 hover:border-blue-500/30 transition-all duration-500 hover:shadow-xl hover:shadow-blue-500/10 bg-white/50 backdrop-blur-xl rounded-2xl border">
+                                {leads.map((lead) => {
+                                    const isSelected = selectedIds.has(lead.id);
+                                    return (
+                                    <Card key={lead.id} className={cn(
+                                        "group flex flex-col h-full overflow-hidden border-border/40 hover:border-blue-500/30 transition-all duration-500 hover:shadow-xl hover:shadow-blue-500/10 bg-white/50 backdrop-blur-xl rounded-2xl border",
+                                        isSelected && "border-blue-500/60 ring-2 ring-blue-500/30 bg-blue-500/5"
+                                    )}>
                                         <CardHeader className="pb-2">
-                                            <div className="flex justify-between items-start">
-                                                <div>
+                                            <div className="flex justify-between items-start gap-2">
+                                                <Checkbox
+                                                    checked={isSelected}
+                                                    onCheckedChange={() => toggleSelected(lead.id)}
+                                                    aria-label={`Seleccionar ${lead.businessName}`}
+                                                    className="mt-1 h-5 w-5 rounded border-white/20 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                                                />
+                                                <div className="flex-1 min-w-0">
                                                     <CardTitle className="text-xl font-black tracking-tight group-hover:text-blue-400 transition-colors line-clamp-1">{lead.businessName}</CardTitle>
                                                     <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{lead.businessType || 'Giro no especificado'}</CardDescription>
                                                 </div>
-                                                {getStatusBadge(lead.status)}
-                                                {lead.columna2 === 'en_cola' && (
-                                                    <Badge className="bg-orange-500/20 text-orange-500 border-orange-500/30">📋 EN COLA</Badge>
-                                                )}
+                                                <div className="flex flex-col items-end gap-1 shrink-0">
+                                                    {getStatusBadge(lead.status)}
+                                                    {lead.columna2 === 'en_cola' && (
+                                                        <Badge className="bg-orange-500/20 text-orange-500 border-orange-500/30">📋 EN COLA</Badge>
+                                                    )}
+                                                </div>
                                             </div>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
@@ -780,7 +963,8 @@ export default function DiscoveryPage() {
                                             </div>
                                         </CardContent>
                                     </Card>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

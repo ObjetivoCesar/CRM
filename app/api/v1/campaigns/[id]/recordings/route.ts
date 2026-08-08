@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { callAnalyses, contacts, salesScripts, acquisitionCampaigns } from '@/lib/db/schema';
+import { callAnalyses, contacts, leads, discoveryLeads, salesScripts, acquisitionCampaigns } from '@/lib/db/schema';
 import { transcriptionService } from '@/lib/ai/TranscriptionService';
 import { evaluatePitch } from '@/lib/ai/pitchEvaluator';
 import { eq, sql } from 'drizzle-orm';
@@ -62,40 +62,111 @@ export async function POST(
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    // 4. Guardar en call_analyses (tabla unificada del Trainer)
-    const [insertedAnalysis] = await db.insert(callAnalyses).values({
-      contactId,
-      campaignId,
-      scriptId: scriptIdToSave,
-      transcription,
-      metrics: JSON.stringify(evalResult),
-      feedback: JSON.stringify({ fortalezas: evalResult.fortalezas, mejoras: evalResult.mejoras }),
-      nextFocus: evalResult.mejoras[0] || 'Seguir practicando guion',
-      audioExpiresAt: expiresAt,
-    }).returning();
+    // 4. Determinar a qué tabla pertenece contactId: contacts, leads o discovery_leads
+    let contactIdForInsert: string | null = null;
+    let leadIdForInsert: string | null = null;
+    let discoveryLeadIdForInsert: string | null = null;
+    let prospectSource: 'contacts' | 'leads' | 'discovery_leads' | 'unknown' = 'unknown';
 
-    // Actualizar métricas de la campaña y del contacto
-    await db.update(acquisitionCampaigns)
-      .set({
-        totalLlamadas: sql`${acquisitionCampaigns.totalLlamadas} + 1`,
-        updatedAt: new Date()
-      })
-      .where(eq(acquisitionCampaigns.id, campaignId));
+    try {
+      // Buscar primero en contacts
+      const [contactMatch] = await db.select({ id: contacts.id })
+        .from(contacts)
+        .where(eq(contacts.id, contactId))
+        .limit(1);
 
-    await db.update(contacts)
-      .set({
-        status: 'contactado',
-        lastActivityAt: new Date(),
-        updatedAt: new Date()
-      })
-      .where(eq(contacts.id, contactId));
+      if (contactMatch) {
+        contactIdForInsert = contactId;
+        prospectSource = 'contacts';
+      } else {
+        // Buscar en leads
+        const [leadMatch] = await db.select({ id: leads.id })
+          .from(leads)
+          .where(eq(leads.id, contactId))
+          .limit(1);
+        if (leadMatch) {
+          leadIdForInsert = contactId;
+          prospectSource = 'leads';
+        } else {
+          // Buscar en discovery_leads
+          const [discoveryMatch] = await db.select({ id: discoveryLeads.id })
+            .from(discoveryLeads)
+            .where(eq(discoveryLeads.id, contactId))
+            .limit(1);
+          if (discoveryMatch) {
+            discoveryLeadIdForInsert = contactId;
+            prospectSource = 'discovery_leads';
+          }
+        }
+      }
+      console.log(`🎯 [recordings] Prospect source detected: ${prospectSource} for ID ${contactId}`);
+    } catch (e: any) {
+      console.warn('⚠️ [recordings] Could not detect prospect source:', e.message);
+    }
+
+    // 5. Guardar en call_analyses
+    let insertedAnalysis: any = null;
+    try {
+      const [row] = await db.insert(callAnalyses).values({
+        contactId: contactIdForInsert,
+        leadId: leadIdForInsert,
+        discoveryLeadId: discoveryLeadIdForInsert,
+        campaignId,
+        scriptId: scriptIdToSave,
+        transcription,
+        metrics: JSON.stringify(evalResult),
+        feedback: JSON.stringify({ fortalezas: evalResult.fortalezas, mejoras: evalResult.mejoras }),
+        nextFocus: evalResult.mejoras[0] || 'Seguir practicando guion',
+        audioExpiresAt: expiresAt,
+      } as any).returning();
+      insertedAnalysis = row;
+    } catch (dbErr: any) {
+      console.warn('⚠️ [recordings] No se pudo guardar en call_analyses:', dbErr.message);
+    }
+
+    // 6. Actualizar métricas de la campaña
+    try {
+      await db.update(acquisitionCampaigns)
+        .set({
+          totalLlamadas: sql`${acquisitionCampaigns.totalLlamadas} + 1`,
+          updatedAt: new Date()
+        })
+        .where(eq(acquisitionCampaigns.id, campaignId));
+    } catch (e: any) {
+      console.warn('⚠️ [recordings] No se pudo actualizar counter de campaña:', e.message);
+    }
+
+    // 7. Actualizar el estado del prospecto según la fuente detectada
+    try {
+      if (prospectSource === 'contacts') {
+        await db.update(contacts)
+          .set({ status: 'contactado', lastActivityAt: new Date(), updatedAt: new Date() })
+          .where(eq(contacts.id, contactId));
+      } else if (prospectSource === 'discovery_leads') {
+        // discovery_leads.status es: pending|investigated|no_answer|not_interested|sent_info|converted|discarded
+        // Para "ya lo llamé" usamos 'no_answer' (fue contactado pero sin respuesta) o 'investigated' (sí habló)
+        await db.update(discoveryLeads)
+          .set({ status: 'investigated', updatedAt: new Date() })
+          .where(eq(discoveryLeads.id, contactId));
+        console.log(`📍 [recordings] Marcado discovery_lead ${contactId} como 'investigated'`);
+      } else if (prospectSource === 'leads') {
+        // leads.status es: sin_contacto|primer_contacto|segundo_contacto|tercer_contacto|cotizado|convertido
+        await db.update(leads)
+          .set({ status: 'primer_contacto', updatedAt: new Date() })
+          .where(eq(leads.id, contactId));
+      }
+    } catch (e: any) {
+      console.warn(`⚠️ [recordings] No se pudo actualizar ${prospectSource}:`, e.message);
+    }
 
     return NextResponse.json({
       success: true,
-      analysisId: insertedAnalysis.id,
+      analysisId: insertedAnalysis?.id || null,
+      prospectSource,
       transcription,
       evaluation: evalResult,
       audioExpiresAt: expiresAt,
+      _persistence_warning: insertedAnalysis ? null : 'No se pudo guardar análisis en BD (pero la evaluación se generó OK)',
     }, { status: 201 });
   } catch (error) {
     console.error('[POST /api/v1/campaigns/[id]/recordings]', error);

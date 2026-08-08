@@ -173,6 +173,11 @@ export default function TrainerPage() {
     const [pitchViewMode, setPitchViewMode] = useState<'ai' | 'script'>('ai');
     const [pitchHalago, setPitchHalago] = useState<string>('');
 
+    // Outreach params (ephemeral, NOT persisted to DB — work-today-change-tomorrow)
+    const [outreachType, setOutreachType] = useState<'venta' | 'colaboracion' | 'aviso' | 'reactivacion'>('venta');
+    const [miOferta, setMiOferta] = useState<string>('');
+    const [miPeticion, setMiPeticion] = useState<string>('');
+
     // Call Result Form State
     const [callOutcome, setCallOutcome] = useState<string>('no_contesto');
     const [callAction, setCallAction] = useState<string>('pendiente');
@@ -657,7 +662,10 @@ export default function TrainerPage() {
                 body: JSON.stringify({
                     entityId: selectedLead.id,
                     entityType: selectedLead.source,
-                    compliment: pitchHalago
+                    compliment: pitchHalago,
+                    outreachType,
+                    miOferta,
+                    miPeticion,
                 })
             });
 
@@ -1161,14 +1169,65 @@ export default function TrainerPage() {
                                 </Button>
 
                                 {selectedLead && (
-                                    <div className="space-y-2 mt-4 animate-in fade-in slide-in-from-top-2">
-                                        <Label className="text-[10px] uppercase font-bold text-primary/70">Añadir Halago / Detalle Positivo</Label>
-                                        <Textarea
-                                            placeholder="Ej: Tienen una vista increíble del valle, les vi en el reportaje de..."
-                                            className="text-sm font-medium text-white placeholder:text-white/20 bg-slate-900 border-white/10 focus:border-blue-500/50 min-h-[100px] rounded-xl resize-none shadow-2xl"
-                                            value={pitchHalago}
-                                            onChange={(e) => setPitchHalago(e.target.value)}
-                                        />
+                                    <div className="space-y-3 mt-4 animate-in fade-in slide-in-from-top-2">
+                                        {/* ─── OUTREACH TYPE SELECTOR (ephemeral, cambia el tono del LLM) ─── */}
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] uppercase font-bold text-primary/70">Tipo de Outreach</Label>
+                                            <div className="grid grid-cols-2 gap-1.5">
+                                                {[
+                                                    { id: 'venta', label: '💰 Venta', desc: 'Cerrar contrato' },
+                                                    { id: 'colaboracion', label: '🤝 Colaboración', desc: 'Mutuo beneficio' },
+                                                    { id: 'aviso', label: '📢 Aviso', desc: 'Solo informar' },
+                                                    { id: 'reactivacion', label: '🔁 Reactivar', desc: 'Retomar contacto' },
+                                                ].map((opt) => (
+                                                    <button
+                                                        key={opt.id}
+                                                        type="button"
+                                                        onClick={() => setOutreachType(opt.id as any)}
+                                                        className={cn(
+                                                            "flex flex-col items-start p-2 rounded-lg text-left transition-all border",
+                                                            outreachType === opt.id
+                                                                ? "bg-blue-600/20 border-blue-500/60 text-blue-100"
+                                                                : "bg-slate-900/50 border-white/5 text-muted-foreground hover:bg-white/5 hover:border-white/10"
+                                                        )}
+                                                    >
+                                                        <span className="text-[10px] font-black uppercase tracking-tight">{opt.label}</span>
+                                                        <span className="text-[9px] opacity-70">{opt.desc}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* ─── OFERTA / PETICIÓN (texto libre, ephemeral) ─── */}
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] uppercase font-bold text-primary/70">Mi Oferta</Label>
+                                            <Textarea
+                                                placeholder="Ej: Voy a instalar gratis un soporte QR para tu restaurante..."
+                                                className="text-sm font-medium text-white placeholder:text-white/20 bg-slate-900 border-white/10 focus:border-blue-500/50 min-h-[60px] rounded-xl resize-none shadow-2xl"
+                                                value={miOferta}
+                                                onChange={(e) => setMiOferta(e.target.value)}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] uppercase font-bold text-primary/70">Lo que Pido a Cambio</Label>
+                                            <Textarea
+                                                placeholder="Ej: Que nos hagan publicidad y dejen un comentario 5 estrellas en Google My Business..."
+                                                className="text-sm font-medium text-white placeholder:text-white/20 bg-slate-900 border-white/10 focus:border-blue-500/50 min-h-[60px] rounded-xl resize-none shadow-2xl"
+                                                value={miPeticion}
+                                                onChange={(e) => setMiPeticion(e.target.value)}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] uppercase font-bold text-primary/70">Añadir Halago / Detalle Positivo</Label>
+                                            <Textarea
+                                                placeholder="Ej: Tienen una vista increíble del valle, les vi en el reportaje de..."
+                                                className="text-sm font-medium text-white placeholder:text-white/20 bg-slate-900 border-white/10 focus:border-blue-500/50 min-h-[100px] rounded-xl resize-none shadow-2xl"
+                                                value={pitchHalago}
+                                                onChange={(e) => setPitchHalago(e.target.value)}
+                                            />
+                                        </div>
                                     </div>
                                 )}
                             </CardContent>

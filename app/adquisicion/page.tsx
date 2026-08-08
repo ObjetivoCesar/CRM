@@ -17,6 +17,7 @@ export default function AdquisicionPage() {
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [leads, setLeads] = useState<any[]>([]);
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
+  const [leadsSource, setLeadsSource] = useState<'leads' | 'discovery'>('discovery');
 
   const [steps, setSteps] = useState<ScriptStep[]>([]);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
@@ -29,6 +30,7 @@ export default function AdquisicionPage() {
       if (res.ok) {
         const data = await res.json();
         setCampaigns(data);
+        // Si no hay campaña seleccionada y hay disponibles, usar la primera
         if (data.length > 0 && !selectedCampaignId) {
           setSelectedCampaignId(data[0].id);
         }
@@ -54,10 +56,24 @@ export default function AdquisicionPage() {
 
   const loadLeads = async () => {
     try {
-      const res = await fetch("/api/leads");
-      if (res.ok) {
-        const data = await res.json();
-        setLeads(data);
+      if (leadsSource === 'discovery') {
+        // Fuente: discovery_leads WHERE columna2='en_cola' (los que añadiste con 📋)
+        const res = await fetch("/api/v1/leads/queue-discovery");
+        if (res.ok) {
+          const data = await res.json();
+          setLeads(data.leads || []);
+        } else {
+          toast.error("Error al cargar cola de Discovery");
+        }
+      } else {
+        // Fuente: contacts WHERE entityType='lead' (legacy)
+        const res = await fetch("/api/leads");
+        if (res.ok) {
+          const data = await res.json();
+          setLeads(data);
+        } else {
+          toast.error("Error al cargar prospectos");
+        }
       }
     } catch (e) {
       toast.error("Error al cargar prospectos");
@@ -67,8 +83,34 @@ export default function AdquisicionPage() {
   useEffect(() => {
     loadCampaigns();
     loadScripts();
-    loadLeads();
   }, []);
+
+  useEffect(() => {
+    loadLeads();
+  }, [leadsSource]);
+
+  // Crear campaña rápida (sin scraping, sin script) para empezar a llamar ya
+  const createQuickCampaign = async () => {
+    try {
+      const nombre = `Llamadas ${new Date().toLocaleDateString('es-EC', { weekday: 'short', day: 'numeric', month: 'short' })}`;
+      const res = await fetch("/api/v1/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre,
+          fuenteTipo: "referido",
+          descripcion: "Campaña rápida para llamadas manuales con leads de Discovery",
+        }),
+      });
+      if (!res.ok) throw new Error("No se pudo crear");
+      const created = await res.json();
+      toast.success(`✅ Campaña "${nombre}" lista`);
+      await loadCampaigns();
+      setSelectedCampaignId(created.id);
+    } catch (err) {
+      toast.error("Error creando campaña rápida");
+    }
+  };
 
   const filteredLeads = leads.filter((l) =>
     l.businessName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -88,9 +130,36 @@ export default function AdquisicionPage() {
               onCampaignCreated={loadCampaigns}
             />
 
+            {/* Quick campaign button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={createQuickCampaign}
+              className="h-8 text-[11px] font-bold border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"
+            >
+              ⚡ Campaña Rápida (Discovery)
+            </Button>
+
             <Card className="flex-1 flex flex-col overflow-hidden border shadow-sm">
-              <CardHeader className="py-2.5 px-3 border-b flex flex-row items-center justify-between">
-                <CardTitle className="text-xs font-semibold">Prospectos Geo-Targeted</CardTitle>
+              <CardHeader className="py-2.5 px-3 border-b flex flex-row items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-xs font-semibold">Prospectos</CardTitle>
+                  {/* Source toggle */}
+                  <div className="flex bg-muted/30 rounded-md p-0.5 text-[10px]">
+                    <button
+                      onClick={() => setLeadsSource('discovery')}
+                      className={`px-2 py-0.5 rounded ${leadsSource === 'discovery' ? 'bg-emerald-600 text-white font-bold' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                      🟢 Cola Discovery
+                    </button>
+                    <button
+                      onClick={() => setLeadsSource('leads')}
+                      className={`px-2 py-0.5 rounded ${leadsSource === 'leads' ? 'bg-blue-600 text-white font-bold' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                      🔵 Contacts
+                    </button>
+                  </div>
+                </div>
                 <Button size="icon" variant="ghost" className="h-6 w-6" onClick={loadLeads}>
                   <RefreshCw className="h-3 w-3" />
                 </Button>

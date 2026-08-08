@@ -65,20 +65,41 @@ export function PitchAuditorWidget({ campaignId, contactId, onEvaluationComplete
       formData.append("audio", audioBlob, "call_recording.webm");
       formData.append("contactId", contactId!);
 
-      const res = await fetch(`/api/v1/campaigns/${campaignId}/recordings`, {
+      // Si campaignId es "default" o vacío, crear una campaña rápida primero
+      let realCampaignId = campaignId;
+      if (!realCampaignId || realCampaignId === "default") {
+        const createRes = await fetch("/api/v1/campaigns", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nombre: `Llamadas ${new Date().toLocaleDateString('es-EC', { weekday: 'short', day: 'numeric', month: 'short' })}`,
+            fuenteTipo: "referido",
+            descripcion: "Campaña auto-creada para grabar llamadas",
+          }),
+        });
+        if (createRes.ok) {
+          const created = await createRes.json();
+          realCampaignId = created.id;
+        }
+      }
+
+      const res = await fetch(`/api/v1/campaigns/${realCampaignId}/recordings`, {
         method: "POST",
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Error en el pipeline de evaluación");
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Server ${res.status}: ${errText.slice(0, 120)}`);
+      }
 
       const data = await res.json();
       setEvaluation(data.evaluation);
       toast.success(`Evaluación completada: ⭐ ${data.evaluation.puntajeGlobal}/100`);
 
       if (onEvaluationComplete) onEvaluationComplete(data);
-    } catch (err) {
-      toast.error("No se pudo evaluar el pitch");
+    } catch (err: any) {
+      toast.error(`No se pudo evaluar el pitch: ${err.message || err}`);
     } finally {
       setProcessing(false);
     }

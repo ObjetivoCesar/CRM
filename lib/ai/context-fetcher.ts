@@ -17,17 +17,87 @@ export async function getClientContext(supabase: SupabaseClient, clientId: strin
 
     // 1. Fetch Contact Profile (Try as Contact first)
     // We remove the strict entity_type check to allow reading during conversion transition
-    const { data: profile, error: profileError } = await supabase
-        .from('contacts')
-        .select('*')
-        .eq('id', clientId)
-        .single();
+    let profile: any = null;
+    let profileError: any = null;
 
-    if (profileError) {
-        console.warn(`⚠️ [Cortex] Profile not found in contacts: ${profileError.message}`);
+    try {
+        const contactRes = await supabase
+            .from('contacts')
+            .select('*')
+            .eq('id', clientId)
+            .maybeSingle();
+
+        profile = contactRes.data;
+        profileError = contactRes.error;
+        console.log(`🔎 [Cortex] contacts lookup: ${profile ? 'FOUND ' + profile.business_name : 'null'}`);
+    } catch (e: any) {
+        console.warn(`⚠️ [Cortex] contacts lookup threw: ${e.message}`);
     }
 
-    const discoveryLeadId = profile?.discovery_lead_id;
+    // 1b. FALLBACK: if not in contacts, try discovery_leads (common in Trainer flow)
+    if (!profile) {
+        console.warn(`⚠️ [Cortex] Not in contacts, falling back to discovery_leads...`);
+        try {
+            const { data: discoveryProfile, error: discoveryError } = await supabase
+                .from('discovery_leads')
+                .select('*')
+                .eq('id', clientId)
+                .maybeSingle();
+
+            if (discoveryError) {
+                console.warn(`⚠️ [Cortex] Discovery lookup error: ${discoveryError.message}`);
+            }
+
+            console.log(`🔎 [Cortex] discovery_leads lookup: ${discoveryProfile ? 'FOUND ' + discoveryProfile.nombre_comercial : 'null'}`);
+
+            if (discoveryProfile) {
+                // Normalize discovery_leads to the shape expected downstream
+                profile = {
+                    id: discoveryProfile.id,
+                    business_name: discoveryProfile.nombre_comercial,
+                    contact_name: discoveryProfile.persona_contacto || discoveryProfile.representante_legal,
+                    phone: discoveryProfile.telefono_principal,
+                    email: discoveryProfile.correo_electronico,
+                    city: discoveryProfile.canton,
+                    address: discoveryProfile.direccion,
+                    business_type: discoveryProfile.actividad_modalidad || discoveryProfile.clasificacion,
+                    business_activity: discoveryProfile.actividad_modalidad,
+                    pains: null,
+                    goals: null,
+                    objections: null,
+                    notes: discoveryProfile.investigacion || null,
+                    _source: 'discovery_leads',
+                    _discovery_lead_id: discoveryProfile.id,
+                };
+                console.log(`🔗 [Cortex] Loaded from discovery_leads: ${profile.business_name}`);
+            }
+        } catch (e: any) {
+            console.warn(`⚠️ [Cortex] discovery lookup threw: ${e.message}`);
+        }
+    }
+
+    if (!profile) {
+        // NEVER throw — return minimal profile so downstream can still build a pitch
+        console.warn(`⚠️ [Cortex] Profile not found anywhere, returning minimal stub`);
+        profile = {
+            id: clientId,
+            business_name: 'Prospecto sin nombre',
+            contact_name: 'Estimado',
+            phone: null,
+            email: null,
+            city: null,
+            address: null,
+            business_type: null,
+            business_activity: null,
+            pains: null,
+            goals: null,
+            objections: null,
+            notes: null,
+            _source: 'stub',
+        };
+    }
+
+    const discoveryLeadId = profile?._discovery_lead_id || profile?.discovery_lead_id;
     console.log(`🔗 [Cortex] Profile: ${profile?.business_name || 'N/A'}, Discovery Link: ${discoveryLeadId || 'None'}`);
 
     // 2. Fetch Interactions (Unificado: Pasado en Discovery + Presente en Contacts)
