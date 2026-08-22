@@ -611,7 +611,7 @@ export default function DiscoveryPage() {
                     </div>
 
                     {/* Filters Section */}
-                    <Card className="border-border/40 bg-white/60 backdrop-blur-xl rounded-2xl overflow-hidden shadow-xl border">
+                    <Card className="border-slate-700/60 bg-slate-950/55 backdrop-blur-xl rounded-2xl overflow-hidden shadow-xl border text-slate-100">
                         <CardHeader className="pb-4">
                             <div className="flex items-center gap-2">
                                 <Filter className="h-5 w-5 text-primary" />
@@ -854,8 +854,8 @@ export default function DiscoveryPage() {
                                     const isSelected = selectedIds.has(lead.id);
                                     return (
                                     <Card key={lead.id} className={cn(
-                                        "group flex flex-col h-full overflow-hidden border-border/40 hover:border-blue-500/30 transition-all duration-500 hover:shadow-xl hover:shadow-blue-500/10 bg-white/50 backdrop-blur-xl rounded-2xl border",
-                                        isSelected && "border-blue-500/60 ring-2 ring-blue-500/30 bg-blue-500/5"
+                                        "group flex flex-col h-full overflow-hidden border-slate-700/60 hover:border-blue-400/50 transition-all duration-500 hover:shadow-xl hover:shadow-blue-500/20 bg-slate-950/55 backdrop-blur-xl rounded-2xl border text-slate-100",
+                                        isSelected && "border-blue-400/80 ring-2 ring-blue-400/40 bg-blue-500/15"
                                     )}>
                                         <CardHeader className="pb-2">
                                             <div className="flex justify-between items-start gap-2">
@@ -863,52 +863,52 @@ export default function DiscoveryPage() {
                                                     checked={isSelected}
                                                     onCheckedChange={() => toggleSelected(lead.id)}
                                                     aria-label={`Seleccionar ${lead.businessName}`}
-                                                    className="mt-1 h-5 w-5 rounded border-white/20 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                                                    className="mt-1 h-5 w-5 rounded border-white/30 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                                                 />
                                                 <div className="flex-1 min-w-0">
-                                                    <CardTitle className="text-xl font-black tracking-tight group-hover:text-blue-400 transition-colors line-clamp-1">{lead.businessName}</CardTitle>
-                                                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{lead.businessType || 'Giro no especificado'}</CardDescription>
+                                                    <CardTitle className="text-xl font-black tracking-tight text-white group-hover:text-blue-300 transition-colors line-clamp-1">{lead.businessName}</CardTitle>
+                                                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{lead.businessType || 'Giro no especificado'}</CardDescription>
                                                 </div>
                                                 <div className="flex flex-col items-end gap-1 shrink-0">
                                                     {getStatusBadge(lead.status)}
                                                     {lead.columna2 === 'en_cola' && (
-                                                        <Badge className="bg-orange-500/20 text-orange-500 border-orange-500/30">📋 EN COLA</Badge>
+                                                        <Badge className="bg-orange-500/20 text-orange-300 border-orange-400/40">📋 EN COLA</Badge>
                                                     )}
                                                 </div>
                                             </div>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
-                                            <div className="space-y-2 text-sm text-muted-foreground">
+                                            <div className="space-y-2 text-sm text-slate-200">
                                                 <div className="flex items-center gap-2">
-                                                    <User className="h-4 w-4 text-primary/70" /> {lead.representative || 'Desconocido'}
+                                                    <User className="h-4 w-4 text-cyan-300" /> {lead.representative || 'Desconocido'}
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <MapPin className="h-4 w-4 text-primary/70" /> {lead.city || 'Ubicación pendiente'}
+                                                    <MapPin className="h-4 w-4 text-cyan-300" /> {lead.city || 'Ubicación pendiente'}
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <Phone className="h-4 w-4 text-primary/70" /> {lead.phone1 || 'Sin teléfono'}
+                                                    <Phone className="h-4 w-4 text-cyan-300" /> {lead.phone1 || 'Sin teléfono'}
                                                 </div>
                                                 {lead.clasificacion && (
                                                     <div className="flex items-center gap-2">
-                                                        <Columns className="h-4 w-4 text-primary/70" /> {lead.clasificacion}
+                                                        <Columns className="h-4 w-4 text-cyan-300" /> {lead.clasificacion}
                                                     </div>
                                                 )}
                                             </div>
 
                                             {/* Call Result Selector */}
-                                            <div className="pt-3 border-t border-border/30">
+                                            <div className="pt-3 border-t border-slate-700/60">
                                                 <Select
                                                     value={lead.columna1 || 'no_contactado'}
                                                     onValueChange={(val) => handleCallResult(lead.id, val)}
                                                 >
                                                     <SelectTrigger className={cn(
                                                         "h-9 w-full text-[10px] font-bold uppercase tracking-wider rounded-xl border transition-all",
-                                                        lead.columna1 === 'contesto_interesado' && "bg-green-500/10 text-green-600 border-green-500/30",
-                                                        lead.columna1 === 'contesto_no_interesado' && "bg-red-500/10 text-red-500 border-red-500/30",
-                                                        lead.columna1 === 'no_contesto' && "bg-gray-500/10 text-gray-500 border-gray-500/30",
-                                                        lead.columna1 === 'buzon_voz' && "bg-yellow-500/10 text-yellow-600 border-yellow-500/30",
-                                                        lead.columna1 === 'numero_invalido' && "bg-red-900/10 text-red-700 border-red-700/30",
-                                                        (!lead.columna1 || lead.columna1 === 'no_contactado') && "bg-white/5 text-muted-foreground border-border/30",
+                                                        lead.columna1 === 'contesto_interesado' && "bg-green-500/15 text-green-300 border-green-400/40",
+                                                        lead.columna1 === 'contesto_no_interesado' && "bg-red-500/15 text-red-300 border-red-400/40",
+                                                        lead.columna1 === 'no_contesto' && "bg-slate-500/20 text-slate-200 border-slate-400/40",
+                                                        lead.columna1 === 'buzon_voz' && "bg-yellow-500/15 text-yellow-300 border-yellow-400/40",
+                                                        lead.columna1 === 'numero_invalido' && "bg-red-900/20 text-red-300 border-red-700/40",
+                                                        (!lead.columna1 || lead.columna1 === 'no_contactado') && "bg-slate-900/60 text-slate-300 border-slate-600/50",
                                                     )}>
                                                         <SelectValue placeholder="📞 Resultado de llamada" />
                                                     </SelectTrigger>
@@ -944,8 +944,8 @@ export default function DiscoveryPage() {
                                                     variant="ghost"
                                                     size="icon"
                                                     className={cn(
-                                                        "h-10 w-10 border border-white/5 transition-all rounded-xl",
-                                                        lead.columna2 === 'en_cola' ? "bg-orange-500/20 text-orange-500 border-orange-500/30" : "hover:bg-white/5"
+                                                        "h-10 w-10 border border-slate-700/60 transition-all rounded-xl text-slate-300",
+                                                        lead.columna2 === 'en_cola' ? "bg-orange-500/20 text-orange-300 border-orange-400/40" : "hover:bg-white/10 hover:text-white"
                                                     )}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
