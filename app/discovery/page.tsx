@@ -553,7 +553,7 @@ export default function DiscoveryPage() {
                 {/* Discovery Content */}
 
                 <div className="p-4 sm:p-6 md:p-12 lg:p-16 w-full max-w-[95%] mx-auto space-y-6 md:space-y-8 animate-in fade-in duration-700 relative z-10">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 mb-2">
+                    <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 md:gap-6 mb-2">
                         <div className="space-y-1 w-full md:w-auto">
                             <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
                                 Discovery <span className="text-primary">&</span> Research

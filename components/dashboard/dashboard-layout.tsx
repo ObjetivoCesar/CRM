@@ -39,8 +39,23 @@ const navigation = [
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const [sidebarOpen, setSidebarOpen] = React.useState(true)
+  const [sidebarOpen, setSidebarOpen] = React.useState(false)
   const [newLeadsCount, setNewLeadsCount] = React.useState(0)
+
+  // En desktop el sidebar siempre abierto; en mobile cerrado por defecto.
+  React.useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)')
+    const apply = () => setSidebarOpen(mq.matches)
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
+
+  // Cerrar sidebar al cambiar de ruta en mobile
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.innerWidth < 1024) setSidebarOpen(false)
+  }, [pathname])
 
   React.useEffect(() => {
     const checkNewLeads = async () => {
@@ -82,10 +97,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* ═══════════════════════════════════════════════════════════
           CAPA 1: SIDEBAR — vidrio esmerilado lateral
       ═══════════════════════════════════════════════════════════ */}
+      {/* Overlay oscuro en mobile cuando el sidebar está abierto */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
       <aside
         className={cn(
-          "relative z-20 flex flex-col h-full transition-all duration-300 ease-in-out flex-shrink-0",
-          sidebarOpen ? "w-[220px]" : "w-0 overflow-hidden"
+          "z-40 lg:relative lg:z-20 flex flex-col h-full transition-all duration-300 ease-in-out flex-shrink-0",
+          // En mobile: sidebar fijo como overlay; en desktop: inline con ancho fijo
+          "fixed inset-y-0 left-0 lg:translate-x-0",
+          sidebarOpen
+            ? "w-[260px] lg:w-[220px] translate-x-0"
+            : "w-0 -translate-x-full lg:translate-x-0 lg:w-0 overflow-hidden"
         )}
       >
         {/* Panel glass del sidebar */}
