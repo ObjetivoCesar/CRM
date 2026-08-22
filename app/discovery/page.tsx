@@ -552,20 +552,20 @@ export default function DiscoveryPage() {
             <div className="relative isolate">
                 {/* Discovery Content */}
 
-                <div className="p-8 md:p-12 lg:p-16 w-full max-w-[95%] mx-auto space-y-8 animate-in fade-in duration-700 relative z-10">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-2">
-                        <div className="space-y-1">
-                            <h1 className="text-4xl md:text-5xl font-black tracking-tighter bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
+                <div className="p-4 sm:p-6 md:p-12 lg:p-16 w-full max-w-[95%] mx-auto space-y-6 md:space-y-8 animate-in fade-in duration-700 relative z-10">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 mb-2">
+                        <div className="space-y-1 w-full md:w-auto">
+                            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
                                 Discovery <span className="text-primary">&</span> Research
                             </h1>
-                            <p className="text-sm text-muted-foreground/60 font-medium tracking-wide uppercase">
+                            <p className="text-xs sm:text-sm text-muted-foreground/60 font-medium tracking-wide uppercase">
                                 Investigación táctica y gestión de prospección en frío.
                             </p>
                         </div>
 
                         <Dialog>
                             <DialogTrigger asChild>
-                                <Button className="h-12 px-6 font-black border-0 transition-all active:scale-95 group">
+                                <Button className="h-11 md:h-12 px-5 md:px-6 w-full md:w-auto font-black border-0 transition-all active:scale-95 group">
                                     <Plus className="mr-2 h-5 w-5 group-hover:rotate-90 transition-transform duration-300" /> Nuevo Prospecto
                                 </Button>
                             </DialogTrigger>
@@ -578,25 +578,25 @@ export default function DiscoveryPage() {
                                         </DialogDescription>
                                     </DialogHeader>
                                     <div className="grid gap-4 py-4">
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="name" className="text-right">Negocio</Label>
-                                            <Input id="name" value={newLead.businessName} onChange={e => setNewLead({ ...newLead, businessName: e.target.value })} className="col-span-3" required />
+                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                                            <Label htmlFor="name" className="sm:text-right">Negocio</Label>
+                                            <Input id="name" value={newLead.businessName} onChange={e => setNewLead({ ...newLead, businessName: e.target.value })} className="sm:col-span-3" required />
                                         </div>
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="type" className="text-right">Tipo</Label>
-                                            <Input id="type" placeholder="Ej: Hotel, Restaurante" value={newLead.businessType} onChange={e => setNewLead({ ...newLead, businessType: e.target.value })} className="col-span-3" />
+                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                                            <Label htmlFor="type" className="sm:text-right">Tipo</Label>
+                                            <Input id="type" placeholder="Ej: Hotel, Restaurante" value={newLead.businessType} onChange={e => setNewLead({ ...newLead, businessType: e.target.value })} className="sm:col-span-3" />
                                         </div>
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="rep" className="text-right">Representante</Label>
-                                            <Input id="rep" value={newLead.representative} onChange={e => setNewLead({ ...newLead, representative: e.target.value })} className="col-span-3" />
+                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                                            <Label htmlFor="rep" className="sm:text-right">Representante</Label>
+                                            <Input id="rep" value={newLead.representative} onChange={e => setNewLead({ ...newLead, representative: e.target.value })} className="sm:col-span-3" />
                                         </div>
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="city" className="text-right">Ciudad</Label>
-                                            <Input id="city" value={newLead.city} onChange={e => setNewLead({ ...newLead, city: e.target.value })} className="col-span-3" />
+                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                                            <Label htmlFor="city" className="sm:text-right">Ciudad</Label>
+                                            <Input id="city" value={newLead.city} onChange={e => setNewLead({ ...newLead, city: e.target.value })} className="sm:col-span-3" />
                                         </div>
-                                        <div className="grid grid-cols-4 items-center gap-4">
-                                            <Label htmlFor="phone" className="text-right">Teléfono</Label>
-                                            <Input id="phone" value={newLead.phone1} onChange={e => setNewLead({ ...newLead, phone1: e.target.value })} className="col-span-3" />
+                                        <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
+                                            <Label htmlFor="phone" className="sm:text-right">Teléfono</Label>
+                                            <Input id="phone" value={newLead.phone1} onChange={e => setNewLead({ ...newLead, phone1: e.target.value })} className="sm:col-span-3" />
                                         </div>
                                     </div>
                                     <DialogFooter>
@@ -652,7 +652,7 @@ export default function DiscoveryPage() {
                             </div>
                         </CardHeader>
                         <CardContent className="space-y-6 pt-0">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3 md:gap-4">
                                 <div className="space-y-2">
                                     <Label>Búsqueda</Label>
                                     <div className="relative">
@@ -745,7 +745,7 @@ export default function DiscoveryPage() {
                     </Card>
 
                     {/* Results Summary + Bulk Toolbar */}
-                    <div className="flex items-center justify-between text-sm text-muted-foreground gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm text-muted-foreground gap-3 sm:gap-4">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                             {leads.length > 0 && (
                                 <Checkbox
@@ -765,7 +765,7 @@ export default function DiscoveryPage() {
                             </p>
                         </div>
                         <Select value={pagination.limit.toString()} onValueChange={(value) => setPagination({ ...pagination, limit: parseInt(value), page: 1 })}>
-                            <SelectTrigger className="w-[120px]">
+                            <SelectTrigger className="w-full sm:w-[120px]">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -778,11 +778,11 @@ export default function DiscoveryPage() {
 
                     {/* ─── FLOATING BULK ACTION TOOLBAR ─── */}
                     {selectedIds.size > 0 && (
-                        <div className="sticky top-4 z-30 mx-auto max-w-3xl">
-                            <div className="rounded-2xl border border-blue-500/40 bg-blue-950/90 backdrop-blur-xl shadow-2xl shadow-blue-500/20 p-3 flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
-                                <div className="flex items-center gap-2 text-blue-200">
-                                    <ListChecks className="h-5 w-5" />
-                                    <span className="font-black text-sm uppercase tracking-wider">
+                        <div className="sticky top-2 sm:top-4 z-30 mx-auto max-w-3xl px-2 sm:px-0">
+                            <div className="rounded-2xl border border-blue-500/40 bg-blue-950/90 backdrop-blur-xl shadow-2xl shadow-blue-500/20 p-3 flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 animate-in fade-in slide-in-from-top-4">
+                                <div className="flex items-center gap-2 text-blue-200 min-w-0">
+                                    <ListChecks className="h-5 w-5 shrink-0" />
+                                    <span className="font-black text-xs sm:text-sm uppercase tracking-wider truncate">
                                         {selectedIds.size} {selectedIds.size === 1 ? 'prospecto' : 'prospectos'}
                                     </span>
                                 </div>
@@ -793,11 +793,11 @@ export default function DiscoveryPage() {
                                     variant="ghost"
                                     size="sm"
                                     onClick={clearSelection}
-                                    className="text-blue-200/70 hover:text-white hover:bg-white/5"
+                                    className="text-blue-200/70 hover:text-white hover:bg-white/5 px-2 sm:px-3"
                                     disabled={bulkLoading}
                                 >
-                                    <X className="h-4 w-4 mr-1" />
-                                    Cancelar
+                                    <X className="h-4 w-4 sm:mr-1" />
+                                    <span className="hidden sm:inline">Cancelar</span>
                                 </Button>
 
                                 <Button
@@ -805,28 +805,30 @@ export default function DiscoveryPage() {
                                     size="sm"
                                     onClick={bulkAddToQueue}
                                     disabled={bulkLoading}
-                                    className="border-orange-500/40 text-orange-300 hover:bg-orange-500/10 font-bold"
+                                    className="border-orange-500/40 text-orange-300 hover:bg-orange-500/10 font-bold px-2 sm:px-3"
                                 >
                                     {bulkLoading ? (
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
                                     ) : (
-                                        <ClipboardList className="h-4 w-4 mr-2" />
+                                        <ClipboardList className="h-4 w-4 sm:mr-2" />
                                     )}
-                                    Añadir a Mi Cola
+                                    <span className="hidden sm:inline">Añadir a Mi Cola</span>
+                                    <span className="sm:hidden">Cola</span>
                                 </Button>
 
                                 <Button
                                     size="sm"
                                     onClick={bulkSendToTrainer}
                                     disabled={bulkLoading}
-                                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold shadow-lg shadow-blue-500/30"
+                                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold shadow-lg shadow-blue-500/30 px-2 sm:px-3"
                                 >
                                     {bulkLoading ? (
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
                                     ) : (
-                                        <Sparkles className="h-4 w-4 mr-2" />
+                                        <Sparkles className="h-4 w-4 sm:mr-2" />
                                     )}
-                                    Llevar al Trainer
+                                    <span className="hidden sm:inline">Llevar al Trainer</span>
+                                    <span className="sm:hidden">Trainer</span>
                                 </Button>
                             </div>
                         </div>
@@ -849,7 +851,7 @@ export default function DiscoveryPage() {
                                 </CardContent>
                             </Card>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                                 {leads.map((lead) => {
                                     const isSelected = selectedIds.has(lead.id);
                                     return (
@@ -863,16 +865,16 @@ export default function DiscoveryPage() {
                                                     checked={isSelected}
                                                     onCheckedChange={() => toggleSelected(lead.id)}
                                                     aria-label={`Seleccionar ${lead.businessName}`}
-                                                    className="mt-1 h-5 w-5 rounded border-white/30 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                                                    className="mt-1 h-5 w-5 shrink-0 rounded border-white/30 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                                                 />
                                                 <div className="flex-1 min-w-0">
-                                                    <CardTitle className="text-xl font-black tracking-tight text-white group-hover:text-blue-300 transition-colors line-clamp-1">{lead.businessName}</CardTitle>
-                                                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{lead.businessType || 'Giro no especificado'}</CardDescription>
+                                                    <CardTitle className="text-lg sm:text-xl font-black tracking-tight text-white group-hover:text-blue-300 transition-colors line-clamp-1">{lead.businessName}</CardTitle>
+                                                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-slate-400 line-clamp-2 sm:line-clamp-1">{lead.businessType || 'Giro no especificado'}</CardDescription>
                                                 </div>
                                                 <div className="flex flex-col items-end gap-1 shrink-0">
                                                     {getStatusBadge(lead.status)}
                                                     {lead.columna2 === 'en_cola' && (
-                                                        <Badge className="bg-orange-500/20 text-orange-300 border-orange-400/40">📋 EN COLA</Badge>
+                                                        <Badge className="bg-orange-500/20 text-orange-300 border-orange-400/40 whitespace-nowrap">📋 EN COLA</Badge>
                                                     )}
                                                 </div>
                                             </div>
@@ -968,16 +970,18 @@ export default function DiscoveryPage() {
 
                     {/* Pagination */}
                     {pagination.totalPages > 1 && (
-                        <div className="flex items-center justify-center gap-2 pt-4">
+                        <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
                             <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
                                 disabled={pagination.page === 1}
+                                className="px-2 sm:px-3"
                             >
-                                Anterior
+                                <span className="sm:hidden">←</span>
+                                <span className="hidden sm:inline">Anterior</span>
                             </Button>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 flex-wrap justify-center">
                                 {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                                     const pageNum = i + 1;
                                     return (
@@ -986,17 +990,19 @@ export default function DiscoveryPage() {
                                             variant={pagination.page === pageNum ? "default" : "outline"}
                                             size="sm"
                                             onClick={() => setPagination({ ...pagination, page: pageNum })}
+                                            className="h-8 w-8 sm:h-9 sm:w-9 p-0"
                                         >
                                             {pageNum}
                                         </Button>
                                     );
                                 })}
-                                {pagination.totalPages > 5 && <span className="px-2">...</span>}
+                                {pagination.totalPages > 5 && <span className="px-2 text-muted-foreground">…</span>}
                                 {pagination.totalPages > 5 && (
                                     <Button
                                         variant={pagination.page === pagination.totalPages ? "default" : "outline"}
                                         size="sm"
                                         onClick={() => setPagination({ ...pagination, page: pagination.totalPages })}
+                                        className="h-8 w-8 sm:h-9 sm:w-9 p-0"
                                     >
                                         {pagination.totalPages}
                                     </Button>
@@ -1007,8 +1013,10 @@ export default function DiscoveryPage() {
                                 size="sm"
                                 onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
                                 disabled={pagination.page === pagination.totalPages}
+                                className="px-2 sm:px-3"
                             >
-                                Siguiente
+                                <span className="hidden sm:inline">Siguiente</span>
+                                <span className="sm:hidden">→</span>
                             </Button>
                         </div>
                     )}
