@@ -1036,10 +1036,11 @@ export async function procesarMensajeActivaQR(
   }
 
   // ─── INTERCEPTOR: VERIFICACIÓN DE VOTO — 197ª FERIA DE LOJA ───
-  // Detecta "Verificar Voto Feria #TOKEN" y llama a la API de ActivaQR sin LLM.
-  // Este interceptor tiene prioridad máxima: cortocircuita el flujo completo.
-  const FERIA_REGEX = /Verificar\s+Voto\s+Feria\s+#([A-Z0-9]+)/i;
+  // Detecta mensajes de votación de la feria y extrae el token (ej. #6DF8A25D)
+  // Ignora códigos cortos como #197 (edición de la feria)
+  const FERIA_REGEX = /Feria.*#([A-Z0-9]{6,12})/i;
   const feriaMatch = texto.match(FERIA_REGEX);
+  
   if (feriaMatch) {
     const tokenWa = feriaMatch[1].toUpperCase();
     log('FERIA', tel, `Verificación de voto detectada. Token: ${tokenWa}`);
