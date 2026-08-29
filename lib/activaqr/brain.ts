@@ -1036,21 +1036,23 @@ export async function procesarMensajeActivaQR(
   }
 
   // ─── INTERCEPTOR: VERIFICACIÓN DE VOTO — 197ª FERIA DE LOJA ───
-  // Detecta mensajes de votación de la feria y extrae el token (ej. #6DF8A25D)
-  // Ignora códigos cortos como #197 (edición de la feria)
-  const FERIA_REGEX = /Feria.*#([A-Z0-9]{6,12})/i;
-  const feriaMatch = texto.match(FERIA_REGEX);
+  // Detecta mensajes de votación de la feria con el nuevo formato [ID: X]
+  // Ejemplo: "🗳️ Voto Feria 197 por: Don Ernesto [ID: 3] ⭐"
+  const FERIA_REGEX = /Voto\s+Feria\s+197/i;
   
-  if (feriaMatch) {
-    const tokenWa = feriaMatch[1].toUpperCase();
-    log('FERIA', tel, `Verificación de voto detectada. Token: ${tokenWa}`);
+  if (texto.match(FERIA_REGEX)) {
+    // Extraer el ID si está presente en el formato [ID: 3]
+    const idMatch = texto.match(/\[ID:\s*(\d+)\]/i);
+    const negocioId = idMatch ? parseInt(idMatch[1], 10) : null;
+    
+    log('FERIA', tel, `Voto Feria detectado. Negocio ID: ${negocioId}`);
     try {
       const feriaBaseUrl = process.env.ACTIVAQR_API_URL || 'https://activaqr.com';
-      const feriaRes = await fetch(`${feriaBaseUrl}/api/feria/verificar-voto`, {
+      const feriaRes = await fetch(`${feriaBaseUrl}/api/feria/votar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          token_wa: tokenWa,
+          negocio_id: negocioId, // Puede ser null, la API de ActivaQR tiene fallback regex interno
           telefono_votante: tel,
           nombre_votante: ficha.nombre || '',
           mensaje_recibido: texto,
@@ -1060,31 +1062,39 @@ export async function procesarMensajeActivaQR(
       if (feriaRes.ok) {
         const feriaData = await feriaRes.json() as {
           success: boolean;
-          message: string;
-          negocio?: { nombre_negocio: string; google_reviews_url?: string };
+          already_voted?: boolean;
+          negocio?: { nombre_negocio: string };
+          message?: string;
         };
-        const nombreNegocio = feriaData.negocio?.nombre_negocio || 'el negocio';
-        const respuestaFeria = `🎉 ¡Listo! Tu voto por ${nombreNegocio} ha sido verificado oficialmente en la 197ª Feria de Loja. ¡Gracias por apoyar al talento local!`;
-        log('FERIA', tel, `Voto verificado OK. Negocio: ${nombreNegocio}`);
-        return { respuesta: respuestaFeria, nuevaFicha: ficha, transferir: false };
-      } else if (feriaRes.status === 404) {
-        log('FERIA', tel, `Token no encontrado o ya utilizado: ${tokenWa}`);
-        return {
-          respuesta: 'El código de verificación no es válido o ya fue utilizado.',
-          nuevaFicha: ficha,
-          transferir: false,
-        };
+        
+        const nombreNegocio = feriaData.negocio?.nombre_negocio || 'este negocio';
+        
+        if (feriaData.already_voted) {
+          log('FERIA', tel, `Voto duplicado. Negocio: ${nombreNegocio}`);
+          return {
+            respuesta: `ℹ️ Ya tenías registrado tu voto por ${nombreNegocio}. Recuerda que solo se permite 1 voto por negocio por persona. ¡Gracias por participar!`,
+            nuevaFicha: ficha,
+            transferir: false,
+          };
+        } else {
+          log('FERIA', tel, `Voto nuevo OK. Negocio: ${nombreNegocio}`);
+          return { 
+            respuesta: `🎉 ¡Tu voto por ${nombreNegocio} ha sido registrado con éxito en la 197ª Feria de Loja! Muchas gracias por apoyar el talento local.`, 
+            nuevaFicha: ficha, 
+            transferir: false 
+          };
+        }
       } else {
         const errBody = await feriaRes.text();
         log('FERIA', tel, `Error API Feria (${feriaRes.status}): ${errBody.substring(0, 200)}`);
         return {
-          respuesta: 'Tuvimos un problema verificando tu voto. Por favor intenta nuevamente en unos minutos. 🙏',
+          respuesta: 'Tuvimos un problema registrando tu voto. Por favor intenta nuevamente en unos minutos. 🙏',
           nuevaFicha: ficha,
           transferir: false,
         };
       }
     } catch (feriaErr: any) {
-      log('FERIA', tel, `Error de red al verificar voto: ${feriaErr.message}`);
+      log('FERIA', tel, `Error de red al registrar voto: ${feriaErr.message}`);
       return {
         respuesta: 'No pudimos conectar con el servidor de la Feria. Por favor intenta nuevamente en unos minutos. 🙏',
         nuevaFicha: ficha,
