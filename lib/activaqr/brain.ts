@@ -1035,6 +1035,63 @@ export async function procesarMensajeActivaQR(
     };
   }
 
+  // ─── INTERCEPTOR: VERIFICACIÓN DE VOTO — 197ª FERIA DE LOJA ───
+  // Detecta "Verificar Voto Feria #TOKEN" y llama a la API de ActivaQR sin LLM.
+  // Este interceptor tiene prioridad máxima: cortocircuita el flujo completo.
+  const FERIA_REGEX = /Verificar\s+Voto\s+Feria\s+#([A-Z0-9]+)/i;
+  const feriaMatch = texto.match(FERIA_REGEX);
+  if (feriaMatch) {
+    const tokenWa = feriaMatch[1].toUpperCase();
+    log('FERIA', tel, `Verificación de voto detectada. Token: ${tokenWa}`);
+    try {
+      const feriaBaseUrl = process.env.ACTIVAQR_API_URL || 'https://activaqr.com';
+      const feriaRes = await fetch(`${feriaBaseUrl}/api/feria/verificar-voto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token_wa: tokenWa,
+          telefono_votante: tel,
+          nombre_votante: ficha.nombre || '',
+          mensaje_recibido: texto,
+        }),
+      });
+
+      if (feriaRes.ok) {
+        const feriaData = await feriaRes.json() as {
+          success: boolean;
+          message: string;
+          negocio?: { nombre_negocio: string; google_reviews_url?: string };
+        };
+        const nombreNegocio = feriaData.negocio?.nombre_negocio || 'el negocio';
+        const respuestaFeria = `🎉 ¡Listo! Tu voto por ${nombreNegocio} ha sido verificado oficialmente en la 197ª Feria de Loja. ¡Gracias por apoyar al talento local!`;
+        log('FERIA', tel, `Voto verificado OK. Negocio: ${nombreNegocio}`);
+        return { respuesta: respuestaFeria, nuevaFicha: ficha, transferir: false };
+      } else if (feriaRes.status === 404) {
+        log('FERIA', tel, `Token no encontrado o ya utilizado: ${tokenWa}`);
+        return {
+          respuesta: 'El código de verificación no es válido o ya fue utilizado.',
+          nuevaFicha: ficha,
+          transferir: false,
+        };
+      } else {
+        const errBody = await feriaRes.text();
+        log('FERIA', tel, `Error API Feria (${feriaRes.status}): ${errBody.substring(0, 200)}`);
+        return {
+          respuesta: 'Tuvimos un problema verificando tu voto. Por favor intenta nuevamente en unos minutos. 🙏',
+          nuevaFicha: ficha,
+          transferir: false,
+        };
+      }
+    } catch (feriaErr: any) {
+      log('FERIA', tel, `Error de red al verificar voto: ${feriaErr.message}`);
+      return {
+        respuesta: 'No pudimos conectar con el servidor de la Feria. Por favor intenta nuevamente en unos minutos. 🙏',
+        nuevaFicha: ficha,
+        transferir: false,
+      };
+    }
+  }
+
   // ─── DETECCIÓN DE BAJA ───
   if (detectarBaja(texto)) {
     log('BAJA', tel, `Baja LOPDP detectada: "${texto.substring(0, 60)}"`);
