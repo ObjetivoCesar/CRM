@@ -883,6 +883,137 @@ export async function POST(req: Request) {
                     return NextResponse.json({ status: 'vcard_intercepted' });
                 }
 
+                // 3.6. INTERCEPT FERIA DE LOJA VOTES
+                // Patrones soportados:
+                // 1) "🗳️ Voto Feria 197 por: asdasd [ID: 4] ⭐" o "Voto Feria 197 por: ..."
+                // 2) "Feria de Loja #197 - Voto por: [Nombre]" o "Feria 197 - Voto por: ..."
+                // 3) Con o sin [ID: 4]
+                const idMatch = content.match(/\[ID:\s*(\d+)\]/i) || content.match(/\bID:\s*(\d+)\b/i);
+                const feriaVotoPattern = /(?:voto\s+feria\s*(?:de\s+loja)?\s*#?\s*197\s*por:?|feria\s*(?:de\s+loja)?\s*#?\s*197\s*[-–]\s*voto\s+por:?)\s*(.+)/i;
+                const feriaMatch = content.match(feriaVotoPattern);
+                
+                // Patrón genérico: si menciona feria de loja o feria 197 pero no especifica negocio ni ID
+                const feriaGenerico = !feriaMatch && !idMatch && (
+                    /feria\s+de\s+loja/i.test(content) || 
+                    /feria\s*#?\s*197/i.test(content) || 
+                    /voto\s+feria/i.test(content)
+                );
+
+                if (feriaMatch || idMatch || feriaGenerico) {
+                    const messageId = message.id;
+                    
+                    // Idempotencia para evitar reintentos de Meta
+                    const { webhookEventsProcessed } = await import('@/lib/db/schema');
+                    const [yaProcessado] = await db.select()
+                        .from(webhookEventsProcessed)
+                        .where(and(
+                            eq(webhookEventsProcessed.provider, 'whatsapp'),
+                            eq(webhookEventsProcessed.externalId, `feria_${messageId}`)
+                        ))
+                        .limit(1);
+
+                    if (yaProcessado) {
+                        return NextResponse.json({ status: 'feria_duplicate_ignored' });
+                    }
+                    
+                    try {
+                        await db.insert(webhookEventsProcessed).values({
+                            provider: 'whatsapp',
+                            externalId: `feria_${messageId}`,
+                        });
+                    } catch (e) {
+                        return NextResponse.json({ status: 'feria_race_condition_ignored' });
+                    }
+
+                    if (feriaGenerico) {
+                        waitUntil((async () => {
+                            await whatsappService.sendMessage(from,
+                                '🗳️ ¡Bienvenido a la Feria de Loja #197!\n\n' +
+                                'Para registrar tu voto, escríbeme:\n' +
+                                '*Feria de Loja #197 - Voto por: [Nombre del Stand]*\n\n' +
+                                'Ejemplo: _Feria de Loja #197 - Voto por: Café Lojano_'
+                            );
+                        })());
+                        return NextResponse.json({ status: 'feria_asked_for_name' });
+                    }
+
+                    // Extraer ID si viene en el mensaje (ej: [ID: 4])
+                    const negocioId = idMatch ? parseInt(idMatch[1], 10) : null;
+
+                    // Extraer nombre del negocio (limpiando el [ID: X] y posibles emojis/estrellas finales)
+                    let negocioNombre = '';
+                    if (feriaMatch && feriaMatch[1]) {
+                        negocioNombre = feriaMatch[1]
+                            .replace(/\[ID:\s*\d+\]/gi, '')
+                            .replace(/⭐/g, '')
+                            .replace(/🗳️/g, '')
+                            .trim();
+                    }
+
+                    const telefono = from;
+                    const nombreVotante = value?.contacts?.[0]?.profile?.name || null;
+                    const timestamp = new Date(parseInt(message.timestamp) * 1000);
+
+                    waitUntil((async () => {
+                        const { feriaVotingService } = await import('@/lib/feria/FeriaVotingService');
+                        const resultado = await feriaVotingService.registrarVoto({
+                            negocioId,
+                            negocioNombre,
+                            telefono,
+                            nombreVotante,
+                            mensajeOriginal: content,
+                            messageId,
+                            timestamp
+                        });
+
+                        switch (resultado.status) {
+                            case 'ok':
+                                await whatsappService.sendMessage(from,
+                                    `🎉 ¡Excelente! Tu voto por *${resultado.negocio.nombre_negocio}* ` +
+                                    `en la Feria de Loja #197 ha sido registrado.\n\n` +
+                                    `_Votos usados: ${resultado.votosUsados}/3_ ✅`
+                                );
+                                
+                                // Delay aleatorio 2-8 horas para el link de reseña
+                                if (resultado.negocio.google_reviews_url) {
+                                    const delayMs = (2 + Math.random() * 6) * 3600 * 1000;
+                                    await new Promise(r => setTimeout(r, delayMs));
+                                    await whatsappService.sendMessage(from,
+                                        `🌟 ¿Nos ayudarías con una reseña en Google para apoyar a ` +
+                                        `*${resultado.negocio.nombre_negocio}*?\n\n` +
+                                        `👉 ${resultado.negocio.google_reviews_url}\n\n` +
+                                        `¡Tu opinión vale mucho para ellos! ⭐`
+                                    ).catch(() => {});
+                                }
+                                break;
+
+                            case 'duplicado':
+                                await whatsappService.sendMessage(from,
+                                    `🙌 ¡Tu voto por *${resultado.negocio.nombre_negocio}* ya estaba registrado!\n\n` +
+                                    `Aún puedes votar por otros stands que te hayan gustado. ` +
+                                    `_(${3 - resultado.votosUsados} voto(s) disponibles)_`
+                                );
+                                break;
+
+                            case 'limite':
+                                await whatsappService.sendMessage(from,
+                                    `🎉 ¡Ya usaste tus 3 votos disponibles en la Feria de Loja #197!\n\n` +
+                                    `Gracias por apoyar al comercio local. ¡Que disfrutes la feria! 🛍️`
+                                );
+                                break;
+
+                            case 'not_found':
+                                await whatsappService.sendMessage(from,
+                                    `❌ No encontramos un negocio con ese nombre en la Feria de Loja #197.\n\n` +
+                                    `Verifica el nombre en el stand e inténtalo de nuevo. 🔍`
+                                );
+                                break;
+                        }
+                    })());
+
+                    return NextResponse.json({ status: 'feria_voto_intercepted' });
+                }
+
                 // 4. QUEUE FOR ACCUMULATION (Debouncing)
                 // We no longer save interactions or chat messages here.
                 // The Message Worker will aggregate them every 25s and save a single entry.
