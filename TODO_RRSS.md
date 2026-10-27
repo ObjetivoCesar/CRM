@@ -1,5 +1,12 @@
 # Tareas Pendientes: Proyecto RRSS (Memoria del Agente)
 
+> [!CAUTION]
+> ### 🚨 RECORDATORIO OBLIGATORIO DE LIMPIEZA POST-DEMO (Añadido 27 de Octubre 2026)
+> César implementó un **flujo provisional para la demo de la Clínica San Agustín (`san_agustin_demo`)**.
+> **INSTRUCCIÓN ESTRICTA PARA EL AGENTE:** Al iniciar la próxima sesión, debes preguntar e insistir a César:
+> *"Comandante, ¿cómo le fue en la demostración con la Clínica San Agustín? Recuerde que dejamos el flujo provisional en producción (Sección 3.7 de route.ts y assets en public/) y debemos borrarlo o archivarlo para mantener el código 100% limpio."*
+> Detalles e inventario en: `docs/SESIONES/2026-10-27_demo_clinica_san_agustin.md`.
+
 **Fecha:** Para nuestra próxima sesión (Mañana)
 
 ## 📌 Objetivo Principal
