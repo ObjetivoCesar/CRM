@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { interactions, contacts, discoveryLeads, whatsappLogs, contactChannels, donnaChatMessages, referralLeads } from '@/lib/db/schema';
 import { sql, eq, and, or, gt, gte, isNull } from 'drizzle-orm';
 import { cortexRouter } from '@/lib/donna/services/CortexRouterService';
-import { whatsappService } from '@/lib/whatsapp/WhatsAppService';
+import { whatsappService, WhatsAppCarouselCard } from '@/lib/whatsapp/WhatsAppService';
 import { getGoogleContactsService } from '@/lib/google/ContactsService';
 import { waitUntil } from '@vercel/functions';
 
@@ -1090,66 +1090,62 @@ export async function POST(req: Request) {
                                 console.error('❌ [DEMO_HCSA] Error pausando IA:', pauseErr);
                             }
 
-                            // 2. Mensaje de Cabecera Institucional
-                            const headerMsg = 
+                            // 2. Definición del Carrusel de 3 Cards (2 Doctores + 1 Card ActivaQR con botón Descargar Contacto)
+                            const BASE_URL = 'https://crm-z2kv.vercel.app';
+
+                            const hcsaHeaderBody = 
 `🏥 *Hospital Clínica San Agustín — Especialidad de Alergología*
 
-Hola, bienvenido al servicio de atención y agendamiento médico en Loja. Ponemos a su disposición a nuestros especialistas de primer nivel:`;
+Bienvenido al servicio de atención y agendamiento médico en Loja. Deslice las tarjetas hacia los lados 👉 para elegir una opción:`;
 
-                            await whatsappService.sendMessage(from, headerMsg);
+                            const hcsaThreeCards: WhatsAppCarouselCard[] = [
+                                {
+                                    // CARD 1: Dra. Daniela Hidalgo -> Botón abre WhatsApp para agendar
+                                    imageUrl: `${BASE_URL}/Dra-Daniela-Hidalgo-HCSA.jpg`,
+                                    bodyText: '👩‍⚕️ *Dra. Daniela Hidalgo*\nAlergología e Inmunología\n📍 Consultorio 514 • HCSA',
+                                    buttonText: '📅 Agendar Cita',
+                                    buttonUrl: 'https://wa.me/593990070606?text=Quiero%20una%20cita%20con%20Alergolog%C3%ADa%20Dra.%20Daniela%20Hidalgo'
+                                },
+                                {
+                                    // CARD 2: Dr. Andrés Torres -> Botón abre WhatsApp para agendar
+                                    imageUrl: `${BASE_URL}/dr-andres-torres-alergologo-hospital-clinica-san-agustin-loja.jpg`,
+                                    bodyText: '👨‍⚕️ *Dr. Andrés Torres*\nEspecialista en Alergología\n📍 Consultorio 304 • HCSA',
+                                    buttonText: '📅 Agendar Cita',
+                                    buttonUrl: 'https://wa.me/593990070606?text=Quiero%20una%20cita%20con%20Alerg%C3%B3logo%20Dr.%20Andr%C3%A9s%20Torres'
+                                },
+                                {
+                                    // CARD 3: César Reyes (ActivaQR) -> Botón descarga directamente la vCard (.vcf)
+                                    imageUrl: `${BASE_URL}/cesar-reyes-jaramillo.jpg`,
+                                    bodyText: '📇 *César Reyes Jaramillo*\nContacto Digital ActivaQR\nGuarde mis datos con 1 solo clic',
+                                    buttonText: '📇 Guardar Contacto',
+                                    buttonUrl: `${BASE_URL}/cesar-reyes-jaramillo.vcf`
+                                }
+                            ];
 
-                            // Pausa estética de 1.5s
-                            await new Promise(resolve => setTimeout(resolve, 1500));
+                            // 3. Disparo del Carrusel Horizontal Nativo (3 Cards)
+                            try {
+                                await whatsappService.sendInteractiveCarousel(from, hcsaHeaderBody, hcsaThreeCards);
+                                console.log(`✅ [DEMO_HCSA] Carrusel horizontal de 3 cards enviado con éxito a ${from}`);
+                            } catch (carouselErr: any) {
+                                console.warn(`⚠️ [DEMO_HCSA] Carrusel rechazado (${carouselErr.message}). Ejecutando Fallback de 3 Cards con botones CTA_URL...`);
 
-                            // 3. Tarjeta Médico 1 — Dra. Daniela Hidalgo
-                            const dr1Caption = 
-`👩‍⚕️ *Dra. Daniela Hidalgo*
-Especialista en Alergología e Inmunología
-Hospital Clínica San Agustín (HCSA)
+                                // Fallback automático si Meta rechaza el carrusel: envía mensaje introductorio y luego las 3 tarjetas con imagen y botón táctil (sin links azules ni .vcf suelto)
+                                await whatsappService.sendMessage(from, hcsaHeaderBody);
+                                await new Promise(resolve => setTimeout(resolve, 800));
 
-📅 *Agendar consulta directa:*
-https://wa.me/593990070606?text=Quiero%20una%20cita%20con%20Alergolog%C3%ADa%20Dra.%20Daniela%20Hidalgo`;
-
-                            await whatsappService.sendMessage(from, '', { source: 'demo_hcsa_dr1' }, {
-                                type: 'image',
-                                url: 'https://hcsa.ec/wp-content/uploads/2021/08/Dra-Daniela-Hidalgo-HCSA.jpg',
-                                caption: dr1Caption
-                            });
-
-                            // Pausa estética de 2s
-                            await new Promise(resolve => setTimeout(resolve, 2000));
-
-                            // 4. Tarjeta Médico 2 — Dr. Andrés Torres
-                            const dr2Caption = 
-`👨‍⚕️ *Dr. Andrés Torres*
-Especialista en Alergología
-Hospital Clínica San Agustín (HCSA)
-
-📅 *Agendar consulta directa:*
-https://wa.me/593990070606?text=Quiero%20una%20cita%20con%20Alerg%C3%B3logo%20Dr.%20Andr%C3%A9s%20Torres`;
-
-                            await whatsappService.sendMessage(from, dr2Caption);
-
-                            // Pausa estética de 2s
-                            await new Promise(resolve => setTimeout(resolve, 2000));
-
-                            // 5. Demostración de Venta Cruzada — Contacto Digital ActivaQR (.vcf)
-                            const vcardMedia = {
-                                type: 'document' as const,
-                                url: 'https://crm-z2kv.vercel.app/cesar-reyes-jaramillo.vcf',
-                                filename: 'Cesar_Reyes_Jaramillo.vcf'
-                            };
-                            await whatsappService.sendMessage(from, '', { source: 'demo_hcsa_vcard' }, vcardMedia);
-
-                            const vcardExplMsg = 
-`📇 *Innovación de Contacto Digital (ActivaQR):*
-Al tocar el archivo de contacto arriba 👆, todos los datos se guardan automáticamente en la agenda del teléfono del paciente (nombre, celular, clínica y foto) en 1 solo clic, sin escribir nada a mano.`;
-
-                            await whatsappService.sendMessage(from, vcardExplMsg);
-
-                            console.log(`✅ [DEMO_HCSA] Secuencia completa enviada a ${from}`);
+                                for (const card of hcsaThreeCards) {
+                                    await whatsappService.sendInteractiveCtaUrl(from, {
+                                        headerImageUrl: card.imageUrl,
+                                        bodyText: card.bodyText,
+                                        footerText: 'Hospital Clínica San Agustín • ActivaQR',
+                                        buttonText: card.buttonText,
+                                        buttonUrl: card.buttonUrl
+                                    });
+                                    await new Promise(resolve => setTimeout(resolve, 1000));
+                                }
+                            }
                         } catch (err: any) {
-                            console.error('❌ [DEMO_HCSA] Error ejecutando secuencia demo:', err.message);
+                            console.error('❌ [DEMO_HCSA] Error ejecutando secuencia demo 3 cards:', err.message);
                         }
                     })());
 

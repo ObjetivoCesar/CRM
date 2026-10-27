@@ -32,6 +32,21 @@ export interface WhatsAppInteractive {
     footerText?: string;
 }
 
+export interface WhatsAppCarouselCard {
+    imageUrl: string;
+    bodyText: string;   // Regla Meta: Máx 160 chars y máx 2 saltos de línea (\n)
+    buttonText: string; // Regla Meta: Máx 20 chars
+    buttonUrl: string;
+}
+
+export interface WhatsAppCtaUrlOptions {
+    headerImageUrl: string;
+    bodyText: string;
+    footerText?: string;
+    buttonText: string; // Máx 20 chars
+    buttonUrl: string;
+}
+
 export class WhatsAppService {
     private version: string = 'v21.0';
 
@@ -331,6 +346,118 @@ export class WhatsAppService {
         } catch (error: any) {
             return { success: false };
         }
+    }
+
+    /**
+     * Envía Carrusel Interactivo Deslizable Horizontal (Meta Cloud API)
+     */
+    async sendInteractiveCarousel(
+        to: string,
+        mainBodyText: string,
+        cards: WhatsAppCarouselCard[]
+    ): Promise<any> {
+        const { accessToken, phoneNumberId } = this.getCredentials();
+        const token = accessToken || process.env.WHATSAPP_ACCESS_TOKEN || '';
+        const phoneId = phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || '639433412590000';
+
+        if (!token || !phoneId) {
+            throw new Error('Meta credentials missing for sendInteractiveCarousel');
+        }
+
+        const cleanPhone = to.replace(/\D/g, '');
+        const payload = {
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to: cleanPhone,
+            type: 'interactive',
+            interactive: {
+                type: 'carousel',
+                body: {
+                    text: mainBodyText.slice(0, 1024),
+                },
+                action: {
+                    cards: cards.slice(0, 10).map((card, index) => ({
+                        card_index: index,
+                        type: 'cta_url',
+                        header: {
+                            type: 'image',
+                            image: { link: card.imageUrl },
+                        },
+                        body: {
+                            // Sanitización estricta para cumplir límite de Meta (máx 2 saltos de línea y 160 chars)
+                            text: card.bodyText.split('\n').slice(0, 3).join('\n').slice(0, 160),
+                        },
+                        action: {
+                            name: 'cta_url',
+                            parameters: {
+                                display_text: card.buttonText.slice(0, 20),
+                                url: card.buttonUrl,
+                            },
+                        },
+                    })),
+                },
+            },
+        };
+
+        const url = `https://graph.facebook.com/v22.0/${phoneId}/messages`;
+        const response = await axios.post(url, payload, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        return response.data;
+    }
+
+    /**
+     * Fallback de seguridad: Tarjeta Interactiva con Botón Táctil CTA_URL (sin links azules)
+     */
+    async sendInteractiveCtaUrl(
+        to: string,
+        options: WhatsAppCtaUrlOptions
+    ): Promise<any> {
+        const { accessToken, phoneNumberId } = this.getCredentials();
+        const token = accessToken || process.env.WHATSAPP_ACCESS_TOKEN || '';
+        const phoneId = phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || '639433412590000';
+
+        if (!token || !phoneId) {
+            throw new Error('Meta credentials missing for sendInteractiveCtaUrl');
+        }
+
+        const cleanPhone = to.replace(/\D/g, '');
+        const payload = {
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to: cleanPhone,
+            type: 'interactive',
+            interactive: {
+                type: 'cta_url',
+                header: {
+                    type: 'image',
+                    image: { link: options.headerImageUrl },
+                },
+                body: { text: options.bodyText.slice(0, 1024) },
+                ...(options.footerText ? { footer: { text: options.footerText.slice(0, 60) } } : {}),
+                action: {
+                    name: 'cta_url',
+                    parameters: {
+                        display_text: options.buttonText.slice(0, 20),
+                        url: options.buttonUrl,
+                    },
+                },
+            },
+        };
+
+        const url = `https://graph.facebook.com/v22.0/${phoneId}/messages`;
+        const response = await axios.post(url, payload, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        return response.data;
     }
 }
 
