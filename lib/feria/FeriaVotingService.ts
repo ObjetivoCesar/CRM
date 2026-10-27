@@ -24,24 +24,34 @@ export interface VotoParams {
 }
 
 class FeriaVotingService {
-    private pool: mysql.Pool;
+    private pool: mysql.Pool | null = null;
 
-    constructor() {
-        this.pool = mysql.createPool({
-            host: process.env.FERIA_MYSQL_HOST,
-            port: Number(process.env.FERIA_MYSQL_PORT),
-            user: process.env.FERIA_MYSQL_USER,
-            password: process.env.FERIA_MYSQL_PASSWORD,
-            database: process.env.FERIA_MYSQL_DATABASE,
-            waitForConnections: true,
-            connectionLimit: 10,
-            queueLimit: 0
-        });
+    private getPool(): mysql.Pool {
+        if (!this.pool) {
+            const host = process.env.FERIA_MYSQL_HOST || process.env.MYSQL_HOST || 'mysql.us.stackcp.com';
+            const port = Number(process.env.FERIA_MYSQL_PORT || process.env.MYSQL_PORT || 42755);
+            const user = process.env.FERIA_MYSQL_USER || process.env.MYSQL_USER || 'Activaqrbasededatos-35303936889f';
+            const password = process.env.FERIA_MYSQL_PASSWORD || process.env.MYSQL_PASSWORD || 'pwye546gfr';
+            const database = process.env.FERIA_MYSQL_DATABASE || process.env.MYSQL_DATABASE || 'Activaqrbasededatos-35303936889f';
+
+            this.pool = mysql.createPool({
+                host,
+                port,
+                user,
+                password,
+                database,
+                waitForConnections: true,
+                connectionLimit: 10,
+                queueLimit: 0,
+                connectTimeout: 10000
+            });
+        }
+        return this.pool;
     }
 
     async findNegocioById(id: number): Promise<FeriaNegocio | null> {
         try {
-            const [rows] = await this.pool.query<mysql.RowDataPacket[]>(
+            const [rows] = await this.getPool().query<mysql.RowDataPacket[]>(
                 `SELECT id, nombre_negocio, google_reviews_url 
                  FROM feria_negocios 
                  WHERE id = ? 
@@ -62,7 +72,7 @@ class FeriaVotingService {
 
     async findNegocio(nombre: string): Promise<FeriaNegocio | null> {
         try {
-            const [rows] = await this.pool.query<mysql.RowDataPacket[]>(
+            const [rows] = await this.getPool().query<mysql.RowDataPacket[]>(
                 `SELECT id, nombre_negocio, google_reviews_url 
                  FROM feria_negocios 
                  WHERE nombre_negocio LIKE CONCAT('%', ?, '%') 
@@ -84,7 +94,7 @@ class FeriaVotingService {
 
     async getVotosDelTelefono(telefono: string): Promise<{ count: number; negocioIds: number[] }> {
         try {
-            const [rows] = await this.pool.query<mysql.RowDataPacket[]>(
+            const [rows] = await this.getPool().query<mysql.RowDataPacket[]>(
                 `SELECT COUNT(DISTINCT negocio_id) as count, GROUP_CONCAT(DISTINCT negocio_id) as ids 
                  FROM feria_votos 
                  WHERE telefono_votante = ?`,
@@ -136,7 +146,7 @@ class FeriaVotingService {
             // Se hace en secuencia por si el motor no usa InnoDb por defecto en su DB simple, 
             // pero las queries son seguras.
             
-            const connection = await this.pool.getConnection();
+            const connection = await this.getPool().getConnection();
             try {
                 await connection.beginTransaction();
                 

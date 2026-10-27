@@ -1014,6 +1014,148 @@ export async function POST(req: Request) {
                     return NextResponse.json({ status: 'feria_voto_intercepted' });
                 }
 
+                // 3.7. INTERCEPT DEMO CLÍNICA SAN AGUSTÍN (HCSA)
+                const cleanLowerContent = content.toLowerCase().trim();
+                const isSanAgustinDemo = cleanLowerContent.includes('san_agustin_demo') || 
+                                         cleanLowerContent.includes('san-agustin-demo') ||
+                                         cleanLowerContent.includes('san agustin demo');
+
+                if (isSanAgustinDemo) {
+                    console.log(`🏥 [DEMO_HCSA] Intercepted San Agustín Demo request from ${from}`);
+
+                    const messageId = message.id;
+                    if (messageId) {
+                        const { webhookEventsProcessed } = await import('@/lib/db/schema');
+                        const [alreadyProcessed] = await db.select()
+                            .from(webhookEventsProcessed)
+                            .where(and(
+                                eq(webhookEventsProcessed.provider, 'whatsapp'),
+                                eq(webhookEventsProcessed.externalId, `demo_hcsa_${messageId}`)
+                            ))
+                            .limit(1);
+
+                        if (alreadyProcessed) {
+                            console.log(`⚠️ [DEMO_HCSA] Duplicate detected. Skipping. MsgID: ${messageId}`);
+                            return NextResponse.json({ status: 'demo_hcsa_duplicate_ignored' });
+                        }
+
+                        try {
+                            await db.insert(webhookEventsProcessed).values({
+                                provider: 'whatsapp',
+                                externalId: `demo_hcsa_${messageId}`,
+                            });
+                        } catch (idempErr) {
+                            console.log(`⚠️ [DEMO_HCSA] Race condition caught. Skipping duplicate.`);
+                            return NextResponse.json({ status: 'demo_hcsa_race_condition_ignored' });
+                        }
+                    }
+
+                    // Log interaction for CRM
+                    try {
+                        await db.insert(interactions).values({
+                            contactId: contactId,
+                            discoveryLeadId: discoveryLeadId,
+                            type: 'whatsapp',
+                            content: content,
+                            direction: 'inbound',
+                            performedAt: new Date(),
+                            createdAt: new Date(),
+                            metadata: { source: 'demo_san_agustin_trigger' }
+                        });
+                    } catch (e) {
+                        console.warn('⚠️ [DEMO_HCSA] Error logging interaction:', e);
+                    }
+
+                    // Background execution with waitUntil
+                    waitUntil((async () => {
+                        try {
+                            // 1. Pausa de IA por 1 hora
+                            try {
+                                if (contactId) {
+                                    await db.update(contacts).set({ botMode: 'paused' as any }).where(eq(contacts.id, contactId));
+                                }
+                                const pauseUntil = new Date(Date.now() + 60 * 60 * 1000);
+                                await db.insert(donnaChatMessages).values({
+                                    chatId: from,
+                                    role: 'assistant',
+                                    content: '[Sistema] IA pausada por 1 hora por Demo Clínica San Agustín',
+                                    platform: 'whatsapp',
+                                    messageTimestamp: new Date(),
+                                    metadata: { 
+                                        source: 'crm_human_agent', 
+                                        humanPausedUntil: pauseUntil.toISOString() 
+                                    }
+                                });
+                            } catch (pauseErr) {
+                                console.error('❌ [DEMO_HCSA] Error pausando IA:', pauseErr);
+                            }
+
+                            // 2. Mensaje de Cabecera Institucional
+                            const headerMsg = 
+`🏥 *Hospital Clínica San Agustín — Especialidad de Alergología*
+
+Hola, bienvenido al servicio de atención y agendamiento médico en Loja. Ponemos a su disposición a nuestros especialistas de primer nivel:`;
+
+                            await whatsappService.sendMessage(from, headerMsg);
+
+                            // Pausa estética de 1.5s
+                            await new Promise(resolve => setTimeout(resolve, 1500));
+
+                            // 3. Tarjeta Médico 1 — Dra. Daniela Hidalgo
+                            const dr1Caption = 
+`👩‍⚕️ *Dra. Daniela Hidalgo*
+Especialista en Alergología e Inmunología
+Hospital Clínica San Agustín (HCSA)
+
+📅 *Agendar consulta directa:*
+https://wa.me/593990070606?text=Quiero%20una%20cita%20con%20Alergolog%C3%ADa%20Dra.%20Daniela%20Hidalgo`;
+
+                            await whatsappService.sendMessage(from, '', { source: 'demo_hcsa_dr1' }, {
+                                type: 'image',
+                                url: 'https://hcsa.ec/wp-content/uploads/2021/08/Dra-Daniela-Hidalgo-HCSA.jpg',
+                                caption: dr1Caption
+                            });
+
+                            // Pausa estética de 2s
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+
+                            // 4. Tarjeta Médico 2 — Dr. Andrés Torres
+                            const dr2Caption = 
+`👨‍⚕️ *Dr. Andrés Torres*
+Especialista en Alergología
+Hospital Clínica San Agustín (HCSA)
+
+📅 *Agendar consulta directa:*
+https://wa.me/593990070606?text=Quiero%20una%20cita%20con%20Alerg%C3%B3logo%20Dr.%20Andr%C3%A9s%20Torres`;
+
+                            await whatsappService.sendMessage(from, dr2Caption);
+
+                            // Pausa estética de 2s
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+
+                            // 5. Demostración de Venta Cruzada — Contacto Digital ActivaQR (.vcf)
+                            const vcardMedia = {
+                                type: 'document' as const,
+                                url: 'https://crm-z2kv.vercel.app/cesar-reyes-jaramillo.vcf',
+                                filename: 'Cesar_Reyes_Jaramillo.vcf'
+                            };
+                            await whatsappService.sendMessage(from, '', { source: 'demo_hcsa_vcard' }, vcardMedia);
+
+                            const vcardExplMsg = 
+`📇 *Innovación de Contacto Digital (ActivaQR):*
+Al tocar el archivo de contacto arriba 👆, todos los datos se guardan automáticamente en la agenda del teléfono del paciente (nombre, celular, clínica y foto) en 1 solo clic, sin escribir nada a mano.`;
+
+                            await whatsappService.sendMessage(from, vcardExplMsg);
+
+                            console.log(`✅ [DEMO_HCSA] Secuencia completa enviada a ${from}`);
+                        } catch (err: any) {
+                            console.error('❌ [DEMO_HCSA] Error ejecutando secuencia demo:', err.message);
+                        }
+                    })());
+
+                    return NextResponse.json({ status: 'san_agustin_demo_intercepted' });
+                }
+
                 // 4. QUEUE FOR ACCUMULATION (Debouncing)
                 // We no longer save interactions or chat messages here.
                 // The Message Worker will aggregate them every 25s and save a single entry.
